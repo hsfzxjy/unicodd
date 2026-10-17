@@ -84,6 +84,7 @@ export function useUnicodeDiscovery(
   const uts39Version = computed(() => relationshipIndex.value?.uts39Version ?? null);
 
   return {
+    relationshipIndex,
     status,
     error,
     relationships,

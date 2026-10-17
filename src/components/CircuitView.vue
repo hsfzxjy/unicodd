@@ -10,12 +10,14 @@ const props = defineProps<{
   graph: OperationGraph;
   sourceValues: Readonly<Record<string, OperationValue>>;
   error: string | null;
+  title: string;
+  description: string;
 }>();
 
 const nodeWidth = 214;
 const nodeHeight = 102;
 
-function formatValue(value: OperationValue): string {
+function formatValue(value: OperationValue, unit?: string): string {
   switch (value.kind) {
     case 'scalars':
       return value.value.length
@@ -30,7 +32,7 @@ function formatValue(value: OperationValue): string {
         ? Array.from(value.value, (unit) => formatHex(unit, 4)).join(' ')
         : 'Empty code-unit sequence';
     case 'count':
-      return `${value.value} byte${value.value === 1 ? '' : 's'}`;
+      return unit ? `${value.value} ${unit}` : String(value.value);
     case 'boolean':
       return value.value ? 'Yes' : 'No';
   }
@@ -107,7 +109,7 @@ const flow = computed(() => {
       data: {
         label: operation.label,
         type: operation.outputKind,
-        value: output ? formatValue(output) : 'No output',
+        value: output ? formatValue(output, operation.outputUnit) : 'No output',
         result: output?.kind === 'boolean' ? output.value : null,
         step: String(index + 1).padStart(2, '0'),
       },
@@ -136,10 +138,8 @@ const flow = computed(() => {
     <div class="panel-heading graph-heading-row">
       <div>
         <p class="eyebrow">Live operation graph</p>
-        <h2 id="graph-heading">Watch the normalization boundary</h2>
-        <p class="supporting-copy graph-intro">
-          Every node executes on the current inputs. Drag to pan when needed.
-        </p>
+        <h2 id="graph-heading">{{ title }}</h2>
+        <p class="supporting-copy graph-intro">{{ description }} Drag to pan when needed.</p>
       </div>
       <span class="read-only-label">Read only</span>
     </div>

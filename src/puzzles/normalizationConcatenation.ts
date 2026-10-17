@@ -4,6 +4,8 @@ import type { NormalizationPuzzleEvaluation, NormalizeNfc, PuzzleDefinition } fr
 
 export const normalizationConcatenationPuzzle: PuzzleDefinition = {
   id: 'nfc-concatenation-boundary',
+  number: 1,
+  theme: 'Normalization',
   title: 'A seam in the string',
   objective:
     'Find two non-empty strings that are each NFC-normalized, but whose concatenation is not.',
@@ -13,15 +15,20 @@ export const normalizationConcatenationPuzzle: PuzzleDefinition = {
       id: 'left',
       label: 'Input A',
       description: 'The first independently normalized string.',
+      kind: 'text',
       initialValue: '',
     },
     {
       id: 'right',
       label: 'Input B',
       description: 'The second independently normalized string.',
+      kind: 'text',
       initialValue: '',
     },
   ],
+  graphTitle: 'Watch the normalization boundary',
+  graphDescription: 'NFC runs on each input and on their concatenation.',
+  resultLabel: 'Concatenation',
   hints: [
     'Start with é in the explorer and inspect its canonical decomposition.',
     'Try putting the base letter in Input A and the combining mark in Input B.',

@@ -2,11 +2,12 @@
 
 **When text behaves oddly.**
 
-unicodd is a browser-based puzzle game about surprising Unicode behavior. The first playable
-puzzle asks for two NFC strings whose concatenation is not NFC. Its Vue workspace lets players
-start from a familiar character, recursively explore its decomposition, send discovered components
-to puzzle inputs, and inspect each real operation in a read-only graph. Normalization and grapheme
-segmentation run through ICU4X over raw WASM.
+unicodd is a browser-based puzzle game about surprising Unicode behavior. Its eight-puzzle
+collection covers normalization boundaries, UTF encoding lengths, grapheme clusters, case-fold
+collisions, compatibility normalization, visual confusables, invisible format controls, and
+malformed UTF-16. The Vue workspace lets players recursively explore characters, send discoveries
+to puzzle inputs, and inspect every real operation in a read-only graph. Normalization, case folding,
+and grapheme segmentation run through ICU4X over raw WASM.
 
 ## Development
 
@@ -33,8 +34,8 @@ cargo test --workspace
 ```
 
 `npm test` builds the WASM binary first and includes adapter integration tests against the compiled
-artifact. Rust tests also run the official Unicode 17.0.0 normalization and grapheme-break
-conformance corpora. Normalization is checked across all four supported forms.
+artifact. Rust tests also run the official Unicode 17.0.0 normalization, case-folding, and
+grapheme-break conformance data. Normalization is checked across all four supported forms.
 
 ## Architecture
 
@@ -45,8 +46,8 @@ conformance corpora. Normalization is checked across all four supported forms.
 - `src/engine/` defines and executes typed, UI-independent operation graphs.
 - `src/puzzles/` contains declarative puzzle content and independently testable success logic.
 - `src/unicode.ts` contains only version-independent representation utilities.
-- `crates/unicodd-ops-core/` exposes ICU4X normalization and grapheme segmentation plus Unicode
-  names through a C-compatible ABI without `wasm-bindgen`.
+- `crates/unicodd-ops-core/` exposes ICU4X normalization, default full case folding, and grapheme
+  segmentation plus Unicode names through a C-compatible ABI without `wasm-bindgen`.
 - `src/wasm/` owns module loading, ABI validation, memory allocation, typed-array views, and output
   copying.
 - `tools/unicode-indexer/` generates versioned reverse-decomposition, casing, property, name, and

@@ -207,7 +207,7 @@ export class UnicodeRelationshipIndex {
     return Uint32Array.from(output);
   }
 
-  private confusableSkeleton(input: Uint32Array, normalizeNfd: NormalizeNfd): Uint32Array {
+  confusableSkeleton(input: Uint32Array, normalizeNfd: NormalizeNfd): Uint32Array {
     const normalized = normalizeNfd(input);
     const output: number[] = [];
     for (let index = 0; index < normalized.length;) {

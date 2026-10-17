@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, reactive, ref, watch } from 'vue';
 import CharacterExplorer from './components/CharacterExplorer.vue';
 import CircuitView from './components/CircuitView.vue';
 import PuzzleView from './components/PuzzleView.vue';
@@ -8,29 +8,58 @@ import { useCharacterExplorer } from './composables/useCharacterExplorer';
 import { useUnicodeEditor } from './composables/useUnicodeEditor';
 import { useUnicodeDiscovery } from './composables/useUnicodeDiscovery';
 import { useUnicodeEngine } from './composables/useUnicodeEngine';
-import type { OperationValue } from './engine/types';
 import { buildGraphemeRanges, scalarBoundaries, targetForSelection } from './explorer/graphemes';
 import type { ExplorationRelation } from './explorer/history';
 import type { EditorAction, GraphemeRange, TextSelection } from './explorer/types';
-import {
-  createNormalizationPuzzleGraph,
-  evaluateNormalizationPuzzle,
-  normalizationConcatenationPuzzle,
-} from './puzzles/normalizationConcatenation';
-import { displaySequence, unicodeScalarsToString } from './unicode';
+import { puzzleCollection } from './puzzles/collection';
+import { formatUtf16Units, preparePuzzleInput } from './puzzles/input';
+import type { PreparedPuzzleInput, PuzzleOperations } from './puzzles/types';
+import { displaySequence, stringToUtf16CodeUnits, unicodeScalarsToString } from './unicode';
 
 const editor = useUnicodeEditor('é');
-const leftInput = useUnicodeEditor(
-  normalizationConcatenationPuzzle.inputs.find(({ id }) => id === 'left')?.initialValue ?? '',
-);
-const rightInput = useUnicodeEditor(
-  normalizationConcatenationPuzzle.inputs.find(({ id }) => id === 'right')?.initialValue ?? '',
-);
 const engine = useUnicodeEngine();
 const explorer = useCharacterExplorer(engine.adapter);
 const discovery = useUnicodeDiscovery(engine.adapter, explorer.target);
 const discoveryOpen = ref(false);
 const closeDiscoveryButton = ref<HTMLButtonElement | null>(null);
+const selectedPuzzleIndex = ref(0);
+const puzzleDefinitions = puzzleCollection.map(({ definition }) => definition);
+const puzzleValues = reactive(
+  Object.fromEntries(
+    puzzleCollection.map(({ definition }) => [
+      definition.id,
+      Object.fromEntries(definition.inputs.map((input) => [input.id, input.initialValue])),
+    ]),
+  ) as Record<string, Record<string, string>>,
+);
+
+const selectedPuzzle = computed(
+  () => puzzleCollection[selectedPuzzleIndex.value] ?? puzzleCollection[0]!,
+);
+const preparedInputs = computed(() =>
+  selectedPuzzle.value.definition.inputs.map((definition) =>
+    preparePuzzleInput(
+      definition,
+      puzzleValues[selectedPuzzle.value.definition.id]?.[definition.id] ?? '',
+    ),
+  ),
+);
+const preparedInputMap = computed<Readonly<Record<string, PreparedPuzzleInput>>>(() =>
+  Object.fromEntries(preparedInputs.value.map((input) => [input.definition.id, input])),
+);
+const puzzleOperations = computed<PuzzleOperations | null>(() => {
+  const adapter = engine.adapter.value;
+  const index = discovery.relationshipIndex.value;
+  if (!adapter || !index) return null;
+  return {
+    normalize: (form, input) => adapter.normalize(form, input),
+    caseFold: (input) => adapter.caseFold(input),
+    graphemeBoundaries: (input) => adapter.graphemeBoundaries(input),
+    confusableSkeleton: (input) =>
+      index.confusableSkeleton(input, (value) => adapter.normalize('NFD', value)),
+    generalCategory: (scalar) => index.propertiesFor(scalar)?.generalCategory ?? null,
+  };
+});
 
 const graphemeBoundaries = computed(() =>
   engine.adapter.value
@@ -41,24 +70,24 @@ const graphemes = computed(() =>
   buildGraphemeRanges(editor.scalars.value, graphemeBoundaries.value),
 );
 const puzzleEvaluation = computed(() => {
-  const adapter = engine.adapter.value;
-  if (leftInput.validationError.value || rightInput.validationError.value || !adapter) return null;
-  return evaluateNormalizationPuzzle(leftInput.scalars.value, rightInput.scalars.value, (input) =>
-    adapter.normalize('NFC', input),
-  );
+  const operations = puzzleOperations.value;
+  if (!operations || preparedInputs.value.some(({ error }) => error)) return null;
+  return selectedPuzzle.value.evaluate(preparedInputMap.value, operations);
 });
 const puzzleGraph = computed(() => {
-  const adapter = engine.adapter.value;
-  return adapter
-    ? createNormalizationPuzzleGraph((input) => adapter.normalize('NFC', input))
-    : null;
+  const operations = puzzleOperations.value;
+  return operations ? selectedPuzzle.value.createGraph(operations) : null;
 });
-const puzzleSources = computed<Readonly<Record<string, OperationValue>>>(() => ({
-  left: { kind: 'scalars', value: leftInput.scalars.value },
-  right: { kind: 'scalars', value: rightInput.scalars.value },
-}));
+const puzzleSources = computed(() =>
+  preparedInputs.value.some(({ error }) => error)
+    ? {}
+    : selectedPuzzle.value.createSources(preparedInputMap.value),
+);
 const puzzleError = computed(
-  () => leftInput.validationError.value ?? rightInput.validationError.value ?? engine.error.value,
+  () =>
+    preparedInputs.value.find(({ error }) => error)?.error ??
+    engine.error.value ??
+    discovery.error.value,
 );
 
 function inspectSelection(selection: TextSelection): void {
@@ -96,10 +125,23 @@ function insertDiscovered(target: Uint32Array): void {
   editor.applyScalars(target, 'insert');
 }
 
-function useExploredTarget(input: 'left' | 'right'): void {
-  const value = unicodeScalarsToString(explorer.target.value);
-  if (input === 'left') leftInput.text.value = value;
-  else rightInput.text.value = value;
+function updatePuzzleInput(id: string, value: string): void {
+  const values = puzzleValues[selectedPuzzle.value.definition.id];
+  if (values) values[id] = value;
+}
+
+function useExploredTarget(id: string): void {
+  const input = selectedPuzzle.value.definition.inputs.find((candidate) => candidate.id === id);
+  if (!input) return;
+  const value =
+    input.kind === 'utf16-units'
+      ? formatUtf16Units(stringToUtf16CodeUnits(unicodeScalarsToString(explorer.target.value)))
+      : unicodeScalarsToString(explorer.target.value);
+  updatePuzzleInput(id, value);
+}
+
+function selectPuzzle(index: number): void {
+  selectedPuzzleIndex.value = Math.min(Math.max(index, 0), puzzleCollection.length - 1);
 }
 
 async function openDiscovery(): Promise<void> {
@@ -130,25 +172,25 @@ watch(
     <header class="site-header">
       <a class="wordmark" href="#" aria-label="unicodd home">unicodd<span>·</span></a>
       <p>When text behaves oddly.</p>
-      <span class="milestone-label">Puzzle 01 · Milestone 5</span>
+      <span class="milestone-label">
+        Puzzle {{ String(selectedPuzzle.definition.number).padStart(2, '0') }} /
+        {{ puzzleCollection.length }} · Milestone 6
+      </span>
     </header>
 
     <PuzzleView
-      :definition="normalizationConcatenationPuzzle"
-      :left-text="leftInput.text.value"
-      :right-text="rightInput.text.value"
-      :left-scalars="leftInput.scalars.value"
-      :right-scalars="rightInput.scalars.value"
-      :left-error="leftInput.validationError.value"
-      :right-error="rightInput.validationError.value"
+      :definition="selectedPuzzle.definition"
+      :puzzles="puzzleDefinitions"
+      :selected-index="selectedPuzzleIndex"
+      :inputs="preparedInputs"
       :explored-target="explorer.target.value"
       :evaluation="puzzleEvaluation"
       :engine-status="engine.status.value"
       :explorer-open="discoveryOpen"
-      @update:left-text="leftInput.text.value = $event"
-      @update:right-text="rightInput.text.value = $event"
+      @update-input="updatePuzzleInput"
       @use-explored="useExploredTarget"
       @open-explorer="openDiscovery"
+      @select-puzzle="selectPuzzle"
     />
 
     <CircuitView
@@ -156,6 +198,8 @@ watch(
       :graph="puzzleGraph"
       :source-values="puzzleSources"
       :error="puzzleError"
+      :title="selectedPuzzle.definition.graphTitle"
+      :description="selectedPuzzle.definition.graphDescription"
     />
     <section v-else class="panel graph-panel" aria-live="polite">
       Loading the operation graph…

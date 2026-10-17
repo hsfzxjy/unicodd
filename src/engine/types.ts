@@ -12,6 +12,7 @@ export interface OperationNode {
   label: string;
   inputKinds: readonly ValueKind[];
   outputKind: ValueKind;
+  outputUnit?: string;
   execute?: (inputs: readonly OperationValue[]) => OperationValue;
 }
 

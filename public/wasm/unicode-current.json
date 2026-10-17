@@ -1,19 +1,29 @@
 {
   "engineId": "icu4x-2.3",
-  "abiVersion": 1,
+  "abiVersion": 2,
   "binary": "unicodd_ops_core.wasm",
   "dependencies": {
-    "icu_normalizer": "2.3.0"
+    "icu_normalizer": "2.3.0",
+    "icu_segmenter": "2.3.0",
+    "unicode_names2": "4.0.0"
   },
   "operations": {
     "normalization": {
       "forms": ["NFC", "NFD", "NFKC", "NFKD"],
       "unicodeDataVersion": "17.0.0",
       "algorithmRevision": "UAX #15 via ICU4X 2.3.0"
+    },
+    "graphemeSegmentation": {
+      "unicodeDataVersion": "17.0.0",
+      "algorithmRevision": "UAX #29 via ICU4X 2.3.0"
+    },
+    "characterNames": {
+      "unicodeDataVersion": "17.0.0",
+      "source": "unicode_names2 4.0.0"
     }
   },
   "limitations": [
-    "Only Unicode scalar sequence normalization is currently exposed.",
+    "Normalization, extended grapheme segmentation, and assigned character names are exposed.",
     "Historical Unicode engines are not yet available."
   ]
 }

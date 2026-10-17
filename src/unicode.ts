@@ -76,11 +76,83 @@ export function inspectScalar(scalar: number): ScalarInspection {
   return {
     scalar,
     character,
-    display: /\p{Mark}/u.test(character) ? `◌${character}` : character,
+    display: displayScalar(scalar),
     codePoint: formatCodePoint(scalar),
     utf8Bytes: new TextEncoder().encode(character),
     utf16Units: stringToUtf16CodeUnits(character),
   };
+}
+
+const visibleSubstitutes = new Map<number, string>([
+  [0x0000, 'NUL'],
+  [0x0009, '⇥'],
+  [0x000a, '↵'],
+  [0x000d, 'CR'],
+  [0x0020, '␠'],
+  [0x00a0, 'NBSP'],
+  [0x200b, 'ZWSP'],
+  [0x200c, 'ZWNJ'],
+  [0x200d, 'ZWJ'],
+  [0x2060, 'WJ'],
+  [0xfeff, 'BOM'],
+]);
+
+export function displayScalar(scalar: number): string {
+  if (!isUnicodeScalar(scalar)) return '�';
+  const substitute = visibleSubstitutes.get(scalar);
+  if (substitute) return substitute;
+  if (scalar >= 0xfe00 && scalar <= 0xfe0f) return `VS${scalar - 0xfe00 + 1}`;
+  const character = String.fromCodePoint(scalar);
+  if (/\p{Mark}/u.test(character)) return `◌${character}`;
+  if (/\p{Control}/u.test(character)) return formatCodePoint(scalar);
+  return character;
+}
+
+export function displaySequence(scalars: Uint32Array): string {
+  if (scalars.length === 0) return '∅';
+  const text = unicodeScalarsToString(scalars);
+  if (
+    [...text].some((character) =>
+      /[\p{Letter}\p{Number}\p{Symbol}\p{Punctuation}]/u.test(character),
+    )
+  ) {
+    return text;
+  }
+  return Array.from(scalars, displayScalar).join(' ');
+}
+
+export function unicodeScalarArraysEqual(left: Uint32Array, right: Uint32Array): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+export function utf16OffsetAtScalarOffset(scalars: Uint32Array, scalarOffset: number): number {
+  const bounded = Math.min(Math.max(scalarOffset, 0), scalars.length);
+  let codeUnits = 0;
+  for (let index = 0; index < bounded; index += 1) {
+    codeUnits += scalars[index] > 0xffff ? 2 : 1;
+  }
+  return codeUnits;
+}
+
+export function scalarOffsetAtUtf16Boundary(value: string, codeUnitOffset: number): number {
+  const bounded = Math.min(Math.max(codeUnitOffset, 0), value.length);
+  let scalarOffset = 0;
+  let codeUnits = 0;
+
+  while (codeUnits < bounded) {
+    const first = value.charCodeAt(codeUnits);
+    const isPair =
+      first >= 0xd800 &&
+      first <= 0xdbff &&
+      value.charCodeAt(codeUnits + 1) >= 0xdc00 &&
+      value.charCodeAt(codeUnits + 1) <= 0xdfff;
+    const width = isPair ? 2 : 1;
+    if (codeUnits + width > bounded) break;
+    codeUnits += width;
+    scalarOffset += 1;
+  }
+
+  return scalarOffset;
 }
 
 export function scalarIndexAtUtf16Offset(value: string, codeUnitOffset: number): number | null {

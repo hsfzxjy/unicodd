@@ -10,7 +10,7 @@ async function loadAdapter() {
 describe('raw Unicode WebAssembly adapter', () => {
   it('loads the expected ABI without wasm-bindgen', async () => {
     const adapter = await loadAdapter();
-    expect(adapter.abiVersion).toBe(1);
+    expect(adapter.abiVersion).toBe(2);
   });
 
   it('normalizes scalar sequences with ICU4X', async () => {
@@ -34,10 +34,36 @@ describe('raw Unicode WebAssembly adapter', () => {
     );
   });
 
+  it('segments combining, supplementary, emoji ZWJ, regional, and invisible sequences', async () => {
+    const adapter = await loadAdapter();
+
+    expect(adapter.graphemeBoundaries(new Uint32Array())).toEqual(Uint32Array.of(0));
+    expect(adapter.graphemeBoundaries(Uint32Array.from([0x65, 0x301, 0x1f9e9]))).toEqual(
+      Uint32Array.from([0, 2, 3]),
+    );
+    expect(
+      adapter.graphemeBoundaries(
+        Uint32Array.from([0x1f469, 0x200d, 0x1f4bb, 0x1f1fa, 0x1f1f8, 0x200b]),
+      ),
+    ).toEqual(Uint32Array.from([0, 3, 5, 6]));
+  });
+
+  it('returns assigned Unicode names without inventing missing data', async () => {
+    const adapter = await loadAdapter();
+
+    expect(adapter.name(0x1f9e9)).toBe('JIGSAW PUZZLE PIECE');
+    expect(adapter.name(0x200b)).toBe('ZERO WIDTH SPACE');
+    expect(adapter.name(0x378)).toBeNull();
+  });
+
   it('rejects invalid scalar input before crossing the ABI', async () => {
     const adapter = await loadAdapter();
     expect(() => adapter.normalize('NFC', Uint32Array.from([0xd800]))).toThrow(
       /Invalid Unicode scalar value/,
     );
+    expect(() => adapter.graphemeBoundaries(Uint32Array.from([0x110000]))).toThrow(
+      /Invalid Unicode scalar value/,
+    );
+    expect(() => adapter.name(0xd800)).toThrow(/invalid Unicode scalar/);
   });
 });

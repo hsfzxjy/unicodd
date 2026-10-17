@@ -1,11 +1,12 @@
 //! Unicode operations exposed through unicodd's raw C-compatible WebAssembly ABI.
 
 use icu_normalizer::{ComposingNormalizerBorrowed, DecomposingNormalizerBorrowed};
+use icu_segmenter::GraphemeClusterSegmenter;
 use std::alloc::{Layout, alloc_zeroed, dealloc};
 use std::ptr;
 use std::slice;
 
-pub const ABI_VERSION: u32 = 1;
+pub const ABI_VERSION: u32 = 2;
 
 #[repr(u32)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -42,6 +43,7 @@ pub enum AbiStatus {
     LengthOverflow = 6,
     AllocationFailed = 7,
     InternalError = 8,
+    MissingData = 9,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -127,6 +129,29 @@ pub extern "C" fn unicodd_normalize(
     normalize_abi(form, input_ptr, input_len, output_ptr, output_capacity).packed()
 }
 
+/// Finds extended grapheme-cluster boundaries in a Unicode scalar sequence.
+///
+/// The output contains scalar offsets, including zero and the input length. Empty input produces
+/// the single boundary `[0]`. Result packing and capacity queries match `unicodd_normalize`.
+#[unsafe(no_mangle)]
+pub extern "C" fn unicodd_grapheme_boundaries(
+    input_ptr: *const u32,
+    input_len: u32,
+    output_ptr: *mut u32,
+    output_capacity: u32,
+) -> u64 {
+    grapheme_boundaries_abi(input_ptr, input_len, output_ptr, output_capacity).packed()
+}
+
+/// Looks up the Unicode 17 character name for one scalar and writes it as ASCII bytes.
+///
+/// A scalar without an assigned Name property returns `MissingData`. Result packing and capacity
+/// queries match `unicodd_normalize`, with lengths measured in bytes.
+#[unsafe(no_mangle)]
+pub extern "C" fn unicodd_name(scalar: u32, output_ptr: *mut u8, output_capacity: u32) -> u64 {
+    name_abi(scalar, output_ptr, output_capacity).packed()
+}
+
 fn normalize_abi(
     form: u32,
     input_ptr: *const u32,
@@ -138,28 +163,10 @@ fn normalize_abi(
         return AbiResult::error(AbiStatus::InvalidOperation, form);
     };
 
-    if let Err(status) = validate_scalar_range(input_ptr, input_len) {
-        return AbiResult::error(status, 0);
-    }
-    if let Err(status) = validate_scalar_range(output_ptr.cast_const(), output_capacity) {
-        return AbiResult::error(status, 0);
-    }
-
-    let input = if input_len == 0 {
-        &[]
-    } else {
-        // SAFETY: The complete range and alignment were checked above. The ABI contract requires
-        // the caller to keep this allocation alive for the duration of the call.
-        unsafe { slice::from_raw_parts(input_ptr, input_len as usize) }
+    let text = match read_scalar_string(input_ptr, input_len) {
+        Ok(text) => text,
+        Err(result) => return result,
     };
-
-    let mut text = String::with_capacity(input.len());
-    for (index, scalar) in input.iter().copied().enumerate() {
-        let Some(character) = char::from_u32(scalar) else {
-            return AbiResult::error(AbiStatus::InvalidScalar, index as u32);
-        };
-        text.push(character);
-    }
 
     let normalized = match form {
         NormalizationForm::Nfc => ComposingNormalizerBorrowed::new_nfc().normalize(&text),
@@ -167,32 +174,29 @@ fn normalize_abi(
         NormalizationForm::Nfkc => ComposingNormalizerBorrowed::new_nfkc().normalize(&text),
         NormalizationForm::Nfkd => DecomposingNormalizerBorrowed::new_nfkd().normalize(&text),
     };
-    let normalized_len = normalized.chars().count();
-    let Ok(normalized_len) = u32::try_from(normalized_len) else {
-        return AbiResult::error(AbiStatus::LengthOverflow, 0);
-    };
-
-    if output_capacity < normalized_len {
-        return AbiResult::error(AbiStatus::InsufficientCapacity, normalized_len);
-    }
-    if normalized_len == 0 {
-        return AbiResult::success(0);
-    }
-
-    let output = {
-        // SAFETY: The complete range and alignment were checked above, and the capacity is known
-        // to be large enough. Input was fully copied into `text` before output is written, so
-        // overlapping buffers do not invalidate reads.
-        unsafe { slice::from_raw_parts_mut(output_ptr, normalized_len as usize) }
-    };
-    for (destination, character) in output.iter_mut().zip(normalized.chars()) {
-        *destination = character as u32;
-    }
-
-    AbiResult::success(normalized_len)
+    let scalars: Vec<u32> = normalized.chars().map(u32::from).collect();
+    write_u32_output(&scalars, output_ptr, output_capacity)
 }
 
 fn validate_scalar_range(pointer: *const u32, length: u32) -> Result<(), AbiStatus> {
+    validate_range(
+        pointer.cast::<u8>(),
+        length,
+        size_of::<u32>(),
+        align_of::<u32>(),
+    )
+}
+
+fn validate_byte_range(pointer: *const u8, length: u32) -> Result<(), AbiStatus> {
+    validate_range(pointer, length, size_of::<u8>(), align_of::<u8>())
+}
+
+fn validate_range(
+    pointer: *const u8,
+    length: u32,
+    item_size: usize,
+    alignment: usize,
+) -> Result<(), AbiStatus> {
     if length == 0 {
         return Ok(());
     }
@@ -201,10 +205,10 @@ fn validate_scalar_range(pointer: *const u32, length: u32) -> Result<(), AbiStat
     }
 
     let address = pointer as usize;
-    if !address.is_multiple_of(align_of::<u32>()) {
+    if !address.is_multiple_of(alignment) {
         return Err(AbiStatus::MisalignedPointer);
     }
-    let Some(byte_len) = (length as usize).checked_mul(size_of::<u32>()) else {
+    let Some(byte_len) = (length as usize).checked_mul(item_size) else {
         return Err(AbiStatus::LengthOverflow);
     };
     let Some(end) = address.checked_add(byte_len) else {
@@ -229,6 +233,108 @@ fn validate_scalar_range(pointer: *const u32, length: u32) -> Result<(), AbiStat
     Ok(())
 }
 
+fn read_scalar_string(input_ptr: *const u32, input_len: u32) -> Result<String, AbiResult> {
+    if let Err(status) = validate_scalar_range(input_ptr, input_len) {
+        return Err(AbiResult::error(status, 0));
+    }
+
+    let input = if input_len == 0 {
+        &[]
+    } else {
+        // SAFETY: The complete range and alignment were checked above. The ABI contract requires
+        // the caller to keep this allocation alive for the duration of the call.
+        unsafe { slice::from_raw_parts(input_ptr, input_len as usize) }
+    };
+
+    let mut text = String::with_capacity(input.len());
+    for (index, scalar) in input.iter().copied().enumerate() {
+        let Some(character) = char::from_u32(scalar) else {
+            return Err(AbiResult::error(AbiStatus::InvalidScalar, index as u32));
+        };
+        text.push(character);
+    }
+    Ok(text)
+}
+
+fn write_u32_output(values: &[u32], output_ptr: *mut u32, output_capacity: u32) -> AbiResult {
+    if let Err(status) = validate_scalar_range(output_ptr.cast_const(), output_capacity) {
+        return AbiResult::error(status, 0);
+    }
+    let Ok(required) = u32::try_from(values.len()) else {
+        return AbiResult::error(AbiStatus::LengthOverflow, 0);
+    };
+    if output_capacity < required {
+        return AbiResult::error(AbiStatus::InsufficientCapacity, required);
+    }
+    if required == 0 {
+        return AbiResult::success(0);
+    }
+
+    // SAFETY: The complete range and alignment were checked above, and capacity is sufficient.
+    let output = unsafe { slice::from_raw_parts_mut(output_ptr, values.len()) };
+    output.copy_from_slice(values);
+    AbiResult::success(required)
+}
+
+fn write_byte_output(values: &[u8], output_ptr: *mut u8, output_capacity: u32) -> AbiResult {
+    if let Err(status) = validate_byte_range(output_ptr.cast_const(), output_capacity) {
+        return AbiResult::error(status, 0);
+    }
+    let Ok(required) = u32::try_from(values.len()) else {
+        return AbiResult::error(AbiStatus::LengthOverflow, 0);
+    };
+    if output_capacity < required {
+        return AbiResult::error(AbiStatus::InsufficientCapacity, required);
+    }
+    if required == 0 {
+        return AbiResult::success(0);
+    }
+
+    // SAFETY: The complete range was checked above, and capacity is sufficient.
+    let output = unsafe { slice::from_raw_parts_mut(output_ptr, values.len()) };
+    output.copy_from_slice(values);
+    AbiResult::success(required)
+}
+
+fn grapheme_boundaries_abi(
+    input_ptr: *const u32,
+    input_len: u32,
+    output_ptr: *mut u32,
+    output_capacity: u32,
+) -> AbiResult {
+    let text = match read_scalar_string(input_ptr, input_len) {
+        Ok(text) => text,
+        Err(result) => return result,
+    };
+
+    let mut scalar_offset = 0u32;
+    let mut characters = text.char_indices().peekable();
+    let boundaries: Vec<u32> = GraphemeClusterSegmenter::new()
+        .segment_str(&text)
+        .map(|byte_boundary| {
+            while characters
+                .next_if(|(byte_offset, _)| *byte_offset < byte_boundary)
+                .is_some()
+            {
+                scalar_offset += 1;
+            }
+            scalar_offset
+        })
+        .collect();
+
+    write_u32_output(&boundaries, output_ptr, output_capacity)
+}
+
+fn name_abi(scalar: u32, output_ptr: *mut u8, output_capacity: u32) -> AbiResult {
+    let Some(character) = char::from_u32(scalar) else {
+        return AbiResult::error(AbiStatus::InvalidScalar, 0);
+    };
+    let Some(name) = unicode_names2::name(character) else {
+        return AbiResult::error(AbiStatus::MissingData, 0);
+    };
+    write_byte_output(name.to_string().as_bytes(), output_ptr, output_capacity)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -251,6 +357,21 @@ mod tests {
         let mut output = vec![0; required as usize];
         let result = unicodd_normalize(
             form as u32,
+            input.as_ptr(),
+            input.len() as u32,
+            output.as_mut_ptr(),
+            required,
+        );
+        assert_eq!(unpack(result), (AbiStatus::Success as u32, required));
+        output
+    }
+
+    fn call_boundaries(input: &[u32]) -> Vec<u32> {
+        let query =
+            unicodd_grapheme_boundaries(input.as_ptr(), input.len() as u32, ptr::null_mut(), 0);
+        let (_, required) = unpack(query);
+        let mut output = vec![0; required as usize];
+        let result = unicodd_grapheme_boundaries(
             input.as_ptr(),
             input.len() as u32,
             output.as_mut_ptr(),
@@ -341,5 +462,34 @@ mod tests {
             0,
         );
         assert_eq!(unpack(result), (AbiStatus::Success as u32, 0));
+    }
+
+    #[test]
+    fn segments_combining_emoji_regional_and_invisible_sequences() {
+        assert_eq!(call_boundaries(&[]), vec![0]);
+        assert_eq!(call_boundaries(&[0x65, 0x301, 0x1f9e9]), vec![0, 2, 3]);
+        assert_eq!(
+            call_boundaries(&[0x1f469, 0x200d, 0x1f4bb, 0x1f1fa, 0x1f1f8, 0x200b]),
+            vec![0, 3, 5, 6]
+        );
+    }
+
+    #[test]
+    fn returns_unicode_names_and_reports_missing_names() {
+        let query = unicodd_name(0x1f9e9, ptr::null_mut(), 0);
+        let (_, required) = unpack(query);
+        let mut output = vec![0; required as usize];
+        let result = unicodd_name(0x1f9e9, output.as_mut_ptr(), required);
+        assert_eq!(unpack(result), (AbiStatus::Success as u32, required));
+        assert_eq!(String::from_utf8(output).unwrap(), "JIGSAW PUZZLE PIECE");
+
+        assert_eq!(
+            unpack(unicodd_name(0x200b, ptr::null_mut(), 0)),
+            (AbiStatus::InsufficientCapacity as u32, 16)
+        );
+        assert_eq!(
+            unpack(unicodd_name(0x378, ptr::null_mut(), 0)),
+            (AbiStatus::MissingData as u32, 0)
+        );
     }
 }

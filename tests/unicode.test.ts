@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  displayScalar,
   inspectScalar,
+  scalarOffsetAtUtf16Boundary,
   scalarIndexAtUtf16Offset,
   stringToUnicodeScalars,
   stringToUtf16CodeUnits,
@@ -39,5 +41,13 @@ describe('Unicode representations', () => {
     expect(scalarIndexAtUtf16Offset('A🧩B', 1)).toBe(1);
     expect(scalarIndexAtUtf16Offset('A🧩B', 2)).toBe(1);
     expect(scalarIndexAtUtf16Offset('A🧩B', 3)).toBe(2);
+    expect(scalarOffsetAtUtf16Boundary('A🧩B', 2)).toBe(1);
+    expect(scalarOffsetAtUtf16Boundary('A🧩B', 3)).toBe(2);
+  });
+
+  it('gives combining and invisible scalars an explicit visible preview', () => {
+    expect(displayScalar(0x301)).toBe('◌́');
+    expect(displayScalar(0x200b)).toBe('ZWSP');
+    expect(displayScalar(0xfe0f)).toBe('VS16');
   });
 });

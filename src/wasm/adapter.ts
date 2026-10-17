@@ -18,7 +18,10 @@ const statusNames = [
   'length overflow',
   'allocation failed',
   'internal error',
+  'missing Unicode data',
 ] as const;
+
+const utf8Decoder = new TextDecoder();
 
 interface AbiResult {
   status: number;
@@ -53,11 +56,55 @@ export class UnicodeWasmAdapter {
   }
 
   normalize(form: NormalizationForm, input: Uint32Array): Uint32Array {
-    for (const [index, scalar] of input.entries()) {
-      if (!isUnicodeScalar(scalar)) {
-        throw new RangeError(`Invalid Unicode scalar value at scalar offset ${index}.`);
+    return this.runScalarOperation(input, (inputPointer, inputLength, outputPointer, capacity) =>
+      this.exports.unicodd_normalize(
+        formIds[form],
+        inputPointer,
+        inputLength,
+        outputPointer,
+        capacity,
+      ),
+    );
+  }
+
+  graphemeBoundaries(input: Uint32Array): Uint32Array {
+    return this.runScalarOperation(input, (inputPointer, inputLength, outputPointer, capacity) =>
+      this.exports.unicodd_grapheme_boundaries(inputPointer, inputLength, outputPointer, capacity),
+    );
+  }
+
+  name(scalar: number): string | null {
+    if (!isUnicodeScalar(scalar)) throw new RangeError('Cannot name an invalid Unicode scalar.');
+
+    const query = unpackResult(this.exports.unicodd_name(scalar, 0, 0));
+    if (query.status === 9) return null;
+    if (query.status !== 0 && query.status !== 1) throwResult(query);
+    if (query.detail === 0) return '';
+
+    const pointer = this.allocate(query.detail);
+    try {
+      const result = unpackResult(this.exports.unicodd_name(scalar, pointer, query.detail));
+      if (result.status !== 0) throwResult(result);
+      if (result.detail !== query.detail) {
+        throw new Error(`WASM wrote ${result.detail} name bytes after reporting ${query.detail}.`);
       }
+      const bytes = new Uint8Array(this.exports.memory.buffer, pointer, result.detail);
+      return utf8Decoder.decode(bytes);
+    } finally {
+      this.exports.unicodd_dealloc(pointer, query.detail);
     }
+  }
+
+  private runScalarOperation(
+    input: Uint32Array,
+    operation: (
+      inputPointer: number,
+      inputLength: number,
+      outputPointer: number,
+      outputCapacity: number,
+    ) => bigint,
+  ): Uint32Array {
+    assertScalars(input);
 
     const inputByteLength = checkedByteLength(input.length);
     const inputPointer = this.allocate(inputByteLength);
@@ -69,24 +116,14 @@ export class UnicodeWasmAdapter {
         new Uint32Array(this.exports.memory.buffer, inputPointer, input.length).set(input);
       }
 
-      const query = unpackResult(
-        this.exports.unicodd_normalize(formIds[form], inputPointer, input.length, 0, 0),
-      );
+      const query = unpackResult(operation(inputPointer, input.length, 0, 0));
       if (query.status !== 0 && query.status !== 1) throwResult(query);
       const required = query.detail;
       if (required === 0) return new Uint32Array();
 
       outputByteLength = checkedByteLength(required);
       outputPointer = this.allocate(outputByteLength);
-      const result = unpackResult(
-        this.exports.unicodd_normalize(
-          formIds[form],
-          inputPointer,
-          input.length,
-          outputPointer,
-          required,
-        ),
-      );
+      const result = unpackResult(operation(inputPointer, input.length, outputPointer, required));
       if (result.status !== 0) throwResult(result);
       if (result.detail !== required) {
         throw new Error(`WASM wrote ${result.detail} scalars after reporting ${required}.`);
@@ -104,6 +141,14 @@ export class UnicodeWasmAdapter {
     const pointer = this.exports.unicodd_alloc(byteLength);
     if (pointer === 0) throw new WasmOperationError(7, byteLength);
     return pointer;
+  }
+}
+
+function assertScalars(input: Uint32Array): void {
+  for (const [index, scalar] of input.entries()) {
+    if (!isUnicodeScalar(scalar)) {
+      throw new RangeError(`Invalid Unicode scalar value at scalar offset ${index}.`);
+    }
   }
 }
 
@@ -132,6 +177,8 @@ function validateExports(exports: WebAssembly.Exports): UnicodeWasmExports {
     'unicodd_abi_version',
     'unicodd_alloc',
     'unicodd_dealloc',
+    'unicodd_grapheme_boundaries',
+    'unicodd_name',
     'unicodd_normalize',
   ] as const;
 

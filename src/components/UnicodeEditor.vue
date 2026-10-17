@@ -1,26 +1,50 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { formatCodePoint } from '../unicode';
+import { computed, nextTick, ref, watch } from 'vue';
+import { selectionContainsRange } from '../explorer/graphemes';
+import type { GraphemeRange, TextSelection } from '../explorer/types';
+import { displaySequence } from '../unicode';
 
 const props = defineProps<{
   modelValue: string;
   scalars: Uint32Array;
-  selectedScalarIndex: number | null;
+  graphemes: GraphemeRange[];
+  selection: TextSelection;
+  selectionRevision: number;
   error: string | null;
 }>();
 
 const emit = defineEmits<{
   'update:modelValue': [value: string];
-  inspectOffset: [offset: number];
-  inspectScalar: [index: number];
+  selectionChange: [selection: TextSelection];
+  inspectGrapheme: [grapheme: GraphemeRange];
 }>();
 
 const input = ref<HTMLTextAreaElement>();
 const scalarCount = computed(() => props.scalars.length);
+const graphemeCount = computed(() => props.graphemes.length);
 
-function handleInspection(): void {
-  emit('inspectOffset', input.value?.selectionStart ?? 0);
+function reportSelection(): void {
+  const element = input.value;
+  if (!element) return;
+  emit('selectionChange', {
+    start: element.selectionStart,
+    end: element.selectionEnd,
+  });
 }
+
+function handleInput(event: Event): void {
+  emit('update:modelValue', (event.target as HTMLTextAreaElement).value);
+  void nextTick(reportSelection);
+}
+
+watch(
+  () => props.selectionRevision,
+  async () => {
+    await nextTick();
+    input.value?.focus();
+    input.value?.setSelectionRange(props.selection.start, props.selection.end);
+  },
+);
 </script>
 
 <template>
@@ -28,9 +52,13 @@ function handleInspection(): void {
     <div class="panel-heading">
       <div>
         <p class="eyebrow">Constructed string</p>
-        <h2 id="editor-heading">Type something familiar.</h2>
+        <h2 id="editor-heading">Build the text to investigate</h2>
       </div>
-      <span class="count-badge">{{ scalarCount }} scalar{{ scalarCount === 1 ? '' : 's' }}</span>
+      <div class="representation-counts" aria-label="String representation counts">
+        <span>{{ graphemeCount }} grapheme{{ graphemeCount === 1 ? '' : 's' }}</span>
+        <span>{{ scalarCount }} scalar{{ scalarCount === 1 ? '' : 's' }}</span>
+        <span>{{ modelValue.length }} UTF-16 unit{{ modelValue.length === 1 ? '' : 's' }}</span>
+      </div>
     </div>
 
     <label class="visually-hidden" for="unicode-input">Unicode text</label>
@@ -42,30 +70,31 @@ function handleInspection(): void {
       spellcheck="false"
       autocomplete="off"
       aria-describedby="editor-help"
-      @input="emit('update:modelValue', ($event.target as HTMLTextAreaElement).value)"
-      @click="handleInspection"
-      @keyup="handleInspection"
-      @select="handleInspection"
+      @input="handleInput"
+      @click="reportSelection"
+      @keyup="reportSelection"
     />
     <p id="editor-help" class="supporting-copy">
-      Text stays exactly as entered. Select in the field or choose a scalar below to inspect it.
+      Type, paste, or select normally. A selection opens exactly that sequence; a caret opens its
+      grapheme cluster. Text is never normalized automatically.
     </p>
     <p v-if="error" class="error-message" role="alert">{{ error }}</p>
 
-    <div v-if="scalars.length" class="scalar-strip" aria-label="Unicode scalars in the input">
+    <div v-if="graphemes.length" class="grapheme-strip" aria-label="Grapheme clusters in the input">
       <button
-        v-for="(scalar, index) in scalars"
-        :key="`${index}-${scalar}`"
+        v-for="grapheme in graphemes"
+        :key="`${grapheme.index}-${grapheme.scalarStart}-${grapheme.scalarEnd}`"
         type="button"
-        class="scalar-chip"
-        :class="{ selected: selectedScalarIndex === index }"
-        :aria-pressed="selectedScalarIndex === index"
-        @click="emit('inspectScalar', index)"
+        class="grapheme-chip"
+        :class="{ selected: selectionContainsRange(selection, grapheme) }"
+        :aria-pressed="selectionContainsRange(selection, grapheme)"
+        @click="emit('inspectGrapheme', grapheme)"
       >
-        <span class="scalar-glyph">{{ String.fromCodePoint(scalar) }}</span>
-        <span>{{ formatCodePoint(scalar) }}</span>
+        <span class="grapheme-glyph">{{ displaySequence(grapheme.scalars) }}</span>
+        <span>G{{ grapheme.index + 1 }}</span>
+        <span>{{ grapheme.scalars.length }}S</span>
       </button>
     </div>
-    <div v-else class="empty-state">Enter text to reveal its scalar values.</div>
+    <div v-else class="empty-state">Enter text to reveal its grapheme clusters.</div>
   </section>
 </template>

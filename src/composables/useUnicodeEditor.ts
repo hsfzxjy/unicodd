@@ -1,18 +1,23 @@
 import { computed, ref, watch, type Ref } from 'vue';
-import { scalarIndexAtUtf16Offset, stringToUnicodeScalars } from '../unicode';
+import { applyEditorAction } from '../explorer/editing';
+import type { EditorAction, TextSelection } from '../explorer/types';
+import { stringToUnicodeScalars } from '../unicode';
 
 export interface UnicodeEditorState {
   text: Ref<string>;
-  selectedScalarIndex: Ref<number | null>;
   scalars: Readonly<Ref<Uint32Array>>;
   validationError: Readonly<Ref<string | null>>;
-  selectedScalar: Readonly<Ref<number | null>>;
-  inspectAtUtf16Offset: (offset: number) => void;
+  selection: Ref<TextSelection>;
+  selectionRevision: Ref<number>;
+  updateSelection: (selection: TextSelection) => void;
+  selectRange: (selection: TextSelection) => void;
+  applyScalars: (scalars: Uint32Array, action: EditorAction) => void;
 }
 
 export function useUnicodeEditor(initialText: string): UnicodeEditorState {
   const text = ref(initialText);
-  const selectedScalarIndex = ref<number | null>(0);
+  const selection = ref<TextSelection>({ start: 0, end: 0 });
+  const selectionRevision = ref(0);
 
   const scalarResult = computed(() => {
     try {
@@ -27,32 +32,41 @@ export function useUnicodeEditor(initialText: string): UnicodeEditorState {
 
   const scalars = computed(() => scalarResult.value.scalars);
   const validationError = computed(() => scalarResult.value.error);
-  const selectedScalar = computed(() => {
-    const index = selectedScalarIndex.value;
-    return index === null ? null : (scalars.value[index] ?? null);
-  });
 
-  function inspectAtUtf16Offset(offset: number): void {
-    selectedScalarIndex.value = scalarIndexAtUtf16Offset(text.value, offset);
+  function updateSelection(nextSelection: TextSelection): void {
+    selection.value = clampSelection(nextSelection, text.value.length);
   }
 
-  watch(scalars, (nextScalars) => {
-    if (nextScalars.length === 0) {
-      selectedScalarIndex.value = null;
-    } else if (
-      selectedScalarIndex.value === null ||
-      selectedScalarIndex.value >= nextScalars.length
-    ) {
-      selectedScalarIndex.value = 0;
-    }
+  function selectRange(nextSelection: TextSelection): void {
+    updateSelection(nextSelection);
+    selectionRevision.value += 1;
+  }
+
+  function applyScalars(insertedScalars: Uint32Array, action: EditorAction): void {
+    const result = applyEditorAction(text.value, selection.value, insertedScalars, action);
+    text.value = result.text;
+    selectRange(result.selection);
+  }
+
+  watch(text, (nextText) => {
+    selection.value = clampSelection(selection.value, nextText.length);
   });
 
   return {
     text,
-    selectedScalarIndex,
     scalars,
     validationError,
-    selectedScalar,
-    inspectAtUtf16Offset,
+    selection,
+    selectionRevision,
+    updateSelection,
+    selectRange,
+    applyScalars,
+  };
+}
+
+function clampSelection(selection: TextSelection, textLength: number): TextSelection {
+  return {
+    start: Math.min(Math.max(selection.start, 0), textLength),
+    end: Math.min(Math.max(selection.end, 0), textLength),
   };
 }

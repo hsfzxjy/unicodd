@@ -1,4 +1,4 @@
-export const UNICODE_ABI_VERSION = 2;
+export const UNICODE_ABI_VERSION = 3;
 
 export const normalizationForms = ['NFC', 'NFD', 'NFKC', 'NFKD'] as const;
 export type NormalizationForm = (typeof normalizationForms)[number];
@@ -17,6 +17,12 @@ export interface UnicodeWasmExports extends WebAssembly.Exports {
   unicodd_abi_version: () => number;
   unicodd_alloc: (byteLength: number) => number;
   unicodd_dealloc: (pointer: number, byteLength: number) => void;
+  unicodd_case_fold: (
+    inputPointer: number,
+    inputLength: number,
+    outputPointer: number,
+    outputCapacity: number,
+  ) => bigint;
   unicodd_grapheme_boundaries: (
     inputPointer: number,
     inputLength: number,

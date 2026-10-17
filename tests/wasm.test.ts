@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
+import { stringToUnicodeScalars } from '../src/unicode';
 import { instantiateUnicodeEngine } from '../src/wasm/loader';
 
 async function loadAdapter() {
@@ -10,7 +11,7 @@ async function loadAdapter() {
 describe('raw Unicode WebAssembly adapter', () => {
   it('loads the expected ABI without wasm-bindgen', async () => {
     const adapter = await loadAdapter();
-    expect(adapter.abiVersion).toBe(2);
+    expect(adapter.abiVersion).toBe(3);
   });
 
   it('normalizes scalar sequences with ICU4X', async () => {
@@ -31,6 +32,13 @@ describe('raw Unicode WebAssembly adapter', () => {
     expect(adapter.normalize('NFC', new Uint32Array())).toEqual(new Uint32Array());
     expect(adapter.normalize('NFC', Uint32Array.from([0x1f9e9]))).toEqual(
       Uint32Array.from([0x1f9e9]),
+    );
+  });
+
+  it('applies full default Unicode case folding', async () => {
+    const adapter = await loadAdapter();
+    expect(adapter.caseFold(stringToUnicodeScalars('Straße Σς'))).toEqual(
+      stringToUnicodeScalars('strasse σσ'),
     );
   });
 

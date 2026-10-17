@@ -1,13 +1,20 @@
 {
   "engineId": "icu4x-2.3",
-  "abiVersion": 2,
+  "abiVersion": 3,
   "binary": "unicodd_ops_core.wasm",
   "dependencies": {
+    "icu_casemap": "2.3.0",
     "icu_normalizer": "2.3.0",
     "icu_segmenter": "2.3.0",
     "unicode_names2": "4.0.0"
   },
   "operations": {
+    "caseFolding": {
+      "kind": "default full folding",
+      "unicodeDataVersion": "17.0.0",
+      "algorithmRevision": "Unicode Default Case Conversion via ICU4X 2.3.0",
+      "turkicMappings": false
+    },
     "normalization": {
       "forms": ["NFC", "NFD", "NFKC", "NFKD"],
       "unicodeDataVersion": "17.0.0",
@@ -23,7 +30,7 @@
     }
   },
   "limitations": [
-    "Normalization, extended grapheme segmentation, and assigned character names are exposed.",
+    "Normalization, default full case folding, extended grapheme segmentation, and assigned character names are exposed.",
     "Historical Unicode engines are not yet available."
   ]
 }

@@ -1,12 +1,13 @@
 //! Unicode operations exposed through unicodd's raw C-compatible WebAssembly ABI.
 
+use icu_casemap::CaseMapper;
 use icu_normalizer::{ComposingNormalizerBorrowed, DecomposingNormalizerBorrowed};
 use icu_segmenter::GraphemeClusterSegmenter;
 use std::alloc::{Layout, alloc_zeroed, dealloc};
 use std::ptr;
 use std::slice;
 
-pub const ABI_VERSION: u32 = 2;
+pub const ABI_VERSION: u32 = 3;
 
 #[repr(u32)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -129,6 +130,20 @@ pub extern "C" fn unicodd_normalize(
     normalize_abi(form, input_ptr, input_len, output_ptr, output_capacity).packed()
 }
 
+/// Applies the default full Unicode case-fold mapping to a scalar sequence.
+///
+/// Turkic-special mappings are not enabled. Result packing and capacity queries match
+/// `unicodd_normalize`.
+#[unsafe(no_mangle)]
+pub extern "C" fn unicodd_case_fold(
+    input_ptr: *const u32,
+    input_len: u32,
+    output_ptr: *mut u32,
+    output_capacity: u32,
+) -> u64 {
+    case_fold_abi(input_ptr, input_len, output_ptr, output_capacity).packed()
+}
+
 /// Finds extended grapheme-cluster boundaries in a Unicode scalar sequence.
 ///
 /// The output contains scalar offsets, including zero and the input length. Empty input produces
@@ -175,6 +190,21 @@ fn normalize_abi(
         NormalizationForm::Nfkd => DecomposingNormalizerBorrowed::new_nfkd().normalize(&text),
     };
     let scalars: Vec<u32> = normalized.chars().map(u32::from).collect();
+    write_u32_output(&scalars, output_ptr, output_capacity)
+}
+
+fn case_fold_abi(
+    input_ptr: *const u32,
+    input_len: u32,
+    output_ptr: *mut u32,
+    output_capacity: u32,
+) -> AbiResult {
+    let text = match read_scalar_string(input_ptr, input_len) {
+        Ok(text) => text,
+        Err(result) => return result,
+    };
+    let folded = CaseMapper::new().fold_string(&text);
+    let scalars: Vec<u32> = folded.chars().map(u32::from).collect();
     write_u32_output(&scalars, output_ptr, output_capacity)
 }
 
@@ -381,6 +411,20 @@ mod tests {
         output
     }
 
+    fn call_case_fold(input: &[u32]) -> Vec<u32> {
+        let query = unicodd_case_fold(input.as_ptr(), input.len() as u32, ptr::null_mut(), 0);
+        let (_, required) = unpack(query);
+        let mut output = vec![0; required as usize];
+        let result = unicodd_case_fold(
+            input.as_ptr(),
+            input.len() as u32,
+            output.as_mut_ptr(),
+            required,
+        );
+        assert_eq!(unpack(result), (AbiStatus::Success as u32, required));
+        output
+    }
+
     #[test]
     fn reports_the_abi_version() {
         assert_eq!(unicodd_abi_version(), ABI_VERSION);
@@ -405,6 +449,13 @@ mod tests {
             call_normalize(NormalizationForm::Nfkd, &[0x2460]),
             vec![0x31]
         );
+    }
+
+    #[test]
+    fn applies_full_default_case_folding() {
+        let input: Vec<u32> = "Straße Σς".chars().map(u32::from).collect();
+        let expected: Vec<u32> = "strasse σσ".chars().map(u32::from).collect();
+        assert_eq!(call_case_fold(&input), expected);
     }
 
     #[test]

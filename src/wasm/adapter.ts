@@ -67,6 +67,12 @@ export class UnicodeWasmAdapter {
     );
   }
 
+  caseFold(input: Uint32Array): Uint32Array {
+    return this.runScalarOperation(input, (inputPointer, inputLength, outputPointer, capacity) =>
+      this.exports.unicodd_case_fold(inputPointer, inputLength, outputPointer, capacity),
+    );
+  }
+
   graphemeBoundaries(input: Uint32Array): Uint32Array {
     return this.runScalarOperation(input, (inputPointer, inputLength, outputPointer, capacity) =>
       this.exports.unicodd_grapheme_boundaries(inputPointer, inputLength, outputPointer, capacity),
@@ -176,6 +182,7 @@ function validateExports(exports: WebAssembly.Exports): UnicodeWasmExports {
   const functionNames = [
     'unicodd_abi_version',
     'unicodd_alloc',
+    'unicodd_case_fold',
     'unicodd_dealloc',
     'unicodd_grapheme_boundaries',
     'unicodd_name',

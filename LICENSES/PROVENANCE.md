@@ -37,5 +37,6 @@ The following Unicode 17.0.0 source files are retained verbatim under
 - Retrieved: 2026-10-17.
 - Terms: <https://www.unicode.org/terms_of_use.html>.
 
+`CaseFolding.txt` also verifies the default full case-fold operation exposed by the WASM engine.
 The generated JSON files are build artifacts and are not tracked. Character names in the generated
 search index come from the pinned `unicode_names2` 4.0.0 dependency, including algorithmic names.

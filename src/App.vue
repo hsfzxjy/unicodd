@@ -30,7 +30,7 @@ const engine = useUnicodeEngine();
 const explorer = useCharacterExplorer(engine.adapter);
 const discovery = useUnicodeDiscovery(engine.adapter, explorer.target);
 const discoveryOpen = ref(false);
-const discoverySection = ref<HTMLElement | null>(null);
+const closeDiscoveryButton = ref<HTMLButtonElement | null>(null);
 
 const graphemeBoundaries = computed(() =>
   engine.adapter.value
@@ -105,7 +105,13 @@ function useExploredTarget(input: 'left' | 'right'): void {
 async function openDiscovery(): Promise<void> {
   discoveryOpen.value = true;
   await nextTick();
-  discoverySection.value?.scrollIntoView({ block: 'start' });
+  closeDiscoveryButton.value?.focus();
+}
+
+async function closeDiscovery(): Promise<void> {
+  discoveryOpen.value = false;
+  await nextTick();
+  document.getElementById('open-character-lab')?.focus();
 }
 
 watch(
@@ -120,7 +126,7 @@ watch(
 </script>
 
 <template>
-  <main>
+  <main :inert="discoveryOpen">
     <header class="site-header">
       <a class="wordmark" href="#" aria-label="unicodd home">unicodd<span>·</span></a>
       <p>When text behaves oddly.</p>
@@ -138,6 +144,7 @@ watch(
       :explored-target="explorer.target.value"
       :evaluation="puzzleEvaluation"
       :engine-status="engine.status.value"
+      :explorer-open="discoveryOpen"
       @update:left-text="leftInput.text.value = $event"
       @update:right-text="rightInput.text.value = $event"
       @use-explored="useExploredTarget"
@@ -153,78 +160,80 @@ watch(
     <section v-else class="panel graph-panel" aria-live="polite">
       Loading the operation graph…
     </section>
-
-    <section ref="discoverySection" class="discovery-shelf" aria-labelledby="discovery-heading">
-      <div class="discovery-toolbar">
-        <div>
-          <p class="eyebrow">Character lab</p>
-          <h2 id="discovery-heading">Discover before you construct</h2>
-          <p>
-            Inspect decomposition and relatives without changing the puzzle inputs until you choose.
-          </p>
-        </div>
-        <div class="discovery-toolbar-actions">
-          <span class="discovery-target" aria-label="Current explorer target">
-            {{ displaySequence(explorer.target.value) }}
-          </span>
-          <button
-            type="button"
-            :aria-expanded="discoveryOpen"
-            aria-controls="discovery-workspace"
-            @click="discoveryOpen = !discoveryOpen"
-          >
-            {{ discoveryOpen ? 'Hide character lab' : 'Open character lab' }}
-          </button>
-        </div>
-      </div>
-
-      <div
-        v-show="discoveryOpen"
-        id="discovery-workspace"
-        class="workspace"
-        aria-label="Unicode editor and character explorer"
-      >
-        <UnicodeEditor
-          v-model="editor.text.value"
-          :scalars="editor.scalars.value"
-          :graphemes="graphemes"
-          :selection="editor.selection.value"
-          :selection-revision="editor.selectionRevision.value"
-          :error="editor.validationError.value"
-          @selection-change="inspectSelection"
-          @inspect-grapheme="inspectGrapheme"
-        />
-        <CharacterExplorer
-          :target="explorer.target.value"
-          :canonical="explorer.canonical.value"
-          :compatibility="explorer.compatibility.value"
-          :names="explorer.names.value"
-          :grapheme-count="explorer.graphemeCount.value"
-          :status="engine.status.value"
-          :engine-id="engine.engineId.value"
-          :error="engine.error.value"
-          :history="explorer.history.value"
-          :properties="discovery.properties.value"
-          :relationship-groups="discovery.relationships.value"
-          :discovery-status="discovery.status.value"
-          :discovery-error="discovery.error.value"
-          :discovery-unicode-version="discovery.unicodeVersion.value"
-          :discovery-uts39-version="discovery.uts39Version.value"
-          :search-results="discovery.searchResults.value"
-          :search-status="discovery.searchStatus.value"
-          :search-error="discovery.searchError.value"
-          @explore="exploreRelated"
-          @edit="editWithTarget"
-          @activate-history="explorer.activate"
-          @search="discovery.search"
-          @insert-discovered="insertDiscovered"
-        />
-      </div>
-    </section>
-
-    <footer>
-      <p>Unicode shown without guesswork.</p>
-      <p>Milestone 5 · Character discovery</p>
-    </footer>
   </main>
+
+  <Teleport to="body">
+    <div
+      v-show="discoveryOpen"
+      class="discovery-backdrop"
+      @click.self="closeDiscovery"
+      @keydown.esc="closeDiscovery"
+    >
+      <section
+        id="discovery-workspace"
+        class="discovery-overlay"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="discovery-heading"
+      >
+        <div class="discovery-toolbar">
+          <div>
+            <p class="eyebrow">Character lab</p>
+            <h2 id="discovery-heading">Discover before you construct</h2>
+            <p>
+              Inspect decomposition and relatives. The puzzle changes only when you explicitly use a
+              discovered sequence.
+            </p>
+          </div>
+          <div class="discovery-toolbar-actions">
+            <span class="discovery-target" aria-label="Current explorer target">
+              {{ displaySequence(explorer.target.value) }}
+            </span>
+            <button ref="closeDiscoveryButton" type="button" @click="closeDiscovery">
+              Close lab
+            </button>
+          </div>
+        </div>
+
+        <div class="workspace" aria-label="Unicode editor and character explorer">
+          <UnicodeEditor
+            v-model="editor.text.value"
+            :scalars="editor.scalars.value"
+            :graphemes="graphemes"
+            :selection="editor.selection.value"
+            :selection-revision="editor.selectionRevision.value"
+            :error="editor.validationError.value"
+            @selection-change="inspectSelection"
+            @inspect-grapheme="inspectGrapheme"
+          />
+          <CharacterExplorer
+            :target="explorer.target.value"
+            :canonical="explorer.canonical.value"
+            :compatibility="explorer.compatibility.value"
+            :names="explorer.names.value"
+            :grapheme-count="explorer.graphemeCount.value"
+            :status="engine.status.value"
+            :engine-id="engine.engineId.value"
+            :error="engine.error.value"
+            :history="explorer.history.value"
+            :history-visible="discoveryOpen"
+            :properties="discovery.properties.value"
+            :relationship-groups="discovery.relationships.value"
+            :discovery-status="discovery.status.value"
+            :discovery-error="discovery.error.value"
+            :discovery-unicode-version="discovery.unicodeVersion.value"
+            :discovery-uts39-version="discovery.uts39Version.value"
+            :search-results="discovery.searchResults.value"
+            :search-status="discovery.searchStatus.value"
+            :search-error="discovery.searchError.value"
+            @explore="exploreRelated"
+            @edit="editWithTarget"
+            @activate-history="explorer.activate"
+            @search="discovery.search"
+            @insert-discovered="insertDiscovered"
+          />
+        </div>
+      </section>
+    </div>
+  </Teleport>
 </template>

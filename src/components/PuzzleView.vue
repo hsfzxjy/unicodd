@@ -15,6 +15,7 @@ const props = defineProps<{
   exploredTarget: Uint32Array;
   evaluation: NormalizationPuzzleEvaluation | null;
   engineStatus: EngineStatus;
+  explorerOpen: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -48,7 +49,15 @@ function revealHint(): void {
       <p class="puzzle-objective">{{ definition.objective }}</p>
       <div class="puzzle-tools">
         <span class="profile-label">{{ definition.defaultUnicodeProfile }}</span>
-        <button type="button" @click="emit('openExplorer')">Open character lab</button>
+        <button
+          id="open-character-lab"
+          type="button"
+          :aria-expanded="explorerOpen"
+          aria-controls="discovery-workspace"
+          @click="emit('openExplorer')"
+        >
+          Character lab
+        </button>
       </div>
     </div>
 
@@ -78,7 +87,7 @@ function revealHint(): void {
             :disabled="exploredTarget.length === 0"
             @click="emit('useExplored', 'left')"
           >
-            Use explored sequence
+            Use explored
           </button>
         </div>
         <p v-if="leftError" id="puzzle-left-error" class="error-message" role="alert">
@@ -115,7 +124,7 @@ function revealHint(): void {
             :disabled="exploredTarget.length === 0"
             @click="emit('useExplored', 'right')"
           >
-            Use explored sequence
+            Use explored
           </button>
         </div>
         <p v-if="rightError" id="puzzle-right-error" class="error-message" role="alert">

@@ -36,6 +36,7 @@ const props = defineProps<{
   engineId: string | null;
   error: string | null;
   history: ExplorerHistory;
+  historyVisible: boolean;
   properties: Array<CharacterProperties | null>;
   relationshipGroups: RelationshipGroup[];
   discoveryStatus: DiscoveryStatus;
@@ -123,7 +124,11 @@ function exploreScalar(scalar: number, relation: ExplorationRelation): void {
         <button type="button" @click="emit('edit', 'append')">Append</button>
       </div>
 
-      <ExplorerHistoryGraph :history="history" @activate="emit('activateHistory', $event)" />
+      <ExplorerHistoryGraph
+        v-if="historyVisible"
+        :history="history"
+        @activate="emit('activateHistory', $event)"
+      />
 
       <section class="explorer-section" aria-labelledby="scalar-details-heading">
         <div class="section-heading">

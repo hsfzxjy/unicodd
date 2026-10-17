@@ -137,13 +137,12 @@ const flow = computed(() => {
       <div>
         <p class="eyebrow">Live operation graph</p>
         <h2 id="graph-heading">Watch the normalization boundary</h2>
+        <p class="supporting-copy graph-intro">
+          Every node executes on the current inputs. Drag to pan when needed.
+        </p>
       </div>
       <span class="read-only-label">Read only</span>
     </div>
-    <p class="supporting-copy graph-intro">
-      Every node executes on the current puzzle inputs. Positions are presentation only; drag to pan
-      when needed.
-    </p>
 
     <div v-if="error" class="graph-error" role="status">Graph paused: {{ error }}</div>
     <div v-else class="flow-shell">

@@ -4,15 +4,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "predev": "npm run build:wasm",
+    "predev": "npm run build:assets",
     "dev": "vite",
+    "build:assets": "npm run build:wasm && npm run build:unicode-index",
     "build:wasm": "node tools/build-wasm.mjs",
-    "prebuild": "npm run build:wasm",
+    "build:unicode-index": "node tools/build-unicode-index.mjs",
+    "prebuild": "npm run build:assets",
     "build": "vue-tsc -b && vite build",
     "typecheck": "vue-tsc -b",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "pretest": "npm run build:wasm",
+    "pretest": "npm run build:assets",
     "test": "vitest run"
   },
   "dependencies": {

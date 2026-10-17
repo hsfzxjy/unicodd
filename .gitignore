@@ -7,3 +7,5 @@ target/
 .env.*.local
 .vite/
 *.wasm
+public/unicode-indexes/names-*.json
+public/unicode-indexes/relationships-*.json

@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/unicodd-ops-core"]
+members = ["crates/unicodd-ops-core", "tools/unicode-indexer"]
 resolver = "3"
 
 [profile.release]

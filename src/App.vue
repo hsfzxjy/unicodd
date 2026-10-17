@@ -2,14 +2,28 @@
 import { computed, watch } from 'vue';
 import CharacterExplorer from './components/CharacterExplorer.vue';
 import CircuitView from './components/CircuitView.vue';
+import PuzzleView from './components/PuzzleView.vue';
 import UnicodeEditor from './components/UnicodeEditor.vue';
 import { useCharacterExplorer } from './composables/useCharacterExplorer';
 import { useUnicodeEditor } from './composables/useUnicodeEditor';
 import { useUnicodeEngine } from './composables/useUnicodeEngine';
+import type { OperationValue } from './engine/types';
 import { buildGraphemeRanges, scalarBoundaries, targetForSelection } from './explorer/graphemes';
 import type { EditorAction, GraphemeRange, TextSelection } from './explorer/types';
+import {
+  createNormalizationPuzzleGraph,
+  evaluateNormalizationPuzzle,
+  normalizationConcatenationPuzzle,
+} from './puzzles/normalizationConcatenation';
+import { unicodeScalarsToString } from './unicode';
 
-const editor = useUnicodeEditor('Café ☕️');
+const editor = useUnicodeEditor('é');
+const leftInput = useUnicodeEditor(
+  normalizationConcatenationPuzzle.inputs.find(({ id }) => id === 'left')?.initialValue ?? '',
+);
+const rightInput = useUnicodeEditor(
+  normalizationConcatenationPuzzle.inputs.find(({ id }) => id === 'right')?.initialValue ?? '',
+);
 const engine = useUnicodeEngine();
 const explorer = useCharacterExplorer(engine.adapter);
 
@@ -20,6 +34,26 @@ const graphemeBoundaries = computed(() =>
 );
 const graphemes = computed(() =>
   buildGraphemeRanges(editor.scalars.value, graphemeBoundaries.value),
+);
+const puzzleEvaluation = computed(() => {
+  const adapter = engine.adapter.value;
+  if (leftInput.validationError.value || rightInput.validationError.value || !adapter) return null;
+  return evaluateNormalizationPuzzle(leftInput.scalars.value, rightInput.scalars.value, (input) =>
+    adapter.normalize('NFC', input),
+  );
+});
+const puzzleGraph = computed(() => {
+  const adapter = engine.adapter.value;
+  return adapter
+    ? createNormalizationPuzzleGraph((input) => adapter.normalize('NFC', input))
+    : null;
+});
+const puzzleSources = computed<Readonly<Record<string, OperationValue>>>(() => ({
+  left: { kind: 'scalars', value: leftInput.scalars.value },
+  right: { kind: 'scalars', value: rightInput.scalars.value },
+}));
+const puzzleError = computed(
+  () => leftInput.validationError.value ?? rightInput.validationError.value ?? engine.error.value,
 );
 
 function inspectSelection(selection: TextSelection): void {
@@ -33,8 +67,8 @@ function inspectSelection(selection: TextSelection): void {
     );
     if (target) explorer.explore(target);
   } catch {
-    // Browser selections can bisect a surrogate pair. Keep the editor selection, but do not
-    // replace the valid explorer target with a malformed UTF-16 fragment.
+    // Browser selections can bisect a surrogate pair. Preserve that editor selection without
+    // replacing the valid explorer target with malformed UTF-16.
   }
 }
 
@@ -45,6 +79,12 @@ function inspectGrapheme(grapheme: GraphemeRange): void {
 
 function editWithTarget(action: EditorAction): void {
   editor.applyScalars(explorer.target.value, action);
+}
+
+function useExploredTarget(input: 'left' | 'right'): void {
+  const value = unicodeScalarsToString(explorer.target.value);
+  if (input === 'left') leftInput.text.value = value;
+  else rightInput.text.value = value;
 }
 
 watch(
@@ -63,19 +103,29 @@ watch(
     <header class="site-header">
       <a class="wordmark" href="#" aria-label="unicodd home">unicodd<span>·</span></a>
       <p>When text behaves oddly.</p>
-      <span class="milestone-label">Character explorer / 03</span>
+      <span class="milestone-label">Puzzle 01 · Milestone 4</span>
     </header>
 
-    <section class="objective" aria-labelledby="page-title">
-      <p class="eyebrow">Workspace objective</p>
-      <div>
-        <h1 id="page-title">Take a familiar character apart.</h1>
-        <p>
-          Select a grapheme, inspect its scalar representations, and follow canonical or
-          compatibility decomposition without changing the string until you choose an edit.
-        </p>
-      </div>
-    </section>
+    <PuzzleView
+      :definition="normalizationConcatenationPuzzle"
+      :left-text="leftInput.text.value"
+      :right-text="rightInput.text.value"
+      :left-scalars="leftInput.scalars.value"
+      :right-scalars="rightInput.scalars.value"
+      :left-error="leftInput.validationError.value"
+      :right-error="rightInput.validationError.value"
+      :explored-target="explorer.target.value"
+      :evaluation="puzzleEvaluation"
+      :engine-status="engine.status.value"
+      @update:left-text="leftInput.text.value = $event"
+      @update:right-text="rightInput.text.value = $event"
+      @use-explored="useExploredTarget"
+    />
+
+    <div class="workspace-label">
+      <p class="eyebrow">Discovery workspace</p>
+      <p>Start from é, inspect its decomposition, then send each component to a puzzle input.</p>
+    </div>
 
     <section class="workspace" aria-label="Unicode editor and character explorer">
       <UnicodeEditor
@@ -108,11 +158,19 @@ watch(
       />
     </section>
 
-    <CircuitView :scalars="editor.scalars.value" :error="editor.validationError.value" />
+    <CircuitView
+      v-if="puzzleGraph"
+      :graph="puzzleGraph"
+      :source-values="puzzleSources"
+      :error="puzzleError"
+    />
+    <section v-else class="panel graph-panel" aria-live="polite">
+      Loading the operation graph…
+    </section>
 
     <footer>
       <p>Unicode shown without guesswork.</p>
-      <p>Milestone 3 · ICU4X exploration</p>
+      <p>Milestone 4 · First playable puzzle</p>
     </footer>
   </main>
 </template>

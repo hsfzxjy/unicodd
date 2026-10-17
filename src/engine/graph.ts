@@ -6,15 +6,15 @@ export const textMetricsGraph: OperationGraph = {
     {
       id: 'input',
       label: 'Input text',
-      inputKind: null,
+      inputKinds: [],
       outputKind: 'scalars',
     },
     {
       id: 'utf8',
       label: 'UTF-8 encode',
-      inputKind: 'scalars',
+      inputKinds: ['scalars'],
       outputKind: 'bytes',
-      execute: (input): OperationValue => {
+      execute: ([input]): OperationValue => {
         if (input.kind !== 'scalars') throw new TypeError('UTF-8 encode requires scalars.');
         return { kind: 'bytes', value: utf8EncodeScalars(input.value) };
       },
@@ -22,9 +22,9 @@ export const textMetricsGraph: OperationGraph = {
     {
       id: 'length',
       label: 'Byte length',
-      inputKind: 'bytes',
+      inputKinds: ['bytes'],
       outputKind: 'count',
-      execute: (input): OperationValue => {
+      execute: ([input]): OperationValue => {
         if (input.kind !== 'bytes') throw new TypeError('Byte length requires raw bytes.');
         return { kind: 'count', value: input.value.length };
       },

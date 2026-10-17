@@ -2,10 +2,11 @@
 
 **When text behaves oddly.**
 
-unicodd is a browser-based puzzle game about surprising Unicode behavior. The current foundation
-provides a Vue workspace for entering Unicode text, selecting grapheme clusters, recursively
-exploring scalar values and decompositions, and following an executable representation pipeline.
-Normalization and grapheme segmentation run through ICU4X over raw WASM.
+unicodd is a browser-based puzzle game about surprising Unicode behavior. The first playable
+puzzle asks for two NFC strings whose concatenation is not NFC. Its Vue workspace lets players
+start from a familiar character, recursively explore its decomposition, send discovered components
+to puzzle inputs, and inspect each real operation in a read-only graph. Normalization and grapheme
+segmentation run through ICU4X over raw WASM.
 
 ## Development
 
@@ -39,6 +40,7 @@ conformance corpora. Normalization is checked across all four supported forms.
 - `src/composables/` owns editor, explorer, history, and engine state.
 - `src/explorer/` contains framework-light grapheme mapping, explicit edit, and history behavior.
 - `src/engine/` defines and executes typed, UI-independent operation graphs.
+- `src/puzzles/` contains declarative puzzle content and independently testable success logic.
 - `src/unicode.ts` contains only version-independent representation utilities.
 - `crates/unicodd-ops-core/` exposes ICU4X normalization and grapheme segmentation plus Unicode
   names through a C-compatible ABI without `wasm-bindgen`.

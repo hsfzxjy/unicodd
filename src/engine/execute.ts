@@ -29,21 +29,27 @@ export function executeGraph(
     if (!node) throw new Error(`Unknown node ${nodeId}.`);
 
     let output: OperationValue;
-    if (node.inputKind === null) {
+    if (node.inputKinds.length === 0) {
       const sourceValue = sourceValues[node.id];
       if (!sourceValue) throw new Error(`Missing value for source node ${node.id}.`);
       output = sourceValue;
     } else {
       const dependencies = incoming.get(node.id) ?? [];
-      if (dependencies.length !== 1) {
-        throw new Error(`Node ${node.id} requires exactly one input.`);
+      if (dependencies.length !== node.inputKinds.length) {
+        throw new Error(
+          `Node ${node.id} declares ${node.inputKinds.length} inputs but has ${dependencies.length}.`,
+        );
       }
-      const input = outputs.get(dependencies[0]);
-      if (!input || input.kind !== node.inputKind) {
-        throw new TypeError(`Node ${node.id} expected ${node.inputKind} input.`);
-      }
+      const inputs = dependencies.map((dependency, index) => {
+        const input = outputs.get(dependency);
+        const expectedKind = node.inputKinds[index];
+        if (!input || input.kind !== expectedKind) {
+          throw new TypeError(`Node ${node.id} input ${index + 1} expected ${expectedKind}.`);
+        }
+        return input;
+      });
       if (!node.execute) throw new Error(`Node ${node.id} has no implementation.`);
-      output = node.execute(input);
+      output = node.execute(inputs);
     }
 
     if (output.kind !== node.outputKind) {

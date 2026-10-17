@@ -15,9 +15,10 @@ npm install
 npm run dev
 ```
 
-The development and production commands compile `crates/unicodd-ops-core` for
-`wasm32-unknown-unknown` before starting Vite. Install that Rust target with
-`rustup target add wasm32-unknown-unknown` if it is not already available.
+The development, test, and production commands compile `crates/unicodd-ops-core` for
+`wasm32-unknown-unknown` and generate the pinned Unicode 17 discovery indexes before starting
+Vite. Install that Rust target with `rustup target add wasm32-unknown-unknown` if it is not already
+available.
 
 ## Verification
 
@@ -27,6 +28,7 @@ npm run typecheck
 npm test
 npm run build
 cargo fmt --all -- --check
+cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
 
@@ -38,7 +40,8 @@ conformance corpora. Normalization is checked across all four supported forms.
 
 - `src/components/` contains Vue presentation and interaction.
 - `src/composables/` owns editor, explorer, history, and engine state.
-- `src/explorer/` contains framework-light grapheme mapping, explicit edit, and history behavior.
+- `src/explorer/` contains framework-light grapheme mapping, explicit editing and history behavior,
+  plus typed, UI-independent relationship and name-search indexes.
 - `src/engine/` defines and executes typed, UI-independent operation graphs.
 - `src/puzzles/` contains declarative puzzle content and independently testable success logic.
 - `src/unicode.ts` contains only version-independent representation utilities.
@@ -46,6 +49,8 @@ conformance corpora. Normalization is checked across all four supported forms.
   names through a C-compatible ABI without `wasm-bindgen`.
 - `src/wasm/` owns module loading, ABI validation, memory allocation, typed-array views, and output
   copying.
+- `tools/unicode-indexer/` generates versioned reverse-decomposition, casing, property, name, and
+  UTS #39 confusable data from pinned official sources. The full name index loads only when used.
 
 Scalar sequences (`Uint32Array`), raw bytes (`Uint8Array`), and UTF-16 code units (`Uint16Array`)
 are deliberately distinct types. The editor does not normalize or otherwise transform input.

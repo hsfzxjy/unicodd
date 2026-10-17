@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { EngineStatus } from '../composables/useUnicodeEngine';
+import type { DiscoveryStatus, SearchStatus } from '../composables/useUnicodeDiscovery';
+import type {
+  CharacterProperties,
+  CharacterSearchResult,
+  RelationshipGroup,
+} from '../explorer/discoveryTypes';
 import type { EditorAction } from '../explorer/types';
 import {
   displaySequence,
@@ -9,6 +15,8 @@ import {
   stringToUtf16CodeUnits,
   unicodeScalarsToString,
 } from '../unicode';
+import CharacterRelations from './CharacterRelations.vue';
+import CharacterSearch from './CharacterSearch.vue';
 
 interface DecompositionResult {
   result: Uint32Array;
@@ -29,6 +37,15 @@ const props = defineProps<{
   canGoForward: boolean;
   historyPosition: number;
   historyLength: number;
+  properties: Array<CharacterProperties | null>;
+  relationshipGroups: RelationshipGroup[];
+  discoveryStatus: DiscoveryStatus;
+  discoveryError: string | null;
+  discoveryUnicodeVersion: string | null;
+  discoveryUts39Version: string | null;
+  searchResults: CharacterSearchResult[];
+  searchStatus: SearchStatus;
+  searchError: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -36,6 +53,8 @@ const emit = defineEmits<{
   edit: [action: EditorAction];
   back: [];
   forward: [];
+  search: [query: string];
+  insertDiscovered: [target: Uint32Array];
 }>();
 
 const text = computed(() => unicodeScalarsToString(props.target));
@@ -47,6 +66,7 @@ const scalarDetails = computed(() =>
       ...details,
       index,
       name: props.names[index] ?? null,
+      properties: props.properties[index] ?? null,
       utf8: Array.from(details.utf8Bytes, (byte) => formatHex(byte)).join(' '),
       utf16: Array.from(details.utf16Units, (unit) => formatHex(unit, 4)).join(' '),
     };
@@ -147,6 +167,15 @@ function exploreScalar(scalar: number): void {
               <small>UTF-8</small><code>{{ details.utf8 }}</code> <small>UTF-16</small
               ><code>{{ details.utf16 }}</code>
             </span>
+            <span v-if="details.properties" class="scalar-properties">
+              <span><small>Category</small>{{ details.properties.generalCategory }}</span>
+              <span><small>Script</small>{{ details.properties.script }}</span>
+              <span><small>Age</small>{{ details.properties.age }}</span>
+              <span
+                ><small>Combining class</small
+                >{{ details.properties.canonicalCombiningClass }}</span
+              >
+            </span>
           </button>
         </div>
       </section>
@@ -198,6 +227,24 @@ function exploreScalar(scalar: number): void {
           <p v-else class="decomposition-empty">No additional compatibility decomposition.</p>
         </article>
       </section>
+
+      <CharacterRelations
+        :groups="relationshipGroups"
+        :status="discoveryStatus"
+        :error="discoveryError"
+        :unicode-version="discoveryUnicodeVersion"
+        :uts39-version="discoveryUts39Version"
+        @explore="emit('explore', $event)"
+      />
+
+      <CharacterSearch
+        :results="searchResults"
+        :status="searchStatus"
+        :error="searchError"
+        @search="emit('search', $event)"
+        @explore="emit('explore', $event)"
+        @insert="emit('insertDiscovered', $event)"
+      />
     </template>
   </section>
 </template>

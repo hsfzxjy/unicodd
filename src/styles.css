@@ -36,6 +36,7 @@ body {
 }
 
 button,
+input,
 textarea {
   font: inherit;
 }
@@ -45,6 +46,7 @@ button {
 }
 
 button:focus-visible,
+input:focus-visible,
 textarea:focus-visible,
 a:focus-visible {
   outline: 3px solid rgba(49, 93, 220, 0.22);
@@ -697,6 +699,26 @@ textarea:focus {
   white-space: nowrap;
 }
 
+.scalar-properties {
+  display: grid;
+  grid-column: 2 / -1;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding-top: 7px;
+  border-top: 1px solid var(--line);
+  font-size: 0.66rem;
+}
+
+.scalar-properties > span {
+  display: grid;
+  gap: 2px;
+}
+
+.scalar-properties small {
+  color: var(--muted);
+  font-size: 0.56rem;
+}
+
 .decomposition-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -737,6 +759,208 @@ textarea:focus {
   font-size: 0.55rem;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.relationship-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.relationship-group {
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.relationship-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.relationship-heading h4,
+.relationship-heading p {
+  margin: 0;
+}
+
+.relationship-heading h4 {
+  font-size: 0.76rem;
+}
+
+.relationship-heading p {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.61rem;
+  line-height: 1.45;
+}
+
+.relationship-heading > span {
+  flex: none;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.54rem;
+}
+
+.relationship-results,
+.search-results {
+  display: grid;
+  gap: 5px;
+  margin-top: 9px;
+}
+
+.relationship-card {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+  cursor: pointer;
+  text-align: left;
+}
+
+.relationship-card:hover,
+.search-result:hover {
+  border-color: var(--accent);
+}
+
+.relationship-preview {
+  display: grid;
+  min-height: 34px;
+  place-items: center;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  font-size: 1.05rem;
+}
+
+.relationship-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.relationship-copy strong {
+  font-size: 0.65rem;
+}
+
+.relationship-copy code,
+.relationship-copy small,
+.result-limit-note {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.55rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+}
+
+.relationship-copy code {
+  font-family: var(--mono);
+  white-space: nowrap;
+}
+
+.result-limit-note {
+  margin: 3px 0 0;
+}
+
+.search-section .section-heading > div p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 0.62rem;
+}
+
+.character-search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px;
+}
+
+.character-search input {
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 0.72rem;
+}
+
+.character-search button,
+.search-insert {
+  padding: 7px 10px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+.character-search button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.search-result {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--paper);
+}
+
+.search-result-main {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  padding: 6px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.search-result-main > span:first-child {
+  display: grid;
+  min-height: 36px;
+  place-items: center;
+  border-radius: 5px;
+  background: var(--surface);
+  font-size: 1.05rem;
+}
+
+.search-result-main > span:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.search-result-main code {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+}
+
+.search-result-main small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.58rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-insert {
+  align-self: center;
+  margin-right: 7px;
 }
 
 .decomposition-empty {
@@ -972,7 +1196,8 @@ footer {
   }
 
   .target-summary,
-  .decomposition-grid {
+  .decomposition-grid,
+  .relationship-groups {
     grid-template-columns: 1fr;
   }
 
@@ -982,6 +1207,11 @@ footer {
 
   .scalar-encodings {
     grid-column: 2;
+  }
+
+  .scalar-properties {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   footer {

@@ -6,6 +6,7 @@ import PuzzleView from './components/PuzzleView.vue';
 import UnicodeEditor from './components/UnicodeEditor.vue';
 import { useCharacterExplorer } from './composables/useCharacterExplorer';
 import { useUnicodeEditor } from './composables/useUnicodeEditor';
+import { useUnicodeDiscovery } from './composables/useUnicodeDiscovery';
 import { useUnicodeEngine } from './composables/useUnicodeEngine';
 import type { OperationValue } from './engine/types';
 import { buildGraphemeRanges, scalarBoundaries, targetForSelection } from './explorer/graphemes';
@@ -26,6 +27,7 @@ const rightInput = useUnicodeEditor(
 );
 const engine = useUnicodeEngine();
 const explorer = useCharacterExplorer(engine.adapter);
+const discovery = useUnicodeDiscovery(engine.adapter, explorer.target);
 
 const graphemeBoundaries = computed(() =>
   engine.adapter.value
@@ -81,6 +83,10 @@ function editWithTarget(action: EditorAction): void {
   editor.applyScalars(explorer.target.value, action);
 }
 
+function insertDiscovered(target: Uint32Array): void {
+  editor.applyScalars(target, 'insert');
+}
+
 function useExploredTarget(input: 'left' | 'right'): void {
   const value = unicodeScalarsToString(explorer.target.value);
   if (input === 'left') leftInput.text.value = value;
@@ -103,7 +109,7 @@ watch(
     <header class="site-header">
       <a class="wordmark" href="#" aria-label="unicodd home">unicodd<span>·</span></a>
       <p>When text behaves oddly.</p>
-      <span class="milestone-label">Puzzle 01 · Milestone 4</span>
+      <span class="milestone-label">Puzzle 01 · Milestone 5</span>
     </header>
 
     <PuzzleView
@@ -151,10 +157,21 @@ watch(
         :can-go-forward="explorer.canGoForward.value"
         :history-position="explorer.historyPosition.value"
         :history-length="explorer.historyLength.value"
+        :properties="discovery.properties.value"
+        :relationship-groups="discovery.relationships.value"
+        :discovery-status="discovery.status.value"
+        :discovery-error="discovery.error.value"
+        :discovery-unicode-version="discovery.unicodeVersion.value"
+        :discovery-uts39-version="discovery.uts39Version.value"
+        :search-results="discovery.searchResults.value"
+        :search-status="discovery.searchStatus.value"
+        :search-error="discovery.searchError.value"
         @explore="explorer.explore"
         @edit="editWithTarget"
         @back="explorer.back"
         @forward="explorer.forward"
+        @search="discovery.search"
+        @insert-discovered="insertDiscovered"
       />
     </section>
 
@@ -170,7 +187,7 @@ watch(
 
     <footer>
       <p>Unicode shown without guesswork.</p>
-      <p>Milestone 4 · First playable puzzle</p>
+      <p>Milestone 5 · Character discovery</p>
     </footer>
   </main>
 </template>

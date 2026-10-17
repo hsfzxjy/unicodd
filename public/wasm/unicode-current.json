@@ -1,0 +1,19 @@
+{
+  "engineId": "icu4x-2.3",
+  "abiVersion": 1,
+  "binary": "unicodd_ops_core.wasm",
+  "dependencies": {
+    "icu_normalizer": "2.3.0"
+  },
+  "operations": {
+    "normalization": {
+      "forms": ["NFC", "NFD", "NFKC", "NFKD"],
+      "unicodeDataVersion": "17.0.0",
+      "algorithmRevision": "UAX #15 via ICU4X 2.3.0"
+    }
+  },
+  "limitations": [
+    "Only Unicode scalar sequence normalization is currently exposed.",
+    "Historical Unicode engines are not yet available."
+  ]
+}

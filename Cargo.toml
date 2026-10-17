@@ -1,0 +1,10 @@
+[workspace]
+members = ["crates/unicodd-ops-core"]
+resolver = "3"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

@@ -15,7 +15,7 @@
     "noEmit": true,
     "strict": true,
     "jsx": "preserve",
-    "types": ["vite/client", "vitest/globals"]
+    "types": ["vite/client", "vitest/globals", "node"]
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue", "tests/**/*.ts"]
 }

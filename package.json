@@ -4,11 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "npm run build:wasm",
     "dev": "vite",
+    "build:wasm": "node tools/build-wasm.mjs",
+    "prebuild": "npm run build:wasm",
     "build": "vue-tsc -b && vite build",
     "typecheck": "vue-tsc -b",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "pretest": "npm run build:wasm",
     "test": "vitest run"
   },
   "dependencies": {
@@ -18,6 +22,7 @@
   },
   "devDependencies": {
     "@types/dagre": "0.7.54",
+    "@types/node": "24.19.2",
     "@vitejs/plugin-vue": "6.0.10",
     "prettier": "3.9.10",
     "typescript": "6.0.3",

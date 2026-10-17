@@ -2,9 +2,9 @@
 
 **When text behaves oddly.**
 
-unicodd is a browser-based puzzle game about surprising Unicode behavior. Milestone 1 provides a
-small Vue workspace for entering Unicode text, inspecting individual scalar values, and following
-an executable representation pipeline from scalars to UTF-8 bytes to byte length.
+unicodd is a browser-based puzzle game about surprising Unicode behavior. The current foundation
+provides a Vue workspace for entering Unicode text, inspecting individual scalar values, following
+an executable representation pipeline, and observing ICU4X NFC normalization through raw WASM.
 
 ## Development
 
@@ -13,6 +13,10 @@ npm install
 npm run dev
 ```
 
+The development and production commands compile `crates/unicodd-ops-core` for
+`wasm32-unknown-unknown` before starting Vite. Install that Rust target with
+`rustup target add wasm32-unknown-unknown` if it is not already available.
+
 ## Verification
 
 ```sh
@@ -20,10 +24,13 @@ npm run format:check
 npm run typecheck
 npm test
 npm run build
+cargo fmt --all -- --check
+cargo test --workspace
 ```
 
-The Rust formatter configuration is present for the future WASM workspace. Once a Rust crate is
-introduced, also run `cargo fmt --all -- --check` and its Cargo test/build commands.
+`npm test` builds the WASM binary first and includes adapter integration tests against the compiled
+artifact. Rust tests also run the official Unicode 17.0.0 normalization conformance corpus against
+all four supported normalization forms.
 
 ## Architecture
 
@@ -31,7 +38,10 @@ introduced, also run `cargo fmt --all -- --check` and its Cargo test/build comma
 - `src/composables/` owns editor and inspector selection state.
 - `src/engine/` defines and executes typed, UI-independent operation graphs.
 - `src/unicode.ts` contains only version-independent representation utilities.
-- `src/wasm/` documents the future raw WebAssembly boundary; no Unicode engine is simulated yet.
+- `crates/unicodd-ops-core/` exposes ICU4X normalization through a C-compatible ABI without
+  `wasm-bindgen`.
+- `src/wasm/` owns module loading, ABI validation, memory allocation, typed-array views, and output
+  copying.
 
 Scalar sequences (`Uint32Array`), raw bytes (`Uint8Array`), and UTF-16 code units (`Uint16Array`)
 are deliberately distinct types. The editor does not normalize or otherwise transform input.

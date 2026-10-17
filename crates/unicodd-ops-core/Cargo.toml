@@ -1,0 +1,12 @@
+[package]
+name = "unicodd-ops-core"
+version = "0.1.0"
+edition = "2024"
+description = "Raw WebAssembly Unicode operations for unicodd"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+icu_normalizer = { version = "=2.3.0", default-features = false, features = ["compiled_data"] }

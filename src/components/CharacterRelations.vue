@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { DiscoveryStatus } from '../composables/useUnicodeDiscovery';
-import type { RelationshipGroup } from '../explorer/discoveryTypes';
+import type { CharacterRelationship, RelationshipGroup } from '../explorer/discoveryTypes';
 import { displaySequence, formatCodePoint } from '../unicode';
 
 defineProps<{
@@ -12,7 +12,7 @@ defineProps<{
 }>();
 
 const emit = defineEmits<{
-  explore: [target: Uint32Array];
+  explore: [relationship: CharacterRelationship];
 }>();
 
 function formatScalars(target: Uint32Array): string {
@@ -49,7 +49,7 @@ function formatScalars(target: Uint32Array): string {
             :key="`${group.id}-${Array.from(relationship.target).join('-')}`"
             type="button"
             class="relationship-card"
-            @click="emit('explore', relationship.target)"
+            @click="emit('explore', relationship)"
           >
             <span class="relationship-preview">{{ displaySequence(relationship.target) }}</span>
             <span class="relationship-copy">

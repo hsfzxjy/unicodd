@@ -1,5 +1,11 @@
 import { computed, shallowRef, type ShallowRef } from 'vue';
-import { moveHistory, pushHistory, type ExplorerHistory } from '../explorer/history';
+import {
+  activateExploration,
+  addExploration,
+  createExplorerHistory,
+  type ExplorationRelation,
+  type ExplorerHistory,
+} from '../explorer/history';
 import { unicodeScalarArraysEqual } from '../unicode';
 import type { UnicodeWasmAdapter } from '../wasm/adapter';
 
@@ -8,19 +14,19 @@ const emptyScalars = new Uint32Array();
 export function useCharacterExplorer(
   adapter: Readonly<ShallowRef<UnicodeWasmAdapter | undefined>>,
 ) {
-  const history = shallowRef<ExplorerHistory>({ entries: [], index: -1 });
-  const target = computed(() => history.value.entries[history.value.index] ?? emptyScalars);
+  const history = shallowRef<ExplorerHistory>(createExplorerHistory());
+  const target = computed(
+    () =>
+      history.value.nodes.find(({ id }) => id === history.value.activeNodeId)?.target ??
+      emptyScalars,
+  );
 
-  function explore(nextTarget: Uint32Array): void {
-    history.value = pushHistory(history.value, nextTarget);
+  function explore(nextTarget: Uint32Array, relation: ExplorationRelation): void {
+    history.value = addExploration(history.value, nextTarget, relation);
   }
 
-  function back(): void {
-    history.value = moveHistory(history.value, -1);
-  }
-
-  function forward(): void {
-    history.value = moveHistory(history.value, 1);
+  function activate(nodeId: string): void {
+    history.value = activateExploration(history.value, nodeId);
   }
 
   const canonical = computed(() => {
@@ -57,10 +63,7 @@ export function useCharacterExplorer(
     return Math.max(adapter.value.graphemeBoundaries(target.value).length - 1, 0);
   });
 
-  const canGoBack = computed(() => history.value.index > 0);
-  const canGoForward = computed(() => history.value.index < history.value.entries.length - 1);
-  const historyPosition = computed(() => (history.value.index < 0 ? 0 : history.value.index + 1));
-  const historyLength = computed(() => history.value.entries.length);
+  const historyLength = computed(() => history.value.nodes.length);
 
   return {
     target,
@@ -68,12 +71,9 @@ export function useCharacterExplorer(
     compatibility,
     names,
     graphemeCount,
-    canGoBack,
-    canGoForward,
-    historyPosition,
     historyLength,
+    history,
     explore,
-    back,
-    forward,
+    activate,
   };
 }

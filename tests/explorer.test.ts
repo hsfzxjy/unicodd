@@ -5,7 +5,11 @@ import {
   selectionContainsRange,
   targetForSelection,
 } from '../src/explorer/graphemes';
-import { moveHistory, pushHistory, type ExplorerHistory } from '../src/explorer/history';
+import {
+  activateExploration,
+  addExploration,
+  createExplorerHistory,
+} from '../src/explorer/history';
 import { stringToUnicodeScalars } from '../src/unicode';
 
 describe('grapheme-aware exploration', () => {
@@ -67,16 +71,59 @@ describe('explicit editor actions', () => {
 });
 
 describe('exploration history', () => {
-  it('moves independently, ignores duplicates, and discards a forward branch', () => {
-    let history: ExplorerHistory = { entries: [], index: -1 };
-    history = pushHistory(history, Uint32Array.of(0xe9));
-    history = pushHistory(history, Uint32Array.of(0x65));
-    history = pushHistory(history, Uint32Array.of(0x65));
-    expect(history.entries).toHaveLength(2);
+  it('preserves branches and records the relationship on each edge', () => {
+    let history = createExplorerHistory();
+    history = addExploration(history, Uint32Array.of(0xe9), {
+      kind: 'selection',
+      label: 'Selected from string',
+    });
+    history = addExploration(history, Uint32Array.of(0x65), {
+      kind: 'canonical-decomposition',
+      label: 'NFD component',
+    });
 
-    history = moveHistory(history, -1);
-    history = pushHistory(history, Uint32Array.of(0x301));
-    expect(history.entries.map((entry) => Array.from(entry))).toEqual([[0xe9], [0x301]]);
-    expect(history.index).toBe(1);
+    const rootId = history.nodes[0]?.id ?? '';
+    history = activateExploration(history, rootId);
+    history = addExploration(history, Uint32Array.of(0x301), {
+      kind: 'canonical-decomposition',
+      label: 'NFD component',
+    });
+
+    expect(history.nodes.map(({ target }) => Array.from(target))).toEqual([
+      [0xe9],
+      [0x65],
+      [0x301],
+    ]);
+    expect(history.edges.map(({ source, target, label }) => ({ source, target, label }))).toEqual([
+      { source: 'sequence-e9', target: 'sequence-65', label: 'NFD component' },
+      { source: 'sequence-e9', target: 'sequence-301', label: 'NFD component' },
+    ]);
+    expect(history.activeNodeId).toBe('sequence-301');
+  });
+
+  it('reuses sequence nodes for cycles, ignores self-navigation, and rejects unknown activation', () => {
+    let history = createExplorerHistory();
+    history = addExploration(history, Uint32Array.of(0x61), {
+      kind: 'selection',
+      label: 'Selected from string',
+    });
+    const unchanged = addExploration(history, Uint32Array.of(0x61), {
+      kind: 'uppercase',
+      label: 'Simple uppercase',
+    });
+    expect(unchanged).toBe(history);
+    expect(activateExploration(history, 'missing')).toBe(history);
+
+    history = addExploration(history, Uint32Array.of(0x41), {
+      kind: 'uppercase',
+      label: 'Simple uppercase',
+    });
+    history = addExploration(history, Uint32Array.of(0x61), {
+      kind: 'lowercase',
+      label: 'Simple lowercase',
+    });
+    expect(history.nodes).toHaveLength(2);
+    expect(history.edges).toHaveLength(2);
+    expect(history.activeNodeId).toBe('sequence-61');
   });
 });

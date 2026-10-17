@@ -10,6 +10,7 @@ import { useUnicodeDiscovery } from './composables/useUnicodeDiscovery';
 import { useUnicodeEngine } from './composables/useUnicodeEngine';
 import type { OperationValue } from './engine/types';
 import { buildGraphemeRanges, scalarBoundaries, targetForSelection } from './explorer/graphemes';
+import type { ExplorationRelation } from './explorer/history';
 import type { EditorAction, GraphemeRange, TextSelection } from './explorer/types';
 import {
   createNormalizationPuzzleGraph,
@@ -69,7 +70,9 @@ function inspectSelection(selection: TextSelection): void {
       graphemes.value,
       selection,
     );
-    if (target) explorer.explore(target);
+    if (target) {
+      explorer.explore(target, { kind: 'selection', label: 'Selected from string' });
+    }
   } catch {
     // Browser selections can bisect a surrogate pair. Preserve that editor selection without
     // replacing the valid explorer target with malformed UTF-16.
@@ -78,7 +81,11 @@ function inspectSelection(selection: TextSelection): void {
 
 function inspectGrapheme(grapheme: GraphemeRange): void {
   editor.selectRange({ start: grapheme.utf16Start, end: grapheme.utf16End });
-  explorer.explore(grapheme.scalars);
+  explorer.explore(grapheme.scalars, { kind: 'selection', label: 'Selected from string' });
+}
+
+function exploreRelated(target: Uint32Array, relation: ExplorationRelation): void {
+  explorer.explore(target, relation);
 }
 
 function editWithTarget(action: EditorAction): void {
@@ -196,10 +203,7 @@ watch(
           :status="engine.status.value"
           :engine-id="engine.engineId.value"
           :error="engine.error.value"
-          :can-go-back="explorer.canGoBack.value"
-          :can-go-forward="explorer.canGoForward.value"
-          :history-position="explorer.historyPosition.value"
-          :history-length="explorer.historyLength.value"
+          :history="explorer.history.value"
           :properties="discovery.properties.value"
           :relationship-groups="discovery.relationships.value"
           :discovery-status="discovery.status.value"
@@ -209,10 +213,9 @@ watch(
           :search-results="discovery.searchResults.value"
           :search-status="discovery.searchStatus.value"
           :search-error="discovery.searchError.value"
-          @explore="explorer.explore"
+          @explore="exploreRelated"
           @edit="editWithTarget"
-          @back="explorer.back"
-          @forward="explorer.forward"
+          @activate-history="explorer.activate"
           @search="discovery.search"
           @insert-discovered="insertDiscovered"
         />

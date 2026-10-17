@@ -589,30 +589,6 @@ textarea:focus {
   text-align: center;
 }
 
-.history-controls {
-  display: grid;
-  grid-template-columns: 30px auto 30px;
-  align-items: center;
-  gap: 6px;
-  color: var(--muted);
-  font-family: var(--mono);
-  font-size: 0.67rem;
-}
-
-.history-controls button {
-  height: 30px;
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--paper);
-  cursor: pointer;
-}
-
-.history-controls button:disabled {
-  color: var(--line-strong);
-  cursor: default;
-}
-
 .explorer-empty {
   min-height: 260px;
 }
@@ -684,6 +660,95 @@ textarea:focus {
   border-color: var(--accent);
   background: var(--accent);
   color: #fff;
+}
+
+.history-graph-section {
+  padding-top: 16px;
+}
+
+.history-graph-heading {
+  align-items: end;
+}
+
+.history-graph-heading p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.66rem;
+  line-height: 1.4;
+}
+
+.history-flow-shell {
+  height: 230px;
+  margin-top: 10px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background-color: var(--surface);
+  background-image: radial-gradient(var(--line) 0.7px, transparent 0.7px);
+  background-size: 14px 14px;
+}
+
+.vue-flow__node-history {
+  width: 112px;
+  border: 0;
+  background: transparent;
+}
+
+.history-node {
+  display: grid;
+  width: 112px;
+  min-height: 66px;
+  place-items: center;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--paper);
+  box-shadow: 0 4px 12px rgba(23, 32, 42, 0.07);
+  cursor: pointer;
+}
+
+.history-node:hover {
+  border-color: var(--accent);
+}
+
+.history-node.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 2px rgba(49, 93, 220, 0.14);
+}
+
+.history-node strong {
+  overflow: hidden;
+  max-width: 90px;
+  font-size: 1.15rem;
+  font-weight: 650;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-node code {
+  overflow: hidden;
+  max-width: 92px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.5rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-flow-shell .vue-flow__edge-text {
+  font-family: var(--mono);
+  font-size: 8px;
+}
+
+.history-flow-shell .vue-flow__edge-textbg {
+  fill: var(--surface);
+}
+
+.history-flow-shell .vue-flow__edge-path {
+  stroke: var(--line-strong);
 }
 
 .explorer-section {

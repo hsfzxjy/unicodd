@@ -7,6 +7,7 @@ import type {
   CharacterSearchResult,
   RelationshipGroup,
 } from '../explorer/discoveryTypes';
+import type { ExplorationRelation, ExplorerHistory } from '../explorer/history';
 import type { EditorAction } from '../explorer/types';
 import {
   displaySequence,
@@ -17,6 +18,7 @@ import {
 } from '../unicode';
 import CharacterRelations from './CharacterRelations.vue';
 import CharacterSearch from './CharacterSearch.vue';
+import ExplorerHistoryGraph from './ExplorerHistoryGraph.vue';
 
 interface DecompositionResult {
   result: Uint32Array;
@@ -33,10 +35,7 @@ const props = defineProps<{
   status: EngineStatus;
   engineId: string | null;
   error: string | null;
-  canGoBack: boolean;
-  canGoForward: boolean;
-  historyPosition: number;
-  historyLength: number;
+  history: ExplorerHistory;
   properties: Array<CharacterProperties | null>;
   relationshipGroups: RelationshipGroup[];
   discoveryStatus: DiscoveryStatus;
@@ -49,10 +48,9 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  explore: [target: Uint32Array];
+  explore: [target: Uint32Array, relation: ExplorationRelation];
   edit: [action: EditorAction];
-  back: [];
-  forward: [];
+  activateHistory: [nodeId: string];
   search: [query: string];
   insertDiscovered: [target: Uint32Array];
 }>();
@@ -73,8 +71,8 @@ const scalarDetails = computed(() =>
   }),
 );
 
-function exploreScalar(scalar: number): void {
-  emit('explore', Uint32Array.of(scalar));
+function exploreScalar(scalar: number, relation: ExplorationRelation): void {
+  emit('explore', Uint32Array.of(scalar), relation);
 }
 </script>
 
@@ -84,25 +82,6 @@ function exploreScalar(scalar: number): void {
       <div>
         <p class="eyebrow">Character explorer</p>
         <h2 id="explorer-heading">Inspect without changing the string</h2>
-      </div>
-      <div class="history-controls" aria-label="Exploration history">
-        <button
-          type="button"
-          :disabled="!canGoBack"
-          aria-label="Previous exploration"
-          @click="emit('back')"
-        >
-          ←
-        </button>
-        <span>{{ historyPosition }}/{{ historyLength }}</span>
-        <button
-          type="button"
-          :disabled="!canGoForward"
-          aria-label="Next exploration"
-          @click="emit('forward')"
-        >
-          →
-        </button>
       </div>
     </div>
 
@@ -144,6 +123,8 @@ function exploreScalar(scalar: number): void {
         <button type="button" @click="emit('edit', 'append')">Append</button>
       </div>
 
+      <ExplorerHistoryGraph :history="history" @activate="emit('activateHistory', $event)" />
+
       <section class="explorer-section" aria-labelledby="scalar-details-heading">
         <div class="section-heading">
           <h3 id="scalar-details-heading">Scalar values</h3>
@@ -156,7 +137,12 @@ function exploreScalar(scalar: number): void {
             type="button"
             class="scalar-detail"
             :aria-label="`Explore ${details.codePoint} ${details.name ?? ''}`"
-            @click="exploreScalar(details.scalar)"
+            @click="
+              exploreScalar(details.scalar, {
+                kind: 'scalar',
+                label: 'Scalar component',
+              })
+            "
           >
             <span class="scalar-preview">{{ details.display }}</span>
             <span class="scalar-identity">
@@ -192,7 +178,12 @@ function exploreScalar(scalar: number): void {
               :key="`${scalar}-${index}`"
               type="button"
               class="component-chip"
-              @click="exploreScalar(scalar)"
+              @click="
+                exploreScalar(scalar, {
+                  kind: 'canonical-decomposition',
+                  label: 'NFD component',
+                })
+              "
             >
               <span>{{ inspectScalar(scalar).display }}</span>
               <span class="component-identity">
@@ -215,7 +206,12 @@ function exploreScalar(scalar: number): void {
               :key="`${scalar}-${index}`"
               type="button"
               class="component-chip"
-              @click="exploreScalar(scalar)"
+              @click="
+                exploreScalar(scalar, {
+                  kind: 'compatibility-decomposition',
+                  label: 'NFKD component',
+                })
+              "
             >
               <span>{{ inspectScalar(scalar).display }}</span>
               <span class="component-identity">
@@ -234,7 +230,7 @@ function exploreScalar(scalar: number): void {
         :error="discoveryError"
         :unicode-version="discoveryUnicodeVersion"
         :uts39-version="discoveryUts39Version"
-        @explore="emit('explore', $event)"
+        @explore="emit('explore', $event.target, { kind: $event.kind, label: $event.label })"
       />
 
       <CharacterSearch
@@ -242,7 +238,12 @@ function exploreScalar(scalar: number): void {
         :status="searchStatus"
         :error="searchError"
         @search="emit('search', $event)"
-        @explore="emit('explore', $event)"
+        @explore="
+          emit('explore', $event, {
+            kind: 'search',
+            label: 'Search result',
+          })
+        "
         @insert="emit('insertDiscovered', $event)"
       />
     </template>

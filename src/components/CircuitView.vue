@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { MarkerType, type Edge, type Node } from '@vue-flow/core';
+import { Handle, MarkerType, Position, type Edge, type Node } from '@vue-flow/core';
 import dagre from '@dagrejs/dagre';
 import { executeGraph } from '../engine/execute';
 import type { OperationGraph, OperationValue } from '../engine/types';
@@ -34,6 +34,54 @@ function formatValue(value: OperationValue): string {
     case 'boolean':
       return value.value ? 'Yes' : 'No';
   }
+}
+
+type Port = {
+  id: string;
+  top: string;
+};
+
+function assignAutoPorts(nodes: Node[], edges: Edge[]) {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+
+  const centerY = (id: string) => {
+    const node = byId.get(id)!;
+    const height = nodeHeight;
+    return node.position.y + height / 2;
+  };
+
+  function makePorts(connected: Edge[], neighbor: (edge: Edge) => string, prefix: string): Port[] {
+    const sorted = [...connected].sort(
+      (a, b) => centerY(neighbor(a)) - centerY(neighbor(b)) || a.id.localeCompare(b.id),
+    );
+
+    return sorted.map((edge, i) => ({
+      id: `${prefix}-${edge.id}`,
+      top: `${((i + 1) / (sorted.length + 1)) * 100}%`,
+    }));
+  }
+
+  const resultNodes = nodes.map((node) => {
+    const incoming = edges.filter((e) => e.target === node.id);
+    const outgoing = edges.filter((e) => e.source === node.id);
+
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        inputPorts: makePorts(incoming, (e) => e.source, 'in'),
+        outputPorts: makePorts(outgoing, (e) => e.target, 'out'),
+      },
+    };
+  });
+
+  const resultEdges = edges.map((edge) => ({
+    ...edge,
+    sourceHandle: `out-${edge.id}`,
+    targetHandle: `in-${edge.id}`,
+  }));
+
+  return { nodes: resultNodes, edges: resultEdges };
 }
 
 const flow = computed(() => {
@@ -74,10 +122,12 @@ const flow = computed(() => {
     type: 'smoothstep',
     markerEnd: MarkerType.ArrowClosed,
     animated: false,
-    selectable: false,
+    selectable: true,
   }));
 
-  return { nodes, edges };
+  const assigned = assignAutoPorts(nodes, edges);
+
+  return { nodes: assigned.nodes, edges: assigned.edges };
 });
 </script>
 
@@ -114,12 +164,29 @@ const flow = computed(() => {
             class="operation-node"
             :class="{ 'boolean-result': data.result !== null, passed: data.result === true }"
           >
+            <Handle
+              v-for="port in data.inputPorts"
+              :key="port.id"
+              :id="port.id"
+              type="target"
+              :position="Position.Left"
+              :style="{ top: port.top }"
+            />
+
             <div class="operation-meta">
               <span>{{ data.step }}</span>
               <span>{{ data.type }}</span>
             </div>
             <strong>{{ data.label }}</strong>
             <code>{{ data.value }}</code>
+            <Handle
+              v-for="port in data.outputPorts"
+              :key="port.id"
+              :id="port.id"
+              type="source"
+              :position="Position.Right"
+              :style="{ top: port.top }"
+            />
           </article>
         </template>
       </VueFlow>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import CharacterExplorer from './components/CharacterExplorer.vue';
 import CircuitView from './components/CircuitView.vue';
 import PuzzleView from './components/PuzzleView.vue';
@@ -16,7 +16,7 @@ import {
   evaluateNormalizationPuzzle,
   normalizationConcatenationPuzzle,
 } from './puzzles/normalizationConcatenation';
-import { unicodeScalarsToString } from './unicode';
+import { displaySequence, unicodeScalarsToString } from './unicode';
 
 const editor = useUnicodeEditor('é');
 const leftInput = useUnicodeEditor(
@@ -28,6 +28,8 @@ const rightInput = useUnicodeEditor(
 const engine = useUnicodeEngine();
 const explorer = useCharacterExplorer(engine.adapter);
 const discovery = useUnicodeDiscovery(engine.adapter, explorer.target);
+const discoveryOpen = ref(false);
+const discoverySection = ref<HTMLElement | null>(null);
 
 const graphemeBoundaries = computed(() =>
   engine.adapter.value
@@ -93,6 +95,12 @@ function useExploredTarget(input: 'left' | 'right'): void {
   else rightInput.text.value = value;
 }
 
+async function openDiscovery(): Promise<void> {
+  discoveryOpen.value = true;
+  await nextTick();
+  discoverySection.value?.scrollIntoView({ block: 'start' });
+}
+
 watch(
   [() => engine.status.value, graphemes],
   ([status, currentGraphemes]) => {
@@ -126,54 +134,8 @@ watch(
       @update:left-text="leftInput.text.value = $event"
       @update:right-text="rightInput.text.value = $event"
       @use-explored="useExploredTarget"
+      @open-explorer="openDiscovery"
     />
-
-    <div class="workspace-label">
-      <p class="eyebrow">Discovery workspace</p>
-      <p>Start from é, inspect its decomposition, then send each component to a puzzle input.</p>
-    </div>
-
-    <section class="workspace" aria-label="Unicode editor and character explorer">
-      <UnicodeEditor
-        v-model="editor.text.value"
-        :scalars="editor.scalars.value"
-        :graphemes="graphemes"
-        :selection="editor.selection.value"
-        :selection-revision="editor.selectionRevision.value"
-        :error="editor.validationError.value"
-        @selection-change="inspectSelection"
-        @inspect-grapheme="inspectGrapheme"
-      />
-      <CharacterExplorer
-        :target="explorer.target.value"
-        :canonical="explorer.canonical.value"
-        :compatibility="explorer.compatibility.value"
-        :names="explorer.names.value"
-        :grapheme-count="explorer.graphemeCount.value"
-        :status="engine.status.value"
-        :engine-id="engine.engineId.value"
-        :error="engine.error.value"
-        :can-go-back="explorer.canGoBack.value"
-        :can-go-forward="explorer.canGoForward.value"
-        :history-position="explorer.historyPosition.value"
-        :history-length="explorer.historyLength.value"
-        :properties="discovery.properties.value"
-        :relationship-groups="discovery.relationships.value"
-        :discovery-status="discovery.status.value"
-        :discovery-error="discovery.error.value"
-        :discovery-unicode-version="discovery.unicodeVersion.value"
-        :discovery-uts39-version="discovery.uts39Version.value"
-        :search-results="discovery.searchResults.value"
-        :search-status="discovery.searchStatus.value"
-        :search-error="discovery.searchError.value"
-        @explore="explorer.explore"
-        @edit="editWithTarget"
-        @back="explorer.back"
-        @forward="explorer.forward"
-        @search="discovery.search"
-        @insert-discovered="insertDiscovered"
-      />
-    </section>
 
     <CircuitView
       v-if="puzzleGraph"
@@ -183,6 +145,78 @@ watch(
     />
     <section v-else class="panel graph-panel" aria-live="polite">
       Loading the operation graph…
+    </section>
+
+    <section ref="discoverySection" class="discovery-shelf" aria-labelledby="discovery-heading">
+      <div class="discovery-toolbar">
+        <div>
+          <p class="eyebrow">Character lab</p>
+          <h2 id="discovery-heading">Discover before you construct</h2>
+          <p>
+            Inspect decomposition and relatives without changing the puzzle inputs until you choose.
+          </p>
+        </div>
+        <div class="discovery-toolbar-actions">
+          <span class="discovery-target" aria-label="Current explorer target">
+            {{ displaySequence(explorer.target.value) }}
+          </span>
+          <button
+            type="button"
+            :aria-expanded="discoveryOpen"
+            aria-controls="discovery-workspace"
+            @click="discoveryOpen = !discoveryOpen"
+          >
+            {{ discoveryOpen ? 'Hide character lab' : 'Open character lab' }}
+          </button>
+        </div>
+      </div>
+
+      <div
+        v-show="discoveryOpen"
+        id="discovery-workspace"
+        class="workspace"
+        aria-label="Unicode editor and character explorer"
+      >
+        <UnicodeEditor
+          v-model="editor.text.value"
+          :scalars="editor.scalars.value"
+          :graphemes="graphemes"
+          :selection="editor.selection.value"
+          :selection-revision="editor.selectionRevision.value"
+          :error="editor.validationError.value"
+          @selection-change="inspectSelection"
+          @inspect-grapheme="inspectGrapheme"
+        />
+        <CharacterExplorer
+          :target="explorer.target.value"
+          :canonical="explorer.canonical.value"
+          :compatibility="explorer.compatibility.value"
+          :names="explorer.names.value"
+          :grapheme-count="explorer.graphemeCount.value"
+          :status="engine.status.value"
+          :engine-id="engine.engineId.value"
+          :error="engine.error.value"
+          :can-go-back="explorer.canGoBack.value"
+          :can-go-forward="explorer.canGoForward.value"
+          :history-position="explorer.historyPosition.value"
+          :history-length="explorer.historyLength.value"
+          :properties="discovery.properties.value"
+          :relationship-groups="discovery.relationships.value"
+          :discovery-status="discovery.status.value"
+          :discovery-error="discovery.error.value"
+          :discovery-unicode-version="discovery.unicodeVersion.value"
+          :discovery-uts39-version="discovery.uts39Version.value"
+          :search-results="discovery.searchResults.value"
+          :search-status="discovery.searchStatus.value"
+          :search-error="discovery.searchError.value"
+          @explore="explorer.explore"
+          @edit="editWithTarget"
+          @back="explorer.back"
+          @forward="explorer.forward"
+          @search="discovery.search"
+          @insert-discovered="insertDiscovered"
+        />
+      </div>
     </section>
 
     <footer>

@@ -21,6 +21,7 @@ const emit = defineEmits<{
   'update:leftText': [value: string];
   'update:rightText': [value: string];
   useExplored: [input: 'left' | 'right'];
+  openExplorer: [];
 }>();
 
 const visibleHints = ref(0);
@@ -45,7 +46,10 @@ function revealHint(): void {
         <h1 id="page-title">{{ definition.title }}</h1>
       </div>
       <p class="puzzle-objective">{{ definition.objective }}</p>
-      <span class="profile-label">{{ definition.defaultUnicodeProfile }}</span>
+      <div class="puzzle-tools">
+        <span class="profile-label">{{ definition.defaultUnicodeProfile }}</span>
+        <button type="button" @click="emit('openExplorer')">Open character lab</button>
+      </div>
     </div>
 
     <div class="puzzle-inputs">

@@ -4,8 +4,8 @@ import { executeGraph } from '../src/engine/execute';
 import {
   createNormalizationPuzzleGraph,
   evaluateNormalizationPuzzle,
-  normalizationConcatenationPuzzle,
 } from '../src/puzzles/normalizationConcatenation';
+import { puzzleCollection } from '../src/puzzles/collection';
 import { stringToUnicodeScalars } from '../src/unicode';
 import type { UnicodeWasmAdapter } from '../src/wasm/adapter';
 import { instantiateUnicodeEngine } from '../src/wasm/loader';
@@ -27,9 +27,10 @@ describe('normalization concatenation puzzle', () => {
   }
 
   it('has a stable declarative definition', () => {
-    expect(normalizationConcatenationPuzzle.id).toBe('nfc-concatenation-boundary');
-    expect(normalizationConcatenationPuzzle.inputs.map(({ id }) => id)).toEqual(['left', 'right']);
-    expect(normalizationConcatenationPuzzle.hints).toHaveLength(3);
+    const definition = puzzleCollection[0]?.definition;
+    expect(definition?.id).toBe('nfc-concatenation-boundary');
+    expect(definition?.inputs.map(({ id }) => id)).toEqual(['left', 'right']);
+    expect(definition?.hints).toHaveLength(3);
   });
 
   it('accepts two NFC inputs whose concatenation is not NFC', () => {

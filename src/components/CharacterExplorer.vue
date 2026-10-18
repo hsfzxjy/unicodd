@@ -9,6 +9,7 @@ import type {
 } from '../explorer/discoveryTypes';
 import type { ExplorationRelation, ExplorerHistory } from '../explorer/history';
 import type { EditorAction } from '../explorer/types';
+import { useI18n } from '../i18n';
 import {
   displaySequence,
   formatHex,
@@ -56,6 +57,7 @@ const emit = defineEmits<{
   retryDiscovery: [];
   insertDiscovered: [target: Uint32Array];
 }>();
+const { locale, t } = useI18n();
 
 const text = computed(() => unicodeScalarsToString(props.target));
 const utf16Count = computed(() => stringToUtf16CodeUnits(text.value).length);
@@ -82,47 +84,54 @@ function exploreScalar(scalar: number, relation: ExplorationRelation): void {
   <section class="panel explorer-panel" aria-labelledby="explorer-heading">
     <div class="panel-heading explorer-heading">
       <div>
-        <p class="eyebrow">Character explorer</p>
-        <h2 id="explorer-heading">Inspect without changing the string</h2>
+        <p class="eyebrow">{{ t('explorer.eyebrow') }}</p>
+        <h2 id="explorer-heading">{{ t('explorer.title') }}</h2>
       </div>
     </div>
 
     <div v-if="status === 'loading'" class="empty-state explorer-empty" role="status">
-      Loading the Unicode engine…
+      {{ t('explorer.loading') }}
     </div>
     <div
       v-else-if="status === 'error'"
       class="empty-state explorer-empty error-message"
       role="alert"
     >
-      {{ error ?? 'The Unicode engine could not be loaded.' }}
+      {{ error ?? t('explorer.loadError') }}
     </div>
     <div v-else-if="!target.length" class="empty-state explorer-empty">
-      Select text or place the caret in a grapheme cluster to begin exploring.
+      {{ t('explorer.empty') }}
     </div>
 
     <template v-else>
       <div class="target-summary">
-        <div class="character-stage" aria-label="Rendered explorer target">
+        <div class="character-stage" :aria-label="t('explorer.renderedTarget')">
           {{ displaySequence(target) }}
         </div>
-        <div class="target-metrics" aria-label="Explorer target counts">
+        <div class="target-metrics" :aria-label="t('explorer.targetCounts')">
           <span
-            ><strong>{{ graphemeCount }}</strong> grapheme{{ graphemeCount === 1 ? '' : 's' }}</span
+            ><strong>{{ graphemeCount }}</strong>
+            {{
+              locale === 'zh-CN' ? '个字素簇' : `grapheme${graphemeCount === 1 ? '' : 's'}`
+            }}</span
           >
           <span
-            ><strong>{{ target.length }}</strong> scalar{{ target.length === 1 ? '' : 's' }}</span
+            ><strong>{{ target.length }}</strong>
+            {{ locale === 'zh-CN' ? '个标量值' : `scalar${target.length === 1 ? '' : 's'}` }}</span
           >
           <span
-            ><strong>{{ utf16Count }}</strong> UTF-16 unit{{ utf16Count === 1 ? '' : 's' }}</span
+            ><strong>{{ utf16Count }}</strong>
+            {{
+              locale === 'zh-CN' ? '个 UTF-16 码元' : `UTF-16 unit${utf16Count === 1 ? '' : 's'}`
+            }}</span
           >
         </div>
       </div>
 
-      <div class="edit-actions" aria-label="Use explored sequence in constructed string">
-        <button type="button" @click="emit('edit', 'insert')">Insert at cursor</button>
-        <button type="button" @click="emit('edit', 'replace')">Replace selection</button>
-        <button type="button" @click="emit('edit', 'append')">Append</button>
+      <div class="edit-actions" :aria-label="t('explorer.useSequence')">
+        <button type="button" @click="emit('edit', 'insert')">{{ t('explorer.insert') }}</button>
+        <button type="button" @click="emit('edit', 'replace')">{{ t('explorer.replace') }}</button>
+        <button type="button" @click="emit('edit', 'append')">{{ t('explorer.append') }}</button>
       </div>
 
       <ExplorerHistoryGraph
@@ -133,7 +142,7 @@ function exploreScalar(scalar: number, relation: ExplorationRelation): void {
 
       <section class="explorer-section" aria-labelledby="scalar-details-heading">
         <div class="section-heading">
-          <h3 id="scalar-details-heading">Scalar values</h3>
+          <h3 id="scalar-details-heading">{{ t('explorer.scalarValues') }}</h3>
           <span>{{ engineId }}</span>
         </div>
         <div class="scalar-details">
@@ -145,26 +154,35 @@ function exploreScalar(scalar: number, relation: ExplorationRelation): void {
             @click="
               exploreScalar(details.scalar, {
                 kind: 'scalar',
-                label: 'Scalar component',
+                label: locale === 'zh-CN' ? '标量分量' : 'Scalar component',
               })
             "
           >
-            <span class="visually-hidden">Explore </span>
+            <span class="visually-hidden">{{ t('explorer.explore') }} </span>
             <span class="scalar-preview">{{ details.display }}</span>
             <span class="scalar-identity">
               <strong>{{ details.codePoint }}</strong>
-              <small>{{ details.name ?? 'No assigned Unicode name' }}</small>
+              <small>{{ details.name ?? t('explorer.noName') }}</small>
             </span>
             <span class="scalar-encodings">
               <small>UTF-8</small><code>{{ details.utf8 }}</code> <small>UTF-16</small
               ><code>{{ details.utf16 }}</code>
             </span>
             <span v-if="details.properties" class="scalar-properties">
-              <span><small>Category</small>{{ details.properties.generalCategory }}</span>
-              <span><small>Script</small>{{ details.properties.script }}</span>
-              <span><small>Age</small>{{ details.properties.age }}</span>
               <span
-                ><small>Combining class</small
+                ><small>{{ t('explorer.category') }}</small
+                >{{ details.properties.generalCategory }}</span
+              >
+              <span
+                ><small>{{ t('explorer.script') }}</small
+                >{{ details.properties.script }}</span
+              >
+              <span
+                ><small>{{ t('explorer.age') }}</small
+                >{{ details.properties.age }}</span
+              >
+              <span
+                ><small>{{ t('explorer.combiningClass') }}</small
                 >{{ details.properties.canonicalCombiningClass }}</span
               >
             </span>
@@ -172,10 +190,13 @@ function exploreScalar(scalar: number, relation: ExplorationRelation): void {
         </div>
       </section>
 
-      <section class="explorer-section decomposition-grid" aria-label="Unicode decomposition">
+      <section
+        class="explorer-section decomposition-grid"
+        :aria-label="t('explorer.decomposition')"
+      >
         <article>
           <div class="section-heading">
-            <h3>Canonical decomposition</h3>
+            <h3>{{ t('explorer.canonical') }}</h3>
             <span>NFD</span>
           </div>
           <div v-if="canonical.changed" class="component-list">
@@ -187,23 +208,23 @@ function exploreScalar(scalar: number, relation: ExplorationRelation): void {
               @click="
                 exploreScalar(scalar, {
                   kind: 'canonical-decomposition',
-                  label: 'NFD component',
+                  label: locale === 'zh-CN' ? 'NFD 分量' : 'NFD component',
                 })
               "
             >
               <span>{{ inspectScalar(scalar).display }}</span>
               <span class="component-identity">
                 <code>{{ inspectScalar(scalar).codePoint }}</code>
-                <small>{{ canonical.names[index] ?? 'No assigned name' }}</small>
+                <small>{{ canonical.names[index] ?? t('explorer.noAssignedName') }}</small>
               </span>
             </button>
           </div>
-          <p v-else class="decomposition-empty">No canonical decomposition.</p>
+          <p v-else class="decomposition-empty">{{ t('explorer.noCanonical') }}</p>
         </article>
 
         <article>
           <div class="section-heading">
-            <h3>Compatibility decomposition</h3>
+            <h3>{{ t('explorer.compatibility') }}</h3>
             <span>NFKD</span>
           </div>
           <div v-if="compatibility.changed" class="component-list">
@@ -215,18 +236,18 @@ function exploreScalar(scalar: number, relation: ExplorationRelation): void {
               @click="
                 exploreScalar(scalar, {
                   kind: 'compatibility-decomposition',
-                  label: 'NFKD component',
+                  label: locale === 'zh-CN' ? 'NFKD 分量' : 'NFKD component',
                 })
               "
             >
               <span>{{ inspectScalar(scalar).display }}</span>
               <span class="component-identity">
                 <code>{{ inspectScalar(scalar).codePoint }}</code>
-                <small>{{ compatibility.names[index] ?? 'No assigned name' }}</small>
+                <small>{{ compatibility.names[index] ?? t('explorer.noAssignedName') }}</small>
               </span>
             </button>
           </div>
-          <p v-else class="decomposition-empty">No additional compatibility decomposition.</p>
+          <p v-else class="decomposition-empty">{{ t('explorer.noCompatibility') }}</p>
         </article>
       </section>
 
@@ -248,7 +269,7 @@ function exploreScalar(scalar: number, relation: ExplorationRelation): void {
         @explore="
           emit('explore', $event, {
             kind: 'search',
-            label: 'Search result',
+            label: locale === 'zh-CN' ? '搜索结果' : 'Search result',
           })
         "
         @insert="emit('insertDiscovered', $event)"

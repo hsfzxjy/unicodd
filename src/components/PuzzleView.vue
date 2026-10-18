@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import type { EngineStatus } from '../composables/useUnicodeEngine';
+import { useI18n } from '../i18n';
 import { serializeUtf16Units } from '../puzzles/input';
 import { moveSequenceValue, removeSequenceValue } from '../puzzles/sequenceEditing';
 import type { PreparedPuzzleInput, PuzzleDefinition, PuzzleEvaluation } from '../puzzles/types';
@@ -25,6 +26,7 @@ const emit = defineEmits<{
 }>();
 
 const visibleHints = ref(0);
+const { t } = useI18n();
 const insertionOffsets = ref<Record<string, number>>({});
 const draggedValue = ref<{ inputId: string; index: number } | null>(null);
 
@@ -46,13 +48,13 @@ function formatBlock(input: PreparedPuzzleInput, value: number): string {
 }
 
 function renderedInput(input: PreparedPuzzleInput): string {
-  if (input.error) return 'Invalid input';
+  if (input.error) return t('puzzle.invalidInput');
   if (input.scalars) return displaySequence(input.scalars);
-  return input.utf16?.length ? 'Not valid scalar text' : '∅';
+  return input.utf16?.length ? t('puzzle.invalidScalarText') : '∅';
 }
 
 function sequenceKind(input: PreparedPuzzleInput): string {
-  return input.definition.kind === 'utf16-units' ? 'UTF-16 code units' : 'Unicode scalars';
+  return input.definition.kind === 'utf16-units' ? t('puzzle.utf16Kind') : t('puzzle.scalarKind');
 }
 
 function insertionOffset(input: PreparedPuzzleInput): number {
@@ -123,12 +125,17 @@ function handleBlockKeydown(input: PreparedPuzzleInput, index: number, event: Ke
 }
 
 function inputStatus(input: PreparedPuzzleInput): { label: string; passed: boolean } {
-  if (input.error) return { label: 'Invalid input', passed: false };
+  if (input.error) return { label: t('puzzle.invalidInput'), passed: false };
   const evaluated = props.evaluation?.inputStatuses[input.definition.id];
   if (evaluated) return evaluated;
   const length =
     input.definition.kind === 'utf16-units' ? input.utf16?.length : input.scalars?.length;
-  return { label: length ? `${length} value${length === 1 ? '' : 's'}` : 'Empty', passed: false };
+  return {
+    label: length
+      ? t('puzzle.valueCount', { count: length, suffix: length === 1 ? '' : 's' })
+      : t('puzzle.empty'),
+    passed: false,
+  };
 }
 
 function revealHint(): void {
@@ -144,23 +151,25 @@ function selectPuzzle(event: Event): void {
   <section class="puzzle-shell" aria-labelledby="page-title">
     <div class="puzzle-introduction">
       <div>
-        <p class="eyebrow">Puzzle {{ definition.number }} · {{ definition.theme }}</p>
+        <p class="eyebrow">
+          {{ t('puzzle.numberTheme', { number: definition.number, theme: definition.theme }) }}
+        </p>
         <h1 id="page-title">{{ definition.title }}</h1>
       </div>
       <p class="puzzle-objective">{{ definition.objective }}</p>
       <div class="puzzle-tools">
-        <nav class="puzzle-navigation" aria-label="Puzzle navigation">
+        <nav class="puzzle-navigation" :aria-label="t('puzzle.navigation')">
           <button
             type="button"
             :disabled="selectedIndex === 0"
-            aria-label="Previous puzzle"
+            :aria-label="t('puzzle.previous')"
             @click="emit('selectPuzzle', selectedIndex - 1)"
           >
             ←
           </button>
           <label class="puzzle-picker-label">
-            <span class="visually-hidden">Choose puzzle</span>
-            <select :value="selectedIndex" aria-label="Choose puzzle" @change="selectPuzzle">
+            <span class="visually-hidden">{{ t('puzzle.choose') }}</span>
+            <select :value="selectedIndex" :aria-label="t('puzzle.choose')" @change="selectPuzzle">
               <option v-for="(puzzle, index) in puzzles" :key="puzzle.id" :value="index">
                 {{ String(puzzle.number).padStart(2, '0') }} · {{ puzzle.theme }}
               </option>
@@ -172,7 +181,7 @@ function selectPuzzle(event: Event): void {
           <button
             type="button"
             :disabled="selectedIndex === puzzles.length - 1"
-            aria-label="Next puzzle"
+            :aria-label="t('puzzle.next')"
             @click="emit('selectPuzzle', selectedIndex + 1)"
           >
             →
@@ -186,7 +195,7 @@ function selectPuzzle(event: Event): void {
           aria-controls="discovery-workspace"
           @click="emit('openExplorer')"
         >
-          Character lab
+          {{ t('puzzle.characterLab') }}
         </button>
       </div>
     </div>
@@ -200,7 +209,7 @@ function selectPuzzle(event: Event): void {
           </span>
         </div>
         <div class="puzzle-rendered">
-          <span>Rendered</span>
+          <span>{{ t('puzzle.rendered') }}</span>
           <output :for="`puzzle-${input.definition.id}`">{{ renderedInput(input) }}</output>
         </div>
         <div class="puzzle-sequence-editor">
@@ -226,8 +235,14 @@ function selectPuzzle(event: Event): void {
               <button
                 type="button"
                 class="sequence-code"
-                :aria-label="`${formatBlock(input, value)}, item ${index + 1} of ${inputValues(input).length}. Select as insertion point.`"
-                :title="`${formatBlock(input, value)} · drag to reorder · Alt+Arrow to move`"
+                :aria-label="
+                  t('puzzle.sequenceItem', {
+                    value: formatBlock(input, value),
+                    index: index + 1,
+                    count: inputValues(input).length,
+                  })
+                "
+                :title="t('puzzle.reorderTitle', { value: formatBlock(input, value) })"
                 @click="selectInsertionPoint(input, index + 1)"
                 @keydown="handleBlockKeydown(input, index, $event)"
               >
@@ -236,8 +251,8 @@ function selectPuzzle(event: Event): void {
               <button
                 type="button"
                 class="sequence-delete"
-                :aria-label="`Delete ${formatBlock(input, value)}`"
-                title="Delete value"
+                :aria-label="t('puzzle.delete', { value: formatBlock(input, value) })"
+                :title="t('puzzle.deleteValue')"
                 @click="removeValue(input, index)"
               >
                 ×
@@ -250,7 +265,7 @@ function selectPuzzle(event: Event): void {
                 :class="{ 'insertion-point': insertionOffset(input) === 0 }"
                 @click="selectInsertionPoint(input, 0)"
               >
-                Empty
+                {{ t('puzzle.empty') }}
               </button>
             </div>
           </div>
@@ -258,14 +273,16 @@ function selectPuzzle(event: Event): void {
             type="button"
             class="insert-explored"
             :disabled="exploredTarget.length === 0"
-            :title="`Insert the current lab sequence at position ${insertionOffset(input) + 1}`"
+            :title="t('puzzle.insertTarget', { position: insertionOffset(input) + 1 })"
             @click="emit('useExplored', input.definition.id, insertionOffset(input))"
           >
-            Insert explored
+            {{ t('puzzle.insertExplored') }}
           </button>
         </div>
         <label class="puzzle-direct-entry" :for="`puzzle-${input.definition.id}`">
-          <span>{{ input.definition.kind === 'utf16-units' ? 'Hex units' : 'Type' }}</span>
+          <span>{{
+            input.definition.kind === 'utf16-units' ? t('puzzle.hexUnits') : t('puzzle.type')
+          }}</span>
           <input
             :id="`puzzle-${input.definition.id}`"
             class="puzzle-input"
@@ -293,7 +310,10 @@ function selectPuzzle(event: Event): void {
         <div class="puzzle-input-heading">
           <span>{{ definition.resultLabel }}</span>
           <span :class="['check-label', { passed: evaluation?.success }]">
-            {{ evaluation?.status ?? (engineStatus === 'loading' ? 'Loading' : 'Waiting') }}
+            {{
+              evaluation?.status ??
+              (engineStatus === 'loading' ? t('puzzle.loading') : t('puzzle.waiting'))
+            }}
           </span>
         </div>
         <div v-if="evaluation" class="joined-preview">
@@ -301,7 +321,7 @@ function selectPuzzle(event: Event): void {
           <code>{{ evaluation.code }}</code>
         </div>
         <div v-else class="joined-preview pending">
-          {{ engineStatus === 'loading' ? 'Loading engine…' : 'Waiting for valid inputs' }}
+          {{ engineStatus === 'loading' ? t('puzzle.loadingEngine') : t('puzzle.waitingInputs') }}
         </div>
         <ul v-if="evaluation" class="puzzle-checks">
           <li v-for="item in evaluation.checks" :key="item.label" :class="{ passed: item.passed }">
@@ -314,7 +334,7 @@ function selectPuzzle(event: Event): void {
 
     <div v-if="evaluation?.success" class="puzzle-solved" role="status">
       <div>
-        <p class="eyebrow">Puzzle solved</p>
+        <p class="eyebrow">{{ t('puzzle.solved') }}</p>
         <h2>{{ definition.title }}</h2>
       </div>
       <p>{{ definition.explanation }}</p>
@@ -329,7 +349,7 @@ function selectPuzzle(event: Event): void {
     </div>
     <div v-else class="hint-row">
       <button type="button" :disabled="visibleHints >= definition.hints.length" @click="revealHint">
-        {{ visibleHints ? 'Show next hint' : 'Show a hint' }}
+        {{ visibleHints ? t('puzzle.showNextHint') : t('puzzle.showHint') }}
       </button>
       <ol v-if="visibleHints" class="hint-list">
         <li v-for="hint in definition.hints.slice(0, visibleHints)" :key="hint">{{ hint }}</li>

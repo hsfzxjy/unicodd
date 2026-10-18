@@ -1,43 +1,6 @@
 import type { OperationGraph, OperationValue } from '../engine/types';
 import { unicodeScalarArraysEqual } from '../unicode';
-import type { NormalizationPuzzleEvaluation, NormalizeNfc, PuzzleDefinition } from './types';
-
-export const normalizationConcatenationPuzzle: PuzzleDefinition = {
-  id: 'nfc-concatenation-boundary',
-  number: 1,
-  theme: 'Normalization',
-  title: 'A seam in the string',
-  objective:
-    'Find two non-empty strings that are each NFC-normalized, but whose concatenation is not.',
-  defaultUnicodeProfile: 'Unicode 17 / ICU4X 2.3',
-  inputs: [
-    {
-      id: 'left',
-      label: 'Input A',
-      description: 'The first independently normalized string.',
-      kind: 'text',
-      initialValue: '',
-    },
-    {
-      id: 'right',
-      label: 'Input B',
-      description: 'The second independently normalized string.',
-      kind: 'text',
-      initialValue: '',
-    },
-  ],
-  graphTitle: 'Watch the normalization boundary',
-  graphDescription: 'NFC runs on each input and on their concatenation.',
-  resultLabel: 'Concatenation',
-  hints: [
-    'Start with é in the explorer and inspect its canonical decomposition.',
-    'Try putting the base letter in Input A and the combining mark in Input B.',
-    'Each input can be normalized alone while their boundary creates a new composition opportunity.',
-  ],
-  explanation:
-    'NFC is not closed under concatenation. A starter at the end of Input A can compose with a combining mark at the start of Input B, even though each input was already NFC on its own.',
-  capabilities: ['normalization'],
-};
+import type { NormalizationPuzzleEvaluation, NormalizeNfc } from './types';
 
 export function evaluateNormalizationPuzzle(
   left: Uint32Array,

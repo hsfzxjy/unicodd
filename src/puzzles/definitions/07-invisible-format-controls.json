@@ -1,0 +1,29 @@
+{
+  "$schema": "../puzzle.schema.json",
+  "runtime": "invisible-format-controls",
+  "id": "invisible-format-controls",
+  "number": 7,
+  "theme": "Invisible text",
+  "title": "Something from nothing",
+  "objective": "Enter a non-empty string made entirely from Unicode format characters (Cf).",
+  "defaultUnicodeProfile": "Unicode 17 / ICU4X 2.3",
+  "inputs": [
+    {
+      "id": "input",
+      "label": "Text",
+      "description": "Invisible input is represented by labeled tokens.",
+      "kind": "text",
+      "initialValue": ""
+    }
+  ],
+  "graphTitle": "Inspect the hidden payload",
+  "graphDescription": "The graph counts real scalars and checks their Unicode general category.",
+  "resultLabel": "Visibility check",
+  "hints": [
+    "Search for ZERO WIDTH SPACE or WORD JOINER in the character lab.",
+    "Format characters have General_Category=Cf.",
+    "Try U+200B ZERO WIDTH SPACE."
+  ],
+  "explanation": "A string can contain real data without an ordinary visible glyph. Format controls can affect layout, joining, ordering, or parsing even when the rendered line appears empty.",
+  "capabilities": ["property-index"]
+}

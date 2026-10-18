@@ -2,6 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue';
 import { selectionContainsRange } from '../explorer/graphemes';
 import type { GraphemeRange, TextSelection } from '../explorer/types';
+import { useI18n } from '../i18n';
 import { displaySequence } from '../unicode';
 
 const props = defineProps<{
@@ -20,6 +21,7 @@ const emit = defineEmits<{
 }>();
 
 const input = ref<HTMLTextAreaElement>();
+const { t } = useI18n();
 const scalarCount = computed(() => props.scalars.length);
 const graphemeCount = computed(() => props.graphemes.length);
 
@@ -51,17 +53,26 @@ watch(
   <section class="panel editor-panel" aria-labelledby="editor-heading">
     <div class="panel-heading">
       <div>
-        <p class="eyebrow">Constructed string</p>
-        <h2 id="editor-heading">Build the text to investigate</h2>
+        <p class="eyebrow">{{ t('editor.eyebrow') }}</p>
+        <h2 id="editor-heading">{{ t('editor.title') }}</h2>
       </div>
-      <div class="representation-counts" aria-label="String representation counts">
-        <span>{{ graphemeCount }} grapheme{{ graphemeCount === 1 ? '' : 's' }}</span>
-        <span>{{ scalarCount }} scalar{{ scalarCount === 1 ? '' : 's' }}</span>
-        <span>{{ modelValue.length }} UTF-16 unit{{ modelValue.length === 1 ? '' : 's' }}</span>
+      <div class="representation-counts" :aria-label="t('editor.counts')">
+        <span>{{
+          t('editor.graphemes', { count: graphemeCount, suffix: graphemeCount === 1 ? '' : 's' })
+        }}</span>
+        <span>{{
+          t('editor.scalars', { count: scalarCount, suffix: scalarCount === 1 ? '' : 's' })
+        }}</span>
+        <span>{{
+          t('editor.utf16Units', {
+            count: modelValue.length,
+            suffix: modelValue.length === 1 ? '' : 's',
+          })
+        }}</span>
       </div>
     </div>
 
-    <label class="visually-hidden" for="unicode-input">Unicode text</label>
+    <label class="visually-hidden" for="unicode-input">{{ t('editor.label') }}</label>
     <textarea
       id="unicode-input"
       ref="input"
@@ -74,13 +85,10 @@ watch(
       @click="reportSelection"
       @keyup="reportSelection"
     />
-    <p id="editor-help" class="supporting-copy">
-      Type, paste, or select normally. A selection opens exactly that sequence; a caret opens its
-      grapheme cluster. Text is never normalized automatically.
-    </p>
+    <p id="editor-help" class="supporting-copy">{{ t('editor.help') }}</p>
     <p v-if="error" class="error-message" role="alert">{{ error }}</p>
 
-    <div v-if="graphemes.length" class="grapheme-strip" aria-label="Grapheme clusters in the input">
+    <div v-if="graphemes.length" class="grapheme-strip" :aria-label="t('editor.graphemeList')">
       <button
         v-for="grapheme in graphemes"
         :key="`${grapheme.index}-${grapheme.scalarStart}-${grapheme.scalarEnd}`"
@@ -95,6 +103,6 @@ watch(
         <span>{{ grapheme.scalars.length }}S</span>
       </button>
     </div>
-    <div v-else class="empty-state">Enter text to reveal its grapheme clusters.</div>
+    <div v-else class="empty-state">{{ t('editor.empty') }}</div>
   </section>
 </template>

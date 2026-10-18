@@ -1,0 +1,167 @@
+{
+  "nfc-concatenation-boundary": {
+    "theme": "规范化",
+    "title": "字符串中的接缝",
+    "objective": "找出两个各自已采用 NFC 规范化的非空字符串，但它们拼接后的结果不是 NFC。",
+    "defaultUnicodeProfile": "Unicode 17 / ICU4X 2.3",
+    "inputs": {
+      "left": { "label": "输入 A", "description": "第一个独立规范化的字符串。" },
+      "right": { "label": "输入 B", "description": "第二个独立规范化的字符串。" }
+    },
+    "graphTitle": "观察规范化边界",
+    "graphDescription": "分别对每个输入及其拼接结果执行 NFC。",
+    "resultLabel": "拼接结果",
+    "hints": [
+      "从探索器中的 é 开始，检查它的规范分解。",
+      "试着把基本字母放入输入 A，把组合标记放入输入 B。",
+      "每个输入单独看都可以是规范化的，但两者边界会产生新的组合机会。"
+    ],
+    "explanation": "NFC 在拼接运算下并不封闭。输入 A 末尾的起始字符可以与输入 B 开头的组合标记合成，即使两个输入各自都已经是 NFC。"
+  },
+  "encoding-lengths": {
+    "theme": "编码",
+    "title": "一个字符，四个字节",
+    "objective": "找出一个 Unicode 标量值：它是一个字素簇、两个 UTF-16 码元和四个 UTF-8 字节。",
+    "defaultUnicodeProfile": "Unicode 17 / ICU4X 2.3",
+    "inputs": {
+      "input": { "label": "文本", "description": "试试辅助平面中的字符。" }
+    },
+    "graphTitle": "计算三种表示的长度",
+    "graphDescription": "同一标量序列先编码为 UTF-8 和 UTF-16，再分别计数。",
+    "resultLabel": "编码度量",
+    "hints": [
+      "基本多文种平面之外的字符需要一对 UTF-16 代理项。",
+      "表情符号是寻找辅助字符的常见起点。",
+      "试试 🧩，或另一个不带变体选择符的单个表情符号。"
+    ],
+    "explanation": "辅助平面标量仍然只是一个 Unicode 标量值，也常常是一个字素簇；但 UTF-16 用代理对存储它，而 UTF-8 使用四个字节。"
+  },
+  "grapheme-many-scalars": {
+    "theme": "字素簇",
+    "title": "组成部分比字符更多",
+    "objective": "构造一个至少包含三个 Unicode 标量值的字素簇。",
+    "defaultUnicodeProfile": "Unicode 17 / ICU4X 2.3",
+    "inputs": {
+      "input": { "label": "文本", "description": "组合标记，或使用表情符号 ZWJ 序列。" }
+    },
+    "graphTitle": "分割看似完整的字符",
+    "graphDescription": "ICU4X 独立于标量值来计算扩展字素簇。",
+    "resultLabel": "字素簇度量",
+    "hints": [
+      "组合标记可以扩展基本字符，而不会开始新的字素簇。",
+      "由 U+200D ZERO WIDTH JOINER 连接的表情符号也可以形成一个字素簇。",
+      "试试 e，后接 U+0301 和 U+0323。"
+    ],
+    "explanation": "用户感知到的字符是字素簇，而不是固定宽度的存储单位。一个字素簇可以包含基本字符和多个标记，也可以包含完整的表情符号 ZWJ 序列。"
+  },
+  "case-fold-collision": {
+    "theme": "大小写折叠",
+    "title": "写法不同，键值相同",
+    "objective": "找出两个不同的非空字符串，使它们的默认 Unicode 大小写折叠结果相同。",
+    "defaultUnicodeProfile": "Unicode 17 / ICU4X 2.3",
+    "inputs": {
+      "left": { "label": "输入 A", "description": "第一种写法。" },
+      "right": { "label": "输入 B", "description": "另一种不同但折叠结果相同的写法。" }
+    },
+    "graphTitle": "折叠两个字符串",
+    "graphDescription": "ICU4X 先执行完整的默认大小写折叠，再比较结果。",
+    "resultLabel": "折叠比较",
+    "hints": [
+      "ASCII 大写和小写字母已经可以共享折叠结果。",
+      "完整折叠可以把一个标量值展开为多个标量值。",
+      "比较 Straße 和 STRASSE。"
+    ],
+    "explanation": "大小写折叠用于不区分大小写的比较，而非显示。完整折叠可能会展开字符——德语 ß 会折叠为 ss——因此不同字符串可以共享同一个比较键。"
+  },
+  "compatibility-normalization": {
+    "theme": "兼容性",
+    "title": "消失的格式",
+    "objective": "找出一个非空字符串：NFC 保持它不变，但 NFKC 会改变它。",
+    "defaultUnicodeProfile": "Unicode 17 / ICU4X 2.3",
+    "inputs": {
+      "input": { "label": "文本", "description": "寻找带圈、全角或上标形式。" }
+    },
+    "graphTitle": "比较规范形式与兼容形式",
+    "graphDescription": "NFC 保留兼容性差异，而 NFKC 会有意去除这些差异。",
+    "resultLabel": "规范化比较",
+    "hints": [
+      "兼容字符编码了显示形式或语义上的区别。",
+      "探索器会把兼容相关字符与规范相关字符分开列出。",
+      "试试 ①、全角 ａ 或上标 ¹。"
+    ],
+    "explanation": "NFC 只处理规范等价。NFKC 还会消除兼容性差异，因此带圈数字等符号可以规范化为普通文本。"
+  },
+  "confusable-skeleton-collision": {
+    "theme": "易混淆字符",
+    "title": "看起来相同，实际仍不同",
+    "objective": "找出两个不同字符串：它们具有相同的 UTS #39 易混淆骨架，但 NFC 形式不同。",
+    "defaultUnicodeProfile": "Unicode 17 / UTS #39",
+    "inputs": {
+      "left": { "label": "输入 A", "description": "一个看起来熟悉的字符串。" },
+      "right": { "label": "输入 B", "description": "一个不同但外观相似的字符串。" }
+    },
+    "graphTitle": "比较安全骨架",
+    "graphDescription": "固定版本的 UTS #39 映射为每个输入生成面向安全的骨架。",
+    "resultLabel": "骨架比较",
+    "hints": [
+      "易混淆字符不一定规范等价。",
+      "探索拉丁字母 a 的视觉易混淆字符。",
+      "比较拉丁字母 a 与西里尔字母 а（U+0430）。"
+    ],
+    "explanation": "UTS #39 骨架用于标记可能造成视觉混淆的文本。这是一种安全信号，不代表规范等价、语义相等，也不能保证适用于所有字体。"
+  },
+  "invisible-format-controls": {
+    "theme": "不可见文本",
+    "title": "无中生有",
+    "objective": "输入一个完全由 Unicode 格式字符（Cf）组成的非空字符串。",
+    "defaultUnicodeProfile": "Unicode 17 / ICU4X 2.3",
+    "inputs": {
+      "input": { "label": "文本", "description": "不可见输入会以带标签的标记块表示。" }
+    },
+    "graphTitle": "检查隐藏的内容",
+    "graphDescription": "运算图计算真实标量值数量，并检查其 Unicode 通用类别。",
+    "resultLabel": "可见性检查",
+    "hints": [
+      "在字符实验室中搜索 ZERO WIDTH SPACE 或 WORD JOINER。",
+      "格式字符的 General_Category 为 Cf。",
+      "试试 U+200B ZERO WIDTH SPACE。"
+    ],
+    "explanation": "字符串即使没有普通可见字形，也可以包含真实数据。格式控制字符可能影响布局、连接、顺序或解析，即使渲染后的行看起来为空。"
+  },
+  "malformed-utf16": {
+    "theme": "格式错误的 UTF-16",
+    "title": "半个表情符号",
+    "objective": "输入一个非空且结构不良的 UTF-16 码元序列。",
+    "defaultUnicodeProfile": "与版本无关的 UTF-16",
+    "inputs": {
+      "input": { "label": "UTF-16 码元", "description": "用空格分隔的十六进制码元。" }
+    },
+    "graphTitle": "验证原始码元",
+    "graphDescription": "此流程直接建模 UTF-16，因此会保留未配对的代理项。",
+    "resultLabel": "结构验证",
+    "hints": [
+      "辅助平面标量使用一个高代理项，后接一个低代理项。",
+      "删除有效代理对中的任意一半。",
+      "试试单独的高代理码元 D83E。"
+    ],
+    "explanation": "UTF-16 码元可以包含未配对代理项，但 Unicode 标量序列不能。验证必须明确检测这种结构，而不能静默替换它。"
+  },
+  "historical-normalization": {
+    "theme": "Unicode 版本",
+    "title": "旧码位的新含义",
+    "objective": "找出一个标量值：Unicode 15.1 的 NFKC 保持它不变，而 Unicode 17 的 NFKC 将它映射为 ASCII。",
+    "defaultUnicodeProfile": "Unicode 15.1 ↔ Unicode 17",
+    "inputs": {
+      "input": { "label": "文本", "description": "寻找 Unicode 15.1 之后才分配的字符。" }
+    },
+    "graphTitle": "运行两个固定版本的规范化器",
+    "graphDescription": "同一标量序列分别通过独立的 Unicode 15.1 和 Unicode 17 WASM 模块。",
+    "resultLabel": "版本比较",
+    "hints": [
+      "未分配标量在旧版 Unicode 中没有兼容映射。",
+      "Unicode 16 新增了一个修饰字母，其兼容分解是 ASCII 字母。",
+      "在字符实验室中搜索 U+A7F1 MODIFIER LETTER CAPITAL S。"
+    ],
+    "explanation": "U+A7F1 在 Unicode 15.1 中尚未分配，因此该引擎会保留它。后来分配给它的字符具有到 ASCII S 的兼容分解，Unicode 17 的 NFKC 会应用此映射。历史行为需要真实的历史数据，而不只是更换版本标签。"
+  }
+}

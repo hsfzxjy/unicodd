@@ -1,4 +1,5 @@
 import type { OperationGraph, OperationNode, OperationValue } from '../engine/types';
+import type { AppLocale } from '../i18n';
 import {
   displaySequence,
   formatCodePoint,
@@ -10,9 +11,10 @@ import {
 import {
   createNormalizationPuzzleGraph,
   evaluateNormalizationPuzzle,
-  normalizationConcatenationPuzzle,
 } from './normalizationConcatenation';
+import { puzzleCatalog, type PuzzleRuntimeId } from './catalog';
 import { formatUtf16Units, isWellFormedUtf16 } from './input';
+import { localizePuzzleDefinition } from './localization';
 import type {
   PreparedPuzzleInput,
   PuzzleDefinition,
@@ -21,210 +23,35 @@ import type {
   PuzzleRuntime,
 } from './types';
 
-const profile = 'Unicode 17 / ICU4X 2.3';
+export function createPuzzleCollection(locale: AppLocale = 'en'): PuzzleRuntime[] {
+  return puzzleCatalog.map((entry) => createRuntime(entry, locale));
+}
 
-const definitions: PuzzleDefinition[] = [
-  normalizationConcatenationPuzzle,
-  {
-    id: 'encoding-lengths',
-    number: 2,
-    theme: 'Encodings',
-    title: 'One character, four bytes',
-    objective:
-      'Find one Unicode scalar that is one grapheme, two UTF-16 code units, and four UTF-8 bytes.',
-    defaultUnicodeProfile: profile,
-    inputs: [textInput('input', 'Text', 'Try a supplementary-plane character.')],
-    graphTitle: 'Count three representations',
-    graphDescription: 'The same scalar sequence is encoded as UTF-8 and UTF-16 before counting.',
-    resultLabel: 'Encoding measures',
-    hints: [
-      'Characters outside the Basic Multilingual Plane need a UTF-16 surrogate pair.',
-      'Emoji are a familiar place to look for supplementary characters.',
-      'Try 🧩 or another single emoji without a variation selector.',
-    ],
-    explanation:
-      'A supplementary scalar is still one Unicode scalar and often one grapheme, but UTF-16 stores it as a surrogate pair while UTF-8 uses four bytes.',
-    capabilities: ['grapheme-segmentation'],
-  },
-  {
-    id: 'grapheme-many-scalars',
-    number: 3,
-    theme: 'Graphemes',
-    title: 'More pieces than characters',
-    objective: 'Build one grapheme cluster containing at least three Unicode scalars.',
-    defaultUnicodeProfile: profile,
-    inputs: [textInput('input', 'Text', 'Combine marks or use an emoji ZWJ sequence.')],
-    graphTitle: 'Segment what looks whole',
-    graphDescription: 'ICU4X counts extended grapheme clusters independently from scalars.',
-    resultLabel: 'Cluster measures',
-    hints: [
-      'Combining marks can extend a base without starting a new grapheme.',
-      'Emoji joined by U+200D ZERO WIDTH JOINER can also form one cluster.',
-      'Try e followed by U+0301 and U+0323.',
-    ],
-    explanation:
-      'User-perceived characters are grapheme clusters, not fixed-width storage units. One cluster can contain a base plus several marks, or an entire emoji ZWJ sequence.',
-    capabilities: ['grapheme-segmentation'],
-  },
-  {
-    id: 'case-fold-collision',
-    number: 4,
-    theme: 'Case folding',
-    title: 'Different cases, same key',
-    objective: 'Find two distinct non-empty strings with the same default Unicode case fold.',
-    defaultUnicodeProfile: profile,
-    inputs: [
-      textInput('left', 'Input A', 'The first spelling.'),
-      textInput('right', 'Input B', 'A distinct spelling that folds the same way.'),
-    ],
-    graphTitle: 'Fold both strings',
-    graphDescription: 'ICU4X applies full default case folding before comparing the results.',
-    resultLabel: 'Fold comparison',
-    hints: [
-      'Uppercase and lowercase ASCII letters already share folds.',
-      'Full folding can expand one scalar into several scalars.',
-      'Compare Straße with STRASSE.',
-    ],
-    explanation:
-      'Case folding is intended for caseless comparison, not display. Full folding may expand characters—German ß folds to ss—so distinct strings can share one comparison key.',
-    capabilities: ['case-folding'],
-  },
-  {
-    id: 'compatibility-normalization',
-    number: 5,
-    theme: 'Compatibility',
-    title: 'Formatting that disappears',
-    objective: 'Find a non-empty string that NFC keeps unchanged but NFKC changes.',
-    defaultUnicodeProfile: profile,
-    inputs: [textInput('input', 'Text', 'Look for circled, wide, or superscript forms.')],
-    graphTitle: 'Compare canonical and compatibility forms',
-    graphDescription: 'NFC preserves compatibility distinctions that NFKC intentionally removes.',
-    resultLabel: 'Normalization comparison',
-    hints: [
-      'Compatibility characters encode a presentation or semantic distinction.',
-      'The explorer lists compatibility relatives separately from canonical relatives.',
-      'Try ①, fullwidth ａ, or superscript ¹.',
-    ],
-    explanation:
-      'NFC only resolves canonical equivalence. NFKC additionally removes compatibility distinctions, so symbols such as circled digits can normalize to ordinary text.',
-    capabilities: ['normalization'],
-  },
-  {
-    id: 'confusable-skeleton-collision',
-    number: 6,
-    theme: 'Confusables',
-    title: 'Looks equal, stays different',
-    objective:
-      'Find two distinct strings with the same UTS #39 confusable skeleton but different NFC forms.',
-    defaultUnicodeProfile: 'Unicode 17 / UTS #39',
-    inputs: [
-      textInput('left', 'Input A', 'A familiar-looking string.'),
-      textInput('right', 'Input B', 'A distinct look-alike string.'),
-    ],
-    graphTitle: 'Compare security skeletons',
-    graphDescription:
-      'Pinned UTS #39 mappings produce a security-oriented skeleton for each input.',
-    resultLabel: 'Skeleton comparison',
-    hints: [
-      'Confusable characters are not necessarily normalization-equivalent.',
-      'Explore visual confusables for the Latin letter a.',
-      'Compare Latin a with Cyrillic а (U+0430).',
-    ],
-    explanation:
-      'UTS #39 skeletons flag text that may be visually confusable. The relationship is a security signal, not canonical equivalence, semantic equality, or a guarantee for every font.',
-    capabilities: ['normalization', 'confusable-index'],
-  },
-  {
-    id: 'invisible-format-controls',
-    number: 7,
-    theme: 'Invisible text',
-    title: 'Something from nothing',
-    objective: 'Enter a non-empty string made entirely from Unicode format characters (Cf).',
-    defaultUnicodeProfile: profile,
-    inputs: [textInput('input', 'Text', 'Invisible input is represented by labeled tokens.')],
-    graphTitle: 'Inspect the hidden payload',
-    graphDescription: 'The graph counts real scalars and checks their Unicode general category.',
-    resultLabel: 'Visibility check',
-    hints: [
-      'Search for ZERO WIDTH SPACE or WORD JOINER in the character lab.',
-      'Format characters have General_Category=Cf.',
-      'Try U+200B ZERO WIDTH SPACE.',
-    ],
-    explanation:
-      'A string can contain real data without an ordinary visible glyph. Format controls can affect layout, joining, ordering, or parsing even when the rendered line appears empty.',
-    capabilities: ['property-index'],
-  },
-  {
-    id: 'malformed-utf16',
-    number: 8,
-    theme: 'Malformed UTF-16',
-    title: 'Half an emoji',
-    objective: 'Enter a non-empty UTF-16 code-unit sequence that is not structurally well-formed.',
-    defaultUnicodeProfile: 'Version-independent UTF-16',
-    inputs: [
-      {
-        id: 'input',
-        label: 'UTF-16 units',
-        description: 'Hexadecimal code units separated by spaces.',
-        kind: 'utf16-units',
-        placeholder: 'D83E DDE9',
-        initialValue: '',
-      },
-    ],
-    graphTitle: 'Validate raw code units',
-    graphDescription: 'This path models UTF-16 directly, so unpaired surrogates are preserved.',
-    resultLabel: 'Structural validation',
-    hints: [
-      'Supplementary scalars use a high surrogate followed by a low surrogate.',
-      'Remove either half of a valid surrogate pair.',
-      'Try the lone high-surrogate code unit D83E.',
-    ],
-    explanation:
-      'UTF-16 code units can contain unpaired surrogates even though Unicode scalar sequences cannot. Validation must detect that structure explicitly instead of silently replacing it.',
-    capabilities: [],
-  },
-  {
-    id: 'historical-normalization',
-    number: 9,
-    theme: 'Unicode versions',
-    title: 'New meaning for an old number',
-    objective:
-      'Find a scalar that Unicode 15.1 NFKC leaves unchanged but Unicode 17 NFKC maps to ASCII.',
-    defaultUnicodeProfile: 'Unicode 15.1 ↔ Unicode 17',
-    historicalUnicodeProfile: 'unicode-15.1',
-    inputs: [textInput('input', 'Text', 'Look for a character assigned after Unicode 15.1.')],
-    graphTitle: 'Run two pinned normalizers',
-    graphDescription:
-      'The same scalar sequence passes through independent Unicode 15.1 and Unicode 17 WASM modules.',
-    resultLabel: 'Version comparison',
-    hints: [
-      'An unassigned scalar has no compatibility mapping in an older Unicode version.',
-      'Unicode 16 added a modifier form whose compatibility decomposition is an ASCII letter.',
-      'Search the character lab for U+A7F1 MODIFIER LETTER CAPITAL S.',
-    ],
-    explanation:
-      'U+A7F1 was unassigned in Unicode 15.1, so that engine preserves it. Its later assignment includes a compatibility decomposition to ASCII S, which Unicode 17 NFKC applies. Historical behavior requires historical data—not just a different label.',
-    capabilities: ['normalization', 'historical-normalization'],
-  },
-];
+export const puzzleCollection: PuzzleRuntime[] = createPuzzleCollection();
 
-export const puzzleCollection: PuzzleRuntime[] = definitions.map(createRuntime);
-
-function createRuntime(definition: PuzzleDefinition): PuzzleRuntime {
+function createRuntime(
+  { runtime, definition: sourceDefinition }: (typeof puzzleCatalog)[number],
+  locale: AppLocale,
+): PuzzleRuntime {
+  const definition = localizePuzzleDefinition(sourceDefinition, locale);
   return {
     definition,
-    evaluate: (inputs, operations) => evaluate(definition.id, inputs, operations),
-    createGraph: (operations) => createGraph(definition, operations),
+    evaluate: (inputs, operations) => evaluate(runtime, inputs, operations, locale),
+    createGraph: (operations) => createGraph(runtime, operations, locale),
     createSources: (inputs) => createSources(definition, inputs),
   };
 }
 
 function evaluate(
-  id: string,
+  runtime: PuzzleRuntimeId,
   inputs: Readonly<Record<string, PreparedPuzzleInput>>,
   operations: PuzzleOperations,
+  locale: AppLocale,
 ): PuzzleEvaluation {
-  if (id === 'nfc-concatenation-boundary') {
+  if (locale === 'zh-CN') {
+    return localizeEvaluation(runtime, evaluate(runtime, inputs, operations, 'en'));
+  }
+  if (runtime === 'nfc-concatenation-boundary') {
     const left = requireScalars(inputs.left);
     const right = requireScalars(inputs.right);
     const result = evaluateNormalizationPuzzle(left, right, (input) =>
@@ -264,7 +91,7 @@ function evaluate(
     );
   }
 
-  if (id === 'encoding-lengths') {
+  if (runtime === 'encoding-lengths') {
     const input = requireScalars(inputs.input);
     const bytes = utf8EncodeScalars(input).length;
     const units = stringToUtf16CodeUnits(unicodeScalarsToString(input)).length;
@@ -290,7 +117,7 @@ function evaluate(
     );
   }
 
-  if (id === 'grapheme-many-scalars') {
+  if (runtime === 'grapheme-many-scalars') {
     const input = requireScalars(inputs.input);
     const graphemes = graphemeCount(input, operations);
     const success = input.length >= 3 && graphemes === 1;
@@ -310,7 +137,7 @@ function evaluate(
     );
   }
 
-  if (id === 'case-fold-collision') {
+  if (runtime === 'case-fold-collision') {
     const left = requireScalars(inputs.left);
     const right = requireScalars(inputs.right);
     const leftFold = operations.caseFold(left);
@@ -338,7 +165,7 @@ function evaluate(
     );
   }
 
-  if (id === 'compatibility-normalization') {
+  if (runtime === 'compatibility-normalization') {
     const input = requireScalars(inputs.input);
     const nfc = operations.normalize('NFC', input);
     const nfkc = operations.normalize('NFKC', input);
@@ -367,7 +194,7 @@ function evaluate(
     );
   }
 
-  if (id === 'confusable-skeleton-collision') {
+  if (runtime === 'confusable-skeleton-collision') {
     const left = requireScalars(inputs.left);
     const right = requireScalars(inputs.right);
     const skeleton = requireConfusableSkeleton(operations);
@@ -399,7 +226,7 @@ function evaluate(
     );
   }
 
-  if (id === 'invisible-format-controls') {
+  if (runtime === 'invisible-format-controls') {
     const input = requireScalars(inputs.input);
     const generalCategory = requireGeneralCategory(operations);
     const categories = Array.from(input, (scalar) => generalCategory(scalar) ?? '—');
@@ -420,7 +247,7 @@ function evaluate(
     );
   }
 
-  if (id === 'malformed-utf16') {
+  if (runtime === 'malformed-utf16') {
     const units = requireUtf16(inputs.input);
     const wellFormed = isWellFormedUtf16(units);
     const success = units.length > 0 && !wellFormed;
@@ -440,7 +267,7 @@ function evaluate(
     );
   }
 
-  if (id === 'historical-normalization') {
+  if (runtime === 'historical-normalization') {
     const input = requireScalars(inputs.input);
     const historical = requireHistoricalNormalizer(operations)('NFKC', input);
     const current = operations.normalize('NFKC', input);
@@ -473,15 +300,21 @@ function evaluate(
     );
   }
 
-  throw new Error(`Unknown puzzle ${id}.`);
+  throw new Error(`Unknown puzzle runtime ${runtime}.`);
 }
 
-function createGraph(definition: PuzzleDefinition, operations: PuzzleOperations): OperationGraph {
-  const id = definition.id;
-  if (id === 'nfc-concatenation-boundary') {
+function createGraph(
+  runtime: PuzzleRuntimeId,
+  operations: PuzzleOperations,
+  locale: AppLocale,
+): OperationGraph {
+  if (locale === 'zh-CN') {
+    return localizeGraph(runtime, createGraph(runtime, operations, 'en'));
+  }
+  if (runtime === 'nfc-concatenation-boundary') {
     return createNormalizationPuzzleGraph((input) => operations.normalize('NFC', input));
   }
-  if (id === 'encoding-lengths') {
+  if (runtime === 'encoding-lengths') {
     return graph(
       [
         source('input', 'Input text', 'scalars'),
@@ -540,7 +373,7 @@ function createGraph(definition: PuzzleDefinition, operations: PuzzleOperations)
       ],
     );
   }
-  if (id === 'grapheme-many-scalars') {
+  if (runtime === 'grapheme-many-scalars') {
     return graph(
       [
         source('input', 'Input text', 'scalars'),
@@ -561,7 +394,7 @@ function createGraph(definition: PuzzleDefinition, operations: PuzzleOperations)
       [edge('input', 'scalar-length'), edge('input', 'grapheme-count')],
     );
   }
-  if (id === 'case-fold-collision') {
+  if (runtime === 'case-fold-collision') {
     return twoTransformGraph(
       'Default case fold',
       operations.caseFold,
@@ -570,7 +403,7 @@ function createGraph(definition: PuzzleDefinition, operations: PuzzleOperations)
       'Compares the two folded scalar sequences exactly.',
     );
   }
-  if (id === 'compatibility-normalization') {
+  if (runtime === 'compatibility-normalization') {
     return graph(
       [
         source('input', 'Input text', 'scalars'),
@@ -598,7 +431,7 @@ function createGraph(definition: PuzzleDefinition, operations: PuzzleOperations)
       [edge('input', 'nfc'), edge('input', 'nfkc')],
     );
   }
-  if (id === 'confusable-skeleton-collision') {
+  if (runtime === 'confusable-skeleton-collision') {
     return twoTransformGraph(
       'UTS #39 skeleton',
       requireConfusableSkeleton(operations),
@@ -607,7 +440,7 @@ function createGraph(definition: PuzzleDefinition, operations: PuzzleOperations)
       'Compares the two confusable skeleton sequences exactly; matching does not imply semantic equivalence.',
     );
   }
-  if (id === 'invisible-format-controls') {
+  if (runtime === 'invisible-format-controls') {
     return graph(
       [
         source('input', 'Input text', 'scalars'),
@@ -632,7 +465,7 @@ function createGraph(definition: PuzzleDefinition, operations: PuzzleOperations)
       [edge('input', 'scalar-length'), edge('input', 'format-check')],
     );
   }
-  if (id === 'malformed-utf16') {
+  if (runtime === 'malformed-utf16') {
     return graph(
       [
         source('input', 'Raw UTF-16 units', 'utf16'),
@@ -664,7 +497,7 @@ function createGraph(definition: PuzzleDefinition, operations: PuzzleOperations)
       [edge('input', 'unit-length'), edge('input', 'valid')],
     );
   }
-  if (id === 'historical-normalization') {
+  if (runtime === 'historical-normalization') {
     const normalizeHistorical = requireHistoricalNormalizer(operations);
     return graph(
       [
@@ -713,7 +546,210 @@ function createGraph(definition: PuzzleDefinition, operations: PuzzleOperations)
       ],
     );
   }
-  throw new Error(`Unknown puzzle graph ${id}.`);
+  throw new Error(`Unknown puzzle graph runtime ${runtime}.`);
+}
+
+type GraphNodeTranslation = readonly [label: string, explanation: string];
+
+const chineseGraphNodes: Record<PuzzleRuntimeId, Record<string, GraphNodeTranslation>> = {
+  'nfc-concatenation-boundary': {
+    left: ['输入 A', '将输入的第一个字符串作为精确的 Unicode 标量序列提供给运算图。'],
+    right: ['输入 B', '将输入的第二个字符串作为精确的 Unicode 标量序列提供给运算图。'],
+    'left-nfc': ['NFC(A)', '使用当前 Unicode 引擎将输入 A 转换为规范组合形式（NFC）。'],
+    'right-nfc': ['NFC(B)', '使用当前 Unicode 引擎将输入 B 转换为规范组合形式（NFC）。'],
+    join: ['拼接 A + B', '把输入 B 的精确标量序列放在输入 A 之后，不对任一侧进行规范化。'],
+    'joined-nfc': ['NFC(A + B)', '将拼接后的标量序列规范化为 NFC，使边界处的组合清晰可见。'],
+    'joined-check': [
+      'A + B 是 NFC',
+      '比较拼接输入及其 NFC 结果；序列相等表示拼接结果原本就是 NFC。',
+    ],
+  },
+  'encoding-lengths': {
+    input: ['输入文本', '将输入文本作为 Unicode 标量序列提供给运算图。'],
+    utf8: ['UTF-8 编码', '把每个 Unicode 标量值编码为变长 UTF-8 字节序列。'],
+    'utf8-length': ['UTF-8 长度', '计算 UTF-8 编码产生的原始字节数。'],
+    utf16: ['UTF-16 编码', '把标量序列编码为 UTF-16 码元；辅助平面标量会变成代理对。'],
+    'utf16-length': ['UTF-16 长度', '计算 UTF-16 码元数，与 JavaScript 字符串 length 的语义一致。'],
+    'scalar-length': [
+      '标量值数量',
+      '计算 Unicode 标量值数量，它不同于字节、UTF-16 码元和字素簇长度。',
+    ],
+  },
+  'grapheme-many-scalars': {
+    input: ['输入文本', '将输入文本作为 Unicode 标量序列提供给运算图。'],
+    'scalar-length': [
+      '标量值数量',
+      '计算 Unicode 标量值数量，它不同于字节、UTF-16 码元和字素簇长度。',
+    ],
+    'grapheme-count': ['字素簇数量', '把序列分割为扩展字素簇，并计算用户感知的文本单位数量。'],
+  },
+  'case-fold-collision': {
+    left: ['输入 A', '将输入 A 作为 Unicode 标量序列提供给运算图。'],
+    right: ['输入 B', '将输入 B 作为 Unicode 标量序列提供给运算图。'],
+    'left-result': [
+      '默认大小写折叠(A)',
+      '应用 Unicode 默认完整大小写折叠；这不是特定语言环境的小写转换。',
+    ],
+    'right-result': [
+      '默认大小写折叠(B)',
+      '应用 Unicode 默认完整大小写折叠；这不是特定语言环境的小写转换。',
+    ],
+    compare: ['折叠结果匹配', '精确比较两个折叠后的标量序列。'],
+  },
+  'compatibility-normalization': {
+    input: ['输入文本', '将输入文本作为 Unicode 标量序列提供给运算图。'],
+    nfc: ['NFC', '只应用规范组合，保留兼容性差异。'],
+    nfkc: ['NFKC', '先兼容分解再规范组合，因此显示形式的变体可能会合并。'],
+  },
+  'confusable-skeleton-collision': {
+    left: ['输入 A', '将输入 A 作为 Unicode 标量序列提供给运算图。'],
+    right: ['输入 B', '将输入 B 作为 Unicode 标量序列提供给运算图。'],
+    'left-result': ['UTS #39 骨架(A)', '计算用于发现视觉欺骗标识符的 Unicode UTS #39 易混淆骨架。'],
+    'right-result': [
+      'UTS #39 骨架(B)',
+      '计算用于发现视觉欺骗标识符的 Unicode UTS #39 易混淆骨架。',
+    ],
+    compare: ['骨架匹配', '精确比较两个易混淆骨架；匹配并不表示语义等价。'],
+  },
+  'invisible-format-controls': {
+    input: ['输入文本', '将输入文本作为 Unicode 标量序列提供给运算图。'],
+    'scalar-length': [
+      '标量值数量',
+      '计算 Unicode 标量值数量，它不同于字节、UTF-16 码元和字素簇长度。',
+    ],
+    'format-check': [
+      '仅含格式字符',
+      '检查非空输入是否完全由 Unicode General_Category=Cf 格式控制字符组成。',
+    ],
+  },
+  'malformed-utf16': {
+    input: ['原始 UTF-16 码元', '将原始 UTF-16 码元直接提供给运算图，包括未配对代理项。'],
+    'unit-length': ['码元数量', '直接计算提供的 16 位码元，不先将它们解码为 Unicode 标量值。'],
+    valid: ['结构有效', '验证代理项配对关系，不替换或丢弃格式错误的 UTF-16 码元。'],
+  },
+  'historical-normalization': {
+    input: ['输入文本', '将输入文本作为 Unicode 标量序列提供给运算图。'],
+    'unicode-15': ['NFKC · Unicode 15.1', '使用独立固定版本的 Unicode 15.1 引擎执行兼容规范化。'],
+    'unicode-17': ['NFKC · Unicode 17', '使用当前固定版本的 Unicode 17 引擎执行兼容规范化。'],
+    compare: ['结果不同', '精确比较两个版本的规范化结果，以揭示真实的 Unicode 版本差异。'],
+  },
+};
+
+const chineseEvaluationText: Readonly<Record<string, string>> = {
+  'Target reached': '已达到目标',
+  'Keep exploring': '继续探索',
+  'Input A is NFC': '输入 A 是 NFC',
+  'Input B is NFC': '输入 B 是 NFC',
+  'Join changes under NFC': '拼接结果经 NFC 会改变',
+  Empty: '空',
+  'Needs NFC': '需要 NFC',
+  Entered: '输入值',
+  'After NFC': 'NFC 后',
+  'Unicode scalars': 'Unicode 标量值',
+  'Grapheme clusters': '字素簇',
+  'UTF-16 units': 'UTF-16 码元',
+  'UTF-8 bytes': 'UTF-8 字节',
+  'Scalar value': '标量值',
+  Storage: '存储',
+  'Both non-empty': '两者均非空',
+  'Inputs differ': '输入不同',
+  'Case folds match': '大小写折叠结果匹配',
+  Folded: '已折叠',
+  'Input A fold': '输入 A 的折叠结果',
+  'Input B fold': '输入 B 的折叠结果',
+  'Non-empty': '非空',
+  'NFC unchanged': 'NFC 不改变',
+  'NFKC changes': 'NFKC 会改变',
+  'NFC stable': 'NFC 稳定',
+  'NFC changes': 'NFC 会改变',
+  'After NFKC': 'NFKC 后',
+  'Skeletons match': '骨架匹配',
+  'NFC forms differ': 'NFC 形式不同',
+  'Skeleton ready': '骨架就绪',
+  'Input A': '输入 A',
+  'Input B': '输入 B',
+  'Every category is Cf': '所有类别均为 Cf',
+  'Code points': '码位',
+  Categories: '类别',
+  'Valid UTF-16': '有效 UTF-16',
+  'Unpaired surrogate': '未配对代理项',
+  'Structurally malformed': '结构错误',
+  'Well-formed': '结构良好',
+  Malformed: '格式错误',
+  'Code units': '码元',
+  Validation: '验证结果',
+  'Well-formed UTF-16': '结构良好的 UTF-16',
+  'One scalar': '一个标量值',
+  '15.1 NFKC unchanged': '15.1 NFKC 不改变',
+  '17 NFKC changes': '17 NFKC 会改变',
+  'Current result is ASCII': '当前结果为 ASCII',
+  'Profiles differ': '版本结果不同',
+  'Same result': '结果相同',
+  Yes: '是',
+  No: '否',
+  'Empty sequence': '空序列',
+  'Case folds differ': '大小写折叠结果不同',
+  'Skeletons differ': '骨架不同',
+};
+
+function localizeEvaluation(_runtime: PuzzleRuntimeId, result: PuzzleEvaluation): PuzzleEvaluation {
+  return {
+    ...result,
+    code: localizeEvaluationValue(result.code),
+    status: localizeEvaluationValue(result.status),
+    checks: result.checks.map((item) => ({
+      ...item,
+      label: localizeEvaluationValue(item.label),
+      value: localizeEvaluationValue(item.value),
+    })),
+    inputStatuses: Object.fromEntries(
+      Object.entries(result.inputStatuses).map(([id, item]) => [
+        id,
+        { ...item, label: localizeEvaluationValue(item.label) },
+      ]),
+    ),
+    details: result.details.map((item) => ({
+      label: localizeEvaluationValue(item.label),
+      value: localizeEvaluationValue(item.value),
+    })),
+  };
+}
+
+function localizeEvaluationValue(value: string): string {
+  const exact = chineseEvaluationText[value];
+  if (exact) return exact;
+  const scalarCount = value.match(/^(\d+) scalars?$/);
+  if (scalarCount) return `${scalarCount[1]} 个标量值`;
+  const graphemeCount = value.match(/^(\d+) grapheme$/);
+  if (graphemeCount) return `${graphemeCount[1]} 个字素簇`;
+  const storage = value.match(/^(\d+) UTF-8 bytes · (\d+) UTF-16 units$/);
+  if (storage) return `${storage[1]} 个 UTF-8 字节 · ${storage[2]} 个 UTF-16 码元`;
+  const measures = value.match(/^(\d+) grapheme · (\d+) scalars$/);
+  if (measures) return `${measures[1]} 个字素簇 · ${measures[2]} 个标量值`;
+  return value;
+}
+
+function localizeGraph(runtime: PuzzleRuntimeId, sourceGraph: OperationGraph): OperationGraph {
+  const translations = chineseGraphNodes[runtime];
+  return {
+    ...sourceGraph,
+    nodes: sourceGraph.nodes.map((node) => {
+      const translation = translations[node.id];
+      return translation
+        ? {
+            ...node,
+            label: translation[0],
+            explanation: translation[1],
+            outputUnit: localizeOutputUnit(node.outputUnit),
+          }
+        : node;
+    }),
+  };
+}
+
+function localizeOutputUnit(unit: string | undefined): string | undefined {
+  if (!unit) return unit;
+  return { bytes: '字节', units: '码元', scalars: '标量值', graphemes: '字素簇' }[unit] ?? unit;
 }
 
 function createSources(
@@ -780,10 +816,6 @@ function twoTransformGraph(
       edge('right-result', 'compare'),
     ],
   );
-}
-
-function textInput(id: string, label: string, description: string) {
-  return { id, label, description, kind: 'text' as const, initialValue: '' };
 }
 
 function graph(nodes: OperationNode[], edges: OperationGraph['edges']): OperationGraph {

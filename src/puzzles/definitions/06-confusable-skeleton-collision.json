@@ -1,0 +1,36 @@
+{
+  "$schema": "../puzzle.schema.json",
+  "runtime": "confusable-skeleton-collision",
+  "id": "confusable-skeleton-collision",
+  "number": 6,
+  "theme": "Confusables",
+  "title": "Looks equal, stays different",
+  "objective": "Find two distinct strings with the same UTS #39 confusable skeleton but different NFC forms.",
+  "defaultUnicodeProfile": "Unicode 17 / UTS #39",
+  "inputs": [
+    {
+      "id": "left",
+      "label": "Input A",
+      "description": "A familiar-looking string.",
+      "kind": "text",
+      "initialValue": ""
+    },
+    {
+      "id": "right",
+      "label": "Input B",
+      "description": "A distinct look-alike string.",
+      "kind": "text",
+      "initialValue": ""
+    }
+  ],
+  "graphTitle": "Compare security skeletons",
+  "graphDescription": "Pinned UTS #39 mappings produce a security-oriented skeleton for each input.",
+  "resultLabel": "Skeleton comparison",
+  "hints": [
+    "Confusable characters are not necessarily normalization-equivalent.",
+    "Explore visual confusables for the Latin letter a.",
+    "Compare Latin a with Cyrillic а (U+0430)."
+  ],
+  "explanation": "UTS #39 skeletons flag text that may be visually confusable. The relationship is a security signal, not canonical equivalence, semantic equality, or a guarantee for every font.",
+  "capabilities": ["normalization", "confusable-index"]
+}

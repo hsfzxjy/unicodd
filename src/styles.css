@@ -124,6 +124,18 @@ main {
   font-weight: 720;
 }
 
+.locale-picker select {
+  min-width: 86px;
+  padding: 4px 22px 4px 7px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 0.62rem;
+  font-weight: 720;
+}
+
 .play-guide {
   position: absolute;
   z-index: 10;
@@ -1706,6 +1718,11 @@ textarea:focus {
 
   .site-actions button {
     padding: 4px 6px;
+  }
+
+  .locale-picker select {
+    min-width: 76px;
+    padding-left: 5px;
   }
 
   .play-guide {

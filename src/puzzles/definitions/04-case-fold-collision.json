@@ -1,0 +1,36 @@
+{
+  "$schema": "../puzzle.schema.json",
+  "runtime": "case-fold-collision",
+  "id": "case-fold-collision",
+  "number": 4,
+  "theme": "Case folding",
+  "title": "Different cases, same key",
+  "objective": "Find two distinct non-empty strings with the same default Unicode case fold.",
+  "defaultUnicodeProfile": "Unicode 17 / ICU4X 2.3",
+  "inputs": [
+    {
+      "id": "left",
+      "label": "Input A",
+      "description": "The first spelling.",
+      "kind": "text",
+      "initialValue": ""
+    },
+    {
+      "id": "right",
+      "label": "Input B",
+      "description": "A distinct spelling that folds the same way.",
+      "kind": "text",
+      "initialValue": ""
+    }
+  ],
+  "graphTitle": "Fold both strings",
+  "graphDescription": "ICU4X applies full default case folding before comparing the results.",
+  "resultLabel": "Fold comparison",
+  "hints": [
+    "Uppercase and lowercase ASCII letters already share folds.",
+    "Full folding can expand one scalar into several scalars.",
+    "Compare Straße with STRASSE."
+  ],
+  "explanation": "Case folding is intended for caseless comparison, not display. Full folding may expand characters—German ß folds to ss—so distinct strings can share one comparison key.",
+  "capabilities": ["case-folding"]
+}

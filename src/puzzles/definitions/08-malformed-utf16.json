@@ -1,0 +1,30 @@
+{
+  "$schema": "../puzzle.schema.json",
+  "runtime": "malformed-utf16",
+  "id": "malformed-utf16",
+  "number": 8,
+  "theme": "Malformed UTF-16",
+  "title": "Half an emoji",
+  "objective": "Enter a non-empty UTF-16 code-unit sequence that is not structurally well-formed.",
+  "defaultUnicodeProfile": "Version-independent UTF-16",
+  "inputs": [
+    {
+      "id": "input",
+      "label": "UTF-16 units",
+      "description": "Hexadecimal code units separated by spaces.",
+      "kind": "utf16-units",
+      "placeholder": "D83E DDE9",
+      "initialValue": ""
+    }
+  ],
+  "graphTitle": "Validate raw code units",
+  "graphDescription": "This path models UTF-16 directly, so unpaired surrogates are preserved.",
+  "resultLabel": "Structural validation",
+  "hints": [
+    "Supplementary scalars use a high surrogate followed by a low surrogate.",
+    "Remove either half of a valid surrogate pair.",
+    "Try the lone high-surrogate code unit D83E."
+  ],
+  "explanation": "UTF-16 code units can contain unpaired surrogates even though Unicode scalar sequences cannot. Validation must detect that structure explicitly instead of silently replacing it.",
+  "capabilities": []
+}

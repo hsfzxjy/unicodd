@@ -1,0 +1,29 @@
+{
+  "$schema": "../puzzle.schema.json",
+  "runtime": "grapheme-many-scalars",
+  "id": "grapheme-many-scalars",
+  "number": 3,
+  "theme": "Graphemes",
+  "title": "More pieces than characters",
+  "objective": "Build one grapheme cluster containing at least three Unicode scalars.",
+  "defaultUnicodeProfile": "Unicode 17 / ICU4X 2.3",
+  "inputs": [
+    {
+      "id": "input",
+      "label": "Text",
+      "description": "Combine marks or use an emoji ZWJ sequence.",
+      "kind": "text",
+      "initialValue": ""
+    }
+  ],
+  "graphTitle": "Segment what looks whole",
+  "graphDescription": "ICU4X counts extended grapheme clusters independently from scalars.",
+  "resultLabel": "Cluster measures",
+  "hints": [
+    "Combining marks can extend a base without starting a new grapheme.",
+    "Emoji joined by U+200D ZERO WIDTH JOINER can also form one cluster.",
+    "Try e followed by U+0301 and U+0323."
+  ],
+  "explanation": "User-perceived characters are grapheme clusters, not fixed-width storage units. One cluster can contain a base plus several marks, or an entire emoji ZWJ sequence.",
+  "capabilities": ["grapheme-segmentation"]
+}

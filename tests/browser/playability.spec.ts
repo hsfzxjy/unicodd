@@ -7,7 +7,9 @@ async function dismissGuide(page: import('@playwright/test').Page): Promise<void
 
 test('explains the play loop and keeps puzzle navigation in browser history', async ({ page }) => {
   await page.goto('./?puzzle=encoding-lengths');
-  await expect(page.getByRole('heading', { name: 'One character, four bytes' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'One character, four bytes' }),
+  ).toBeVisible();
   await expect(
     page.getByRole('heading', { name: 'Construct, inspect, apply, observe' }),
   ).toBeVisible();
@@ -32,6 +34,29 @@ test('explains the play loop and keeps puzzle navigation in browser history', as
   await expect(
     page.getByRole('heading', { name: 'Construct, inspect, apply, observe' }),
   ).toBeVisible();
+});
+
+test('switches between English and Chinese without resetting puzzle state', async ({ page }) => {
+  await page.goto('./?puzzle=encoding-lengths');
+  await page.getByLabel('Language').selectOption('zh-CN');
+
+  await expect(page).toHaveTitle(/一个字符，四个字节/);
+  await expect(page.getByRole('heading', { name: '一个字符，四个字节' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '构造、检查、应用、观察' })).toBeVisible();
+  await page.getByRole('button', { name: '关闭玩法说明' }).click();
+
+  const input = page.locator('#puzzle-input');
+  await input.fill('🧩');
+  await expect(page.getByText('谜题已解开', { exact: true })).toBeVisible();
+  await expect(page.getByText('已达到目标', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '计算三种表示的长度' })).toBeVisible();
+
+  await page.getByLabel('语言').selectOption('en');
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'One character, four bytes' }),
+  ).toBeVisible();
+  await expect(input).toHaveValue('🧩');
+  await expect(page.getByText('Puzzle solved', { exact: true })).toBeVisible();
 });
 
 test('preserves ordinary text editing and applies an explored selection explicitly', async ({

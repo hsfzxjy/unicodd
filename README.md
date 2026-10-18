@@ -8,7 +8,8 @@ collisions, compatibility normalization, visual confusables, invisible format co
 malformed UTF-16, plus a verified normalization difference between Unicode 15.1 and Unicode 17.
 The Vue workspace lets players recursively explore characters, send discoveries to puzzle inputs,
 and inspect every real operation in a read-only graph. Normalization, case folding, and grapheme
-segmentation run through ICU4X over raw WASM.
+segmentation run through ICU4X over raw WASM. The interface supports English and Simplified
+Chinese; the language selector preserves the active puzzle, input values, and exploration state.
 
 ## Development
 
@@ -55,6 +56,10 @@ once with `npx playwright install chromium`.
   plus typed, UI-independent relationship and name-search indexes.
 - `src/engine/` defines and executes typed, UI-independent operation graphs.
 - `src/puzzles/` contains declarative puzzle content and independently testable success logic.
+- `src/puzzles/definitions/` contains one validated JSON content file per puzzle. The catalog loads
+  these files automatically and binds each file's named runtime to tested TypeScript behavior.
+- `src/i18n.ts` owns the small reactive UI locale layer, while
+  `src/puzzles/translations/zh-CN.json` contains the validated Simplified Chinese puzzle copy.
 - `src/unicode.ts` contains only version-independent representation utilities.
 - `crates/unicodd-ops-core/` exposes ICU4X normalization, default full case folding, and grapheme
   segmentation plus Unicode names through a C-compatible ABI without `wasm-bindgen`.
@@ -67,6 +72,23 @@ once with `npx playwright install chromium`.
 
 Scalar sequences (`Uint32Array`), raw bytes (`Uint8Array`), and UTF-16 code units (`Uint16Array`)
 are deliberately distinct types. The editor does not normalize or otherwise transform input.
+
+## Editing and adding puzzles
+
+Puzzle-facing content lives in standalone JSON files under `src/puzzles/definitions/`. Edit a file
+to change its title, objective, inputs, graph copy, hints, explanation, capabilities, or profile.
+Each file references `src/puzzles/puzzle.schema.json` for editor completion and validation.
+
+To add a puzzle that uses an existing success condition and operation graph, copy the corresponding
+JSON file, choose a unique kebab-case `id` and positive `number`, and retain its `runtime`, input ids,
+input kinds, and required capabilities. Then add the same id and translated presentation fields to
+`src/puzzles/translations/zh-CN.json`. The Vite catalog discovers the new file automatically and
+fails fast when its Chinese translation is missing or structurally incomplete.
+
+The runtime catalog validates every file at startup and in tests, including unique ids/numbers,
+supported capabilities, and the input contract required by its runtime. A genuinely new success
+condition still requires a small TypeScript runtime implementation; executable logic is deliberately
+not evaluated from JSON.
 
 ## Playing
 

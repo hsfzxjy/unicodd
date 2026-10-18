@@ -9,6 +9,7 @@ import {
 } from '@vue-flow/core';
 import dagre from '@dagrejs/dagre';
 import type { ExplorerHistory } from '../explorer/history';
+import { useI18n } from '../i18n';
 import { displaySequence, formatCodePoint } from '../unicode';
 
 const props = defineProps<{
@@ -18,6 +19,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   activate: [nodeId: string];
 }>();
+const { locale, t } = useI18n();
 
 const nodeWidth = 112;
 const nodeHeight = 66;
@@ -53,7 +55,7 @@ const flow = computed(() => {
     id: edge.id,
     source: edge.source,
     target: edge.target,
-    label: edge.label,
+    label: locale.value === 'zh-CN' ? historyRelationLabel(edge.kind) : edge.label,
     type: 'smoothstep',
     markerEnd: MarkerType.ArrowClosed,
     selectable: false,
@@ -74,18 +76,42 @@ function activateNode({ node }: NodeMouseEvent): void {
 function fitGraph(store: VueFlowStore): void {
   void store.fitView({ padding: '16px', maxZoom: 1.1 });
 }
+
+function historyRelationLabel(kind: ExplorerHistory['edges'][number]['kind']): string {
+  const labels: Record<typeof kind, string> = {
+    selection: '从字符串选择',
+    scalar: '标量分量',
+    'canonical-decomposition': 'NFD 分量',
+    'compatibility-decomposition': 'NFKD 分量',
+    search: '搜索结果',
+    canonical: '规范关系',
+    compatibility: '兼容关系',
+    uppercase: '大写',
+    lowercase: '小写',
+    titlecase: '标题大小写',
+    'case-fold': '大小写折叠',
+    confusable: '视觉易混淆',
+  };
+  return labels[kind];
+}
 </script>
 
 <template>
   <section class="explorer-section history-graph-section" aria-labelledby="history-graph-heading">
     <div class="section-heading history-graph-heading">
       <div>
-        <h3 id="history-graph-heading">Exploration map</h3>
-        <p>Choose any visited sequence, then explore again to create a branch.</p>
+        <h3 id="history-graph-heading">{{ t('history.title') }}</h3>
+        <p>{{ t('history.description') }}</p>
       </div>
       <span>
-        {{ history.nodes.length }} node{{ history.nodes.length === 1 ? '' : 's' }} ·
-        {{ history.edges.length }} link{{ history.edges.length === 1 ? '' : 's' }}
+        {{
+          t('history.counts', {
+            nodes: history.nodes.length,
+            nodeSuffix: history.nodes.length === 1 ? '' : 's',
+            links: history.edges.length,
+            linkSuffix: history.edges.length === 1 ? '' : 's',
+          })
+        }}
       </span>
     </div>
     <div class="history-flow-shell">
@@ -111,7 +137,7 @@ function fitGraph(store: VueFlowStore): void {
             :class="{ active: data.active }"
             :aria-current="data.active ? 'true' : undefined"
           >
-            <span class="visually-hidden">Explore </span>
+            <span class="visually-hidden">{{ t('history.explore') }} </span>
             <strong>{{ data.display }}</strong>
             <code>{{ data.codePoints }}</code>
           </button>

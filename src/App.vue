@@ -11,8 +11,9 @@ import { useUnicodeEngine } from './composables/useUnicodeEngine';
 import { buildGraphemeRanges, scalarBoundaries, targetForSelection } from './explorer/graphemes';
 import type { ExplorationRelation } from './explorer/history';
 import type { EditorAction, GraphemeRange, TextSelection } from './explorer/types';
+import { supportedLocales, useI18n, type AppLocale } from './i18n';
 import { requiresDiscoveryIndex } from './puzzles/capabilities';
-import { puzzleCollection } from './puzzles/collection';
+import { createPuzzleCollection, puzzleCollection } from './puzzles/collection';
 import { preparePuzzleInput, serializeUtf16Units } from './puzzles/input';
 import { puzzleHref, puzzleIndexFromSearch } from './puzzles/navigation';
 import { insertSequenceValues } from './puzzles/sequenceEditing';
@@ -20,6 +21,7 @@ import type { PreparedPuzzleInput, PuzzleOperations } from './puzzles/types';
 import { displaySequence, stringToUtf16CodeUnits, unicodeScalarsToString } from './unicode';
 
 const editor = useUnicodeEditor('é');
+const { locale, setLocale, t } = useI18n();
 const engine = useUnicodeEngine();
 const explorer = useCharacterExplorer(engine.adapter);
 const discovery = useUnicodeDiscovery(engine.adapter, explorer.target);
@@ -30,8 +32,16 @@ const closeDiscoveryButton = ref<HTMLButtonElement | null>(null);
 const discoveryOverlay = ref<HTMLElement | null>(null);
 let discoveryReturnFocus: HTMLElement | null = null;
 let previousBodyOverflow = '';
-const puzzleDefinitions = puzzleCollection.map(({ definition }) => definition);
-const selectedPuzzleIndex = ref(puzzleIndexFromSearch(window.location.search, puzzleDefinitions));
+const localizedPuzzles = computed(() => createPuzzleCollection(locale.value));
+const puzzleDefinitions = computed(() =>
+  localizedPuzzles.value.map(({ definition }) => definition),
+);
+const selectedPuzzleIndex = ref(
+  puzzleIndexFromSearch(
+    window.location.search,
+    puzzleCollection.map(({ definition }) => definition),
+  ),
+);
 const puzzleValues = reactive(
   Object.fromEntries(
     puzzleCollection.map(({ definition }) => [
@@ -42,7 +52,7 @@ const puzzleValues = reactive(
 );
 
 const selectedPuzzle = computed(
-  () => puzzleCollection[selectedPuzzleIndex.value] ?? puzzleCollection[0]!,
+  () => localizedPuzzles.value[selectedPuzzleIndex.value] ?? localizedPuzzles.value[0]!,
 );
 const selectedPuzzleNeedsDiscovery = computed(() =>
   requiresDiscoveryIndex(selectedPuzzle.value.definition),
@@ -152,7 +162,10 @@ function inspectSelection(selection: TextSelection): void {
       selection,
     );
     if (target) {
-      explorer.explore(target, { kind: 'selection', label: 'Selected from string' });
+      explorer.explore(target, {
+        kind: 'selection',
+        label: locale.value === 'zh-CN' ? '从字符串中选择' : 'Selected from string',
+      });
     }
   } catch {
     // Browser selections can bisect a surrogate pair. Preserve that editor selection without
@@ -162,7 +175,10 @@ function inspectSelection(selection: TextSelection): void {
 
 function inspectGrapheme(grapheme: GraphemeRange): void {
   editor.selectRange({ start: grapheme.utf16Start, end: grapheme.utf16End });
-  explorer.explore(grapheme.scalars, { kind: 'selection', label: 'Selected from string' });
+  explorer.explore(grapheme.scalars, {
+    kind: 'selection',
+    label: locale.value === 'zh-CN' ? '从字符串中选择' : 'Selected from string',
+  });
 }
 
 function exploreRelated(target: Uint32Array, relation: ExplorationRelation): void {
@@ -213,10 +229,10 @@ function exploredTargetIsEmpty(): boolean {
 }
 
 function selectPuzzle(index: number): void {
-  const nextIndex = Math.min(Math.max(index, 0), puzzleCollection.length - 1);
+  const nextIndex = Math.min(Math.max(index, 0), localizedPuzzles.value.length - 1);
   if (nextIndex === selectedPuzzleIndex.value) return;
   selectedPuzzleIndex.value = nextIndex;
-  const definition = puzzleCollection[nextIndex]?.definition;
+  const definition = localizedPuzzles.value[nextIndex]?.definition;
   if (definition) {
     window.history.pushState(
       { puzzle: definition.id },
@@ -288,7 +304,14 @@ function handleDiscoveryKeydown(event: KeyboardEvent): void {
 }
 
 function syncPuzzleFromLocation(): void {
-  selectedPuzzleIndex.value = puzzleIndexFromSearch(window.location.search, puzzleDefinitions);
+  selectedPuzzleIndex.value = puzzleIndexFromSearch(
+    window.location.search,
+    puzzleDefinitions.value,
+  );
+}
+
+function changeLocale(event: Event): void {
+  setLocale((event.target as HTMLSelectElement).value as AppLocale);
 }
 
 onMounted(() => window.addEventListener('popstate', syncPuzzleFromLocation));
@@ -311,38 +334,56 @@ watch(
 <template>
   <main :inert="discoveryOpen">
     <header class="site-header">
-      <a class="wordmark" :href="homeHref" aria-label="unicodd home">unicodd<span>·</span></a>
-      <p>When text behaves oddly.</p>
+      <a class="wordmark" :href="homeHref" :aria-label="t('app.home')">unicodd<span>·</span></a>
+      <p>{{ t('app.tagline') }}</p>
       <div class="site-actions">
+        <label class="locale-picker">
+          <span class="visually-hidden">{{ t('app.language') }}</span>
+          <select :value="locale" :aria-label="t('app.language')" @change="changeLocale">
+            <option v-for="item in supportedLocales" :key="item" :value="item">
+              {{ item === 'en' ? 'English' : '简体中文' }}
+            </option>
+          </select>
+        </label>
         <button
           type="button"
           :aria-expanded="guideOpen"
           aria-controls="play-guide"
           @click="guideOpen = !guideOpen"
         >
-          How to play
+          {{ t('app.howToPlay') }}
         </button>
         <span class="milestone-label">
           {{ String(selectedPuzzle.definition.number).padStart(2, '0') }} /
-          {{ puzzleCollection.length }}
+          {{ localizedPuzzles.length }}
         </span>
       </div>
     </header>
 
     <aside v-show="guideOpen" id="play-guide" class="play-guide" aria-labelledby="play-guide-title">
       <div>
-        <p class="eyebrow">Four-step loop</p>
-        <h2 id="play-guide-title">Construct, inspect, apply, observe</h2>
+        <p class="eyebrow">{{ t('guide.eyebrow') }}</p>
+        <h2 id="play-guide-title">{{ t('guide.title') }}</h2>
       </div>
       <ol>
-        <li><strong>Construct</strong><span>Type in the puzzle inputs.</span></li>
         <li>
-          <strong>Inspect</strong><span>Open the character lab and follow relationships.</span>
+          <strong>{{ t('guide.construct') }}</strong
+          ><span>{{ t('guide.constructDetail') }}</span>
         </li>
-        <li><strong>Apply</strong><span>Use a discovery only through an explicit action.</span></li>
-        <li><strong>Observe</strong><span>Read the live operation graph and checks.</span></li>
+        <li>
+          <strong>{{ t('guide.inspect') }}</strong
+          ><span>{{ t('guide.inspectDetail') }}</span>
+        </li>
+        <li>
+          <strong>{{ t('guide.apply') }}</strong
+          ><span>{{ t('guide.applyDetail') }}</span>
+        </li>
+        <li>
+          <strong>{{ t('guide.observe') }}</strong
+          ><span>{{ t('guide.observeDetail') }}</span>
+        </li>
       </ol>
-      <button type="button" aria-label="Dismiss how to play" @click="guideOpen = false">×</button>
+      <button type="button" :aria-label="t('guide.dismiss')" @click="guideOpen = false">×</button>
     </aside>
 
     <PuzzleView
@@ -376,10 +417,10 @@ watch(
           type="button"
           @click="retryPuzzleAssets"
         >
-          Retry puzzle data
+          {{ t('graph.retry') }}
         </button>
       </template>
-      <p v-else>Loading the operation graph…</p>
+      <p v-else>{{ t('graph.loading') }}</p>
     </section>
   </main>
 
@@ -402,24 +443,21 @@ watch(
       >
         <div class="discovery-toolbar">
           <div>
-            <p class="eyebrow">Character lab</p>
-            <h2 id="discovery-heading">Discover before you construct</h2>
-            <p id="discovery-description">
-              Inspect decomposition and relatives. The puzzle changes only when you explicitly use a
-              discovered sequence. Press Escape or click outside to close.
-            </p>
+            <p class="eyebrow">{{ t('lab.eyebrow') }}</p>
+            <h2 id="discovery-heading">{{ t('lab.title') }}</h2>
+            <p id="discovery-description">{{ t('lab.description') }}</p>
           </div>
           <div class="discovery-toolbar-actions">
-            <span class="discovery-target" aria-label="Current explorer target">
+            <span class="discovery-target" :aria-label="t('lab.currentTarget')">
               {{ displaySequence(explorer.target.value) }}
             </span>
             <button ref="closeDiscoveryButton" type="button" @click="closeDiscovery">
-              Close lab
+              {{ t('lab.close') }}
             </button>
           </div>
         </div>
 
-        <div class="workspace" aria-label="Unicode editor and character explorer">
+        <div class="workspace" :aria-label="t('lab.workspace')">
           <UnicodeEditor
             v-model="editor.text.value"
             :scalars="editor.scalars.value"

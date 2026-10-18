@@ -1,0 +1,29 @@
+{
+  "$schema": "../puzzle.schema.json",
+  "runtime": "encoding-lengths",
+  "id": "encoding-lengths",
+  "number": 2,
+  "theme": "Encodings",
+  "title": "One character, four bytes",
+  "objective": "Find one Unicode scalar that is one grapheme, two UTF-16 code units, and four UTF-8 bytes.",
+  "defaultUnicodeProfile": "Unicode 17 / ICU4X 2.3",
+  "inputs": [
+    {
+      "id": "input",
+      "label": "Text",
+      "description": "Try a supplementary-plane character.",
+      "kind": "text",
+      "initialValue": ""
+    }
+  ],
+  "graphTitle": "Count three representations",
+  "graphDescription": "The same scalar sequence is encoded as UTF-8 and UTF-16 before counting.",
+  "resultLabel": "Encoding measures",
+  "hints": [
+    "Characters outside the Basic Multilingual Plane need a UTF-16 surrogate pair.",
+    "Emoji are a familiar place to look for supplementary characters.",
+    "Try 🧩 or another single emoji without a variation selector."
+  ],
+  "explanation": "A supplementary scalar is still one Unicode scalar and often one grapheme, but UTF-16 stores it as a surrogate pair while UTF-8 uses four bytes.",
+  "capabilities": ["grapheme-segmentation"]
+}

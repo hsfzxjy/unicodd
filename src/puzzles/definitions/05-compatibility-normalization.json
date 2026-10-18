@@ -1,0 +1,29 @@
+{
+  "$schema": "../puzzle.schema.json",
+  "runtime": "compatibility-normalization",
+  "id": "compatibility-normalization",
+  "number": 5,
+  "theme": "Compatibility",
+  "title": "Formatting that disappears",
+  "objective": "Find a non-empty string that NFC keeps unchanged but NFKC changes.",
+  "defaultUnicodeProfile": "Unicode 17 / ICU4X 2.3",
+  "inputs": [
+    {
+      "id": "input",
+      "label": "Text",
+      "description": "Look for circled, wide, or superscript forms.",
+      "kind": "text",
+      "initialValue": ""
+    }
+  ],
+  "graphTitle": "Compare canonical and compatibility forms",
+  "graphDescription": "NFC preserves compatibility distinctions that NFKC intentionally removes.",
+  "resultLabel": "Normalization comparison",
+  "hints": [
+    "Compatibility characters encode a presentation or semantic distinction.",
+    "The explorer lists compatibility relatives separately from canonical relatives.",
+    "Try ①, fullwidth ａ, or superscript ¹."
+  ],
+  "explanation": "NFC only resolves canonical equivalence. NFKC additionally removes compatibility distinctions, so symbols such as circled digits can normalize to ordinary text.",
+  "capabilities": ["normalization"]
+}

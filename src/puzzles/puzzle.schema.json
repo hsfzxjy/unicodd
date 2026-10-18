@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://unicodd.local/schemas/puzzle.schema.json",
+  "title": "unicodd puzzle definition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "runtime",
+    "id",
+    "number",
+    "theme",
+    "title",
+    "objective",
+    "defaultUnicodeProfile",
+    "inputs",
+    "graphTitle",
+    "graphDescription",
+    "resultLabel",
+    "hints",
+    "explanation",
+    "capabilities"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "runtime": {
+      "enum": [
+        "nfc-concatenation-boundary",
+        "encoding-lengths",
+        "grapheme-many-scalars",
+        "case-fold-collision",
+        "compatibility-normalization",
+        "confusable-skeleton-collision",
+        "invisible-format-controls",
+        "malformed-utf16",
+        "historical-normalization"
+      ]
+    },
+    "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "number": { "type": "integer", "minimum": 1 },
+    "theme": { "type": "string", "minLength": 1 },
+    "title": { "type": "string", "minLength": 1 },
+    "objective": { "type": "string", "minLength": 1 },
+    "defaultUnicodeProfile": { "type": "string", "minLength": 1 },
+    "historicalUnicodeProfile": { "type": "string", "minLength": 1 },
+    "inputs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "label", "description", "kind", "initialValue"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+          "label": { "type": "string", "minLength": 1 },
+          "description": { "type": "string", "minLength": 1 },
+          "kind": { "enum": ["text", "utf16-units"] },
+          "placeholder": { "type": "string" },
+          "initialValue": { "type": "string" }
+        }
+      }
+    },
+    "graphTitle": { "type": "string", "minLength": 1 },
+    "graphDescription": { "type": "string", "minLength": 1 },
+    "resultLabel": { "type": "string", "minLength": 1 },
+    "hints": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "explanation": { "type": "string", "minLength": 1 },
+    "capabilities": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "normalization",
+          "case-folding",
+          "grapheme-segmentation",
+          "confusable-index",
+          "property-index",
+          "historical-normalization"
+        ]
+      }
+    }
+  }
+}

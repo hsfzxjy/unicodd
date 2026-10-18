@@ -4,6 +4,7 @@ import { Handle, MarkerType, Position, type Edge, type Node } from '@vue-flow/co
 import dagre from '@dagrejs/dagre';
 import { executeGraph } from '../engine/execute';
 import type { OperationGraph, OperationNode, OperationValue, ValueKind } from '../engine/types';
+import { useI18n } from '../i18n';
 import { formatCodePoint, formatHex } from '../unicode';
 
 const props = defineProps<{
@@ -17,33 +18,34 @@ const props = defineProps<{
 const nodeWidth = 214;
 const nodeHeight = 102;
 const selectedOperationId = ref<string | null>(null);
+const { t } = useI18n();
 
-const valueKindLabels: Record<ValueKind, string> = {
-  scalars: 'Unicode scalars',
-  bytes: 'raw bytes',
-  utf16: 'UTF-16 code units',
-  count: 'numeric count',
-  boolean: 'yes/no result',
-};
+const valueKindLabels = computed<Record<ValueKind, string>>(() => ({
+  scalars: t('kind.scalars'),
+  bytes: t('kind.bytes'),
+  utf16: t('kind.utf16'),
+  count: t('kind.count'),
+  boolean: t('kind.boolean'),
+}));
 
 function formatValue(value: OperationValue, unit?: string): string {
   switch (value.kind) {
     case 'scalars':
       return value.value.length
         ? Array.from(value.value, formatCodePoint).join('  ')
-        : 'Empty scalar sequence';
+        : t('circuit.emptyScalars');
     case 'bytes':
       return value.value.length
         ? Array.from(value.value, (byte) => formatHex(byte)).join(' ')
-        : 'Empty byte sequence';
+        : t('circuit.emptyBytes');
     case 'utf16':
       return value.value.length
         ? Array.from(value.value, (unit) => formatHex(unit, 4)).join(' ')
-        : 'Empty code-unit sequence';
+        : t('circuit.emptyUtf16');
     case 'count':
       return unit ? `${value.value} ${unit}` : String(value.value);
     case 'boolean':
-      return value.value ? 'Yes' : 'No';
+      return value.value ? t('circuit.yes') : t('circuit.no');
   }
 }
 
@@ -119,8 +121,8 @@ const flow = computed(() => {
         id: operation.id,
         label: operation.label,
         explanation: operation.explanation,
-        type: operation.outputKind,
-        value: output ? formatValue(output, operation.outputUnit) : 'No output',
+        type: valueKindLabels.value[operation.outputKind],
+        value: output ? formatValue(output, operation.outputUnit) : t('circuit.noOutput'),
         result: output?.kind === 'boolean' ? output.value : null,
         step: String(index + 1).padStart(2, '0'),
       },
@@ -160,13 +162,15 @@ watch(
 
 function describeInputs(operation: OperationNode): string {
   return operation.inputKinds.length
-    ? operation.inputKinds.map((kind) => valueKindLabels[kind]).join(' + ')
-    : 'Puzzle input';
+    ? operation.inputKinds.map((kind) => valueKindLabels.value[kind]).join(' + ')
+    : t('circuit.input');
 }
 
 function describeOutput(operation: OperationNode): string {
-  const unit = operation.outputUnit ? ` · measured in ${operation.outputUnit}` : '';
-  return `${valueKindLabels[operation.outputKind]}${unit}`;
+  const unit = operation.outputUnit
+    ? ` · ${t('circuit.measuredIn', { unit: operation.outputUnit })}`
+    : '';
+  return `${valueKindLabels.value[operation.outputKind]}${unit}`;
 }
 
 function toggleExplanation(id: string): void {
@@ -182,16 +186,16 @@ function closeExplanation(): void {
   <section class="panel graph-panel" aria-labelledby="graph-heading">
     <div class="panel-heading graph-heading-row">
       <div>
-        <p class="eyebrow">Live operation graph</p>
+        <p class="eyebrow">{{ t('circuit.eyebrow') }}</p>
         <h2 id="graph-heading">{{ title }}</h2>
-        <p class="supporting-copy graph-intro">
-          {{ description }} Select a node to explain it. Drag the canvas to pan when needed.
-        </p>
+        <p class="supporting-copy graph-intro">{{ description }} {{ t('circuit.instructions') }}</p>
       </div>
-      <span class="read-only-label">Read only</span>
+      <span class="read-only-label">{{ t('circuit.readOnly') }}</span>
     </div>
 
-    <div v-if="error" class="graph-error" role="status">Graph paused: {{ error }}</div>
+    <div v-if="error" class="graph-error" role="status">
+      {{ t('circuit.paused', { error }) }}
+    </div>
     <div v-else class="flow-shell" @keydown.esc="closeExplanation">
       <VueFlow
         :nodes="flow.nodes"
@@ -217,7 +221,7 @@ function closeExplanation(): void {
             tabindex="0"
             :aria-expanded="selectedOperationId === data.id"
             aria-controls="operation-explanation"
-            aria-description="Select for an explanation of this operation."
+            :aria-description="t('circuit.selectDescription')"
             @click.stop="toggleExplanation(data.id)"
             @keydown.enter.prevent.stop="toggleExplanation(data.id)"
             @keydown.space.prevent.stop="toggleExplanation(data.id)"
@@ -259,24 +263,24 @@ function closeExplanation(): void {
         aria-live="polite"
       >
         <div>
-          <p class="eyebrow">Step {{ selectedNodeData?.step }} · Operation explanation</p>
+          <p class="eyebrow">
+            {{ t('circuit.stepExplanation', { step: selectedNodeData?.step ?? '' }) }}
+          </p>
           <h3 id="operation-explanation-title">{{ selectedOperation.label }}</h3>
         </div>
-        <button type="button" aria-label="Close operation explanation" @click="closeExplanation">
-          ×
-        </button>
+        <button type="button" :aria-label="t('circuit.close')" @click="closeExplanation">×</button>
         <p>{{ selectedOperation.explanation }}</p>
         <dl>
           <div>
-            <dt>Input</dt>
+            <dt>{{ t('circuit.inputs') }}</dt>
             <dd>{{ describeInputs(selectedOperation) }}</dd>
           </div>
           <div>
-            <dt>Output</dt>
+            <dt>{{ t('circuit.output') }}</dt>
             <dd>{{ describeOutput(selectedOperation) }}</dd>
           </div>
           <div>
-            <dt>Current</dt>
+            <dt>{{ t('circuit.currentValue') }}</dt>
             <dd>
               <code>{{ selectedNodeData?.value }}</code>
             </dd>

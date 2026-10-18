@@ -20,6 +20,7 @@ export interface PuzzleDefinition {
   resultLabel: string;
   hints: readonly string[];
   explanation: string;
+  historicalUnicodeProfile?: string;
 }
 
 export interface PreparedPuzzleInput {
@@ -57,6 +58,7 @@ export interface PuzzleOperations {
   graphemeBoundaries: (input: Uint32Array) => Uint32Array;
   confusableSkeleton: (input: Uint32Array) => Uint32Array;
   generalCategory: (scalar: number) => string | null;
+  normalizeHistorical?: (form: 'NFC' | 'NFD' | 'NFKC' | 'NFKD', input: Uint32Array) => Uint32Array;
 }
 
 export interface PuzzleRuntime {

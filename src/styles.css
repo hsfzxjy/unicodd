@@ -1419,8 +1419,8 @@ textarea:focus {
   }
 
   .puzzle-solved {
-    grid-template-columns: minmax(0, 1fr) minmax(120px, auto);
-    gap: 6px 10px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 5px;
   }
 
   .puzzle-solved > p {
@@ -1432,8 +1432,7 @@ textarea:focus {
   }
 
   .puzzle-solved dl {
-    grid-column: 2;
-    grid-row: 1;
+    display: none;
   }
 
   .discovery-backdrop {

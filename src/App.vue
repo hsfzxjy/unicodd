@@ -50,7 +50,9 @@ const preparedInputMap = computed<Readonly<Record<string, PreparedPuzzleInput>>>
 const puzzleOperations = computed<PuzzleOperations | null>(() => {
   const adapter = engine.adapter.value;
   const index = discovery.relationshipIndex.value;
-  if (!adapter || !index) return null;
+  const historicalProfile = selectedPuzzle.value.definition.historicalUnicodeProfile;
+  const historicalAdapter = engine.historicalAdapter.value;
+  if (!adapter || !index || (historicalProfile && !historicalAdapter)) return null;
   return {
     normalize: (form, input) => adapter.normalize(form, input),
     caseFold: (input) => adapter.caseFold(input),
@@ -58,6 +60,9 @@ const puzzleOperations = computed<PuzzleOperations | null>(() => {
     confusableSkeleton: (input) =>
       index.confusableSkeleton(input, (value) => adapter.normalize('NFD', value)),
     generalCategory: (scalar) => index.propertiesFor(scalar)?.generalCategory ?? null,
+    normalizeHistorical: historicalAdapter
+      ? (form, input) => historicalAdapter.normalize(form, input)
+      : undefined,
   };
 });
 
@@ -87,7 +92,18 @@ const puzzleError = computed(
   () =>
     preparedInputs.value.find(({ error }) => error)?.error ??
     engine.error.value ??
+    (selectedPuzzle.value.definition.historicalUnicodeProfile
+      ? engine.historicalError.value
+      : null) ??
     discovery.error.value,
+);
+
+watch(
+  () => selectedPuzzle.value.definition.historicalUnicodeProfile,
+  (profile) => {
+    if (profile) void engine.loadHistoricalProfile(profile);
+  },
+  { immediate: true },
 );
 
 function inspectSelection(selection: TextSelection): void {
@@ -174,7 +190,7 @@ watch(
       <p>When text behaves oddly.</p>
       <span class="milestone-label">
         Puzzle {{ String(selectedPuzzle.definition.number).padStart(2, '0') }} /
-        {{ puzzleCollection.length }} · Milestone 6
+        {{ puzzleCollection.length }} · Milestone 7
       </span>
     </header>
 

@@ -11,18 +11,21 @@ import { instantiateUnicodeEngine } from '../src/wasm/loader';
 
 describe('Milestone 6 puzzle collection', () => {
   let adapter: UnicodeWasmAdapter;
+  let historicalAdapter: UnicodeWasmAdapter;
   let relationships: UnicodeRelationshipIndex;
   let operations: PuzzleOperations;
 
   beforeAll(async () => {
-    const [wasm, relationshipJson] = await Promise.all([
+    const [wasm, historicalWasm, relationshipJson] = await Promise.all([
       readFile(new URL('../public/wasm/unicodd_ops_core.wasm', import.meta.url)),
+      readFile(new URL('../public/wasm/unicodd_unicode_15.wasm', import.meta.url)),
       readFile(
         new URL('../public/unicode-indexes/relationships-17.0.0.json', import.meta.url),
         'utf8',
       ),
     ]);
     adapter = await instantiateUnicodeEngine(wasm);
+    historicalAdapter = await instantiateUnicodeEngine(historicalWasm);
     relationships = new UnicodeRelationshipIndex(
       JSON.parse(relationshipJson) as RawRelationshipIndex,
     );
@@ -33,6 +36,7 @@ describe('Milestone 6 puzzle collection', () => {
       confusableSkeleton: (input) =>
         relationships.confusableSkeleton(input, (value) => adapter.normalize('NFD', value)),
       generalCategory: (scalar) => relationships.propertiesFor(scalar)?.generalCategory ?? null,
+      normalizeHistorical: (form, input) => historicalAdapter.normalize(form, input),
     };
   });
 
@@ -45,6 +49,7 @@ describe('Milestone 6 puzzle collection', () => {
     'confusable-skeleton-collision': { left: 'a', right: 'а' },
     'invisible-format-controls': { input: '\u200b' },
     'malformed-utf16': { input: 'D83E' },
+    'historical-normalization': { input: '\ua7f1' },
   };
 
   function prepare(id: string, values: Record<string, string>) {
@@ -59,12 +64,12 @@ describe('Milestone 6 puzzle collection', () => {
     return { runtime, inputs };
   }
 
-  it('defines eight stable, independently identified puzzles', () => {
-    expect(puzzleCollection).toHaveLength(8);
+  it('defines nine stable, independently identified puzzles', () => {
+    expect(puzzleCollection).toHaveLength(9);
     expect(puzzleCollection.map(({ definition }) => definition.number)).toEqual([
-      1, 2, 3, 4, 5, 6, 7, 8,
+      1, 2, 3, 4, 5, 6, 7, 8, 9,
     ]);
-    expect(new Set(puzzleCollection.map(({ definition }) => definition.id)).size).toBe(8);
+    expect(new Set(puzzleCollection.map(({ definition }) => definition.id)).size).toBe(9);
   });
 
   it('parses raw UTF-16 without replacing unpaired surrogates', () => {
@@ -113,5 +118,20 @@ describe('Milestone 6 puzzle collection', () => {
         malformed.runtime.createSources(malformed.inputs),
       ).outputs.get('valid'),
     ).toEqual({ kind: 'boolean', value: false });
+
+    const historical = prepare('historical-normalization', solutions['historical-normalization']!);
+    const historicalTrace = executeGraph(
+      historical.runtime.createGraph(operations),
+      historical.runtime.createSources(historical.inputs),
+    );
+    expect(historicalTrace.outputs.get('unicode-15')).toEqual({
+      kind: 'scalars',
+      value: Uint32Array.of(0xa7f1),
+    });
+    expect(historicalTrace.outputs.get('unicode-17')).toEqual({
+      kind: 'scalars',
+      value: Uint32Array.of(0x53),
+    });
+    expect(historicalTrace.outputs.get('compare')).toEqual({ kind: 'boolean', value: true });
   });
 });

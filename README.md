@@ -2,12 +2,13 @@
 
 **When text behaves oddly.**
 
-unicodd is a browser-based puzzle game about surprising Unicode behavior. Its eight-puzzle
+unicodd is a browser-based puzzle game about surprising Unicode behavior. Its nine-puzzle
 collection covers normalization boundaries, UTF encoding lengths, grapheme clusters, case-fold
 collisions, compatibility normalization, visual confusables, invisible format controls, and
-malformed UTF-16. The Vue workspace lets players recursively explore characters, send discoveries
-to puzzle inputs, and inspect every real operation in a read-only graph. Normalization, case folding,
-and grapheme segmentation run through ICU4X over raw WASM.
+malformed UTF-16, plus a verified normalization difference between Unicode 15.1 and Unicode 17.
+The Vue workspace lets players recursively explore characters, send discoveries to puzzle inputs,
+and inspect every real operation in a read-only graph. Normalization, case folding, and grapheme
+segmentation run through ICU4X over raw WASM.
 
 ## Development
 
@@ -31,11 +32,15 @@ npm run build
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
+cargo fmt --manifest-path crates/unicode-15/Cargo.toml --all -- --check
+cargo clippy --manifest-path crates/unicode-15/Cargo.toml --all-targets -- -D warnings
+cargo test --manifest-path crates/unicode-15/Cargo.toml
 ```
 
 `npm test` builds the WASM binary first and includes adapter integration tests against the compiled
 artifact. Rust tests also run the official Unicode 17.0.0 normalization, case-folding, and
-grapheme-break conformance data. Normalization is checked across all four supported forms.
+grapheme-break conformance data plus the Unicode 15.1.0 normalization corpus. Normalization is
+checked across all four supported forms for both profiles.
 
 ## Architecture
 
@@ -48,8 +53,10 @@ grapheme-break conformance data. Normalization is checked across all four suppor
 - `src/unicode.ts` contains only version-independent representation utilities.
 - `crates/unicodd-ops-core/` exposes ICU4X normalization, default full case folding, and grapheme
   segmentation plus Unicode names through a C-compatible ABI without `wasm-bindgen`.
+- `crates/unicode-15/` is an independent Cargo workspace pinned to ICU4X 1.5 and Unicode 15.1
+  normalization data. It shares ABI version 3 and is loaded only by the historical puzzle.
 - `src/wasm/` owns module loading, ABI validation, memory allocation, typed-array views, and output
-  copying.
+  copying. Its profile registry dispatches and caches WASM modules lazily.
 - `tools/unicode-indexer/` generates versioned reverse-decomposition, casing, property, name, and
   UTS #39 confusable data from pinned official sources. The full name index loads only when used.
 

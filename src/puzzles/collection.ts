@@ -176,6 +176,28 @@ const definitions: PuzzleDefinition[] = [
     explanation:
       'UTF-16 code units can contain unpaired surrogates even though Unicode scalar sequences cannot. Validation must detect that structure explicitly instead of silently replacing it.',
   },
+  {
+    id: 'historical-normalization',
+    number: 9,
+    theme: 'Unicode versions',
+    title: 'New meaning for an old number',
+    objective:
+      'Find a scalar that Unicode 15.1 NFKC leaves unchanged but Unicode 17 NFKC maps to ASCII.',
+    defaultUnicodeProfile: 'Unicode 15.1 ↔ Unicode 17',
+    historicalUnicodeProfile: 'unicode-15.1',
+    inputs: [textInput('input', 'Text', 'Look for a character assigned after Unicode 15.1.')],
+    graphTitle: 'Run two pinned normalizers',
+    graphDescription:
+      'The same scalar sequence passes through independent Unicode 15.1 and Unicode 17 WASM modules.',
+    resultLabel: 'Version comparison',
+    hints: [
+      'An unassigned scalar has no compatibility mapping in an older Unicode version.',
+      'Unicode 16 added a modifier form whose compatibility decomposition is an ASCII letter.',
+      'Search the character lab for U+A7F1 MODIFIER LETTER CAPITAL S.',
+    ],
+    explanation:
+      'U+A7F1 was unassigned in Unicode 15.1, so that engine preserves it. Its later assignment includes a compatibility decomposition to ASCII S, which Unicode 17 NFKC applies. Historical behavior requires historical data—not just a different label.',
+  },
 ];
 
 export const puzzleCollection: PuzzleRuntime[] = definitions.map(createRuntime);
@@ -408,6 +430,39 @@ function evaluate(
     );
   }
 
+  if (id === 'historical-normalization') {
+    const input = requireScalars(inputs.input);
+    const historical = requireHistoricalNormalizer(operations)('NFKC', input);
+    const current = operations.normalize('NFKC', input);
+    const historicalSame = unicodeScalarArraysEqual(input, historical);
+    const currentChanges = !unicodeScalarArraysEqual(input, current);
+    const versionsDiffer = !unicodeScalarArraysEqual(historical, current);
+    const currentIsAscii = Array.from(current).every((scalar) => scalar <= 0x7f);
+    const success =
+      input.length === 1 && historicalSame && currentChanges && versionsDiffer && currentIsAscii;
+    return evaluation(
+      success,
+      displaySequence(current),
+      formatScalars(current),
+      [
+        check('One scalar', String(input.length), input.length === 1),
+        check('15.1 NFKC unchanged', yesNo(historicalSame), historicalSame),
+        check('17 NFKC changes', yesNo(currentChanges), currentChanges),
+        check('Current result is ASCII', yesNo(currentIsAscii), currentIsAscii),
+      ],
+      {
+        input: status(
+          versionsDiffer,
+          input.length === 0 ? 'Empty' : versionsDiffer ? 'Profiles differ' : 'Same result',
+        ),
+      },
+      [
+        { label: 'Unicode 15.1 NFKC', value: formatScalars(historical) },
+        { label: 'Unicode 17 NFKC', value: formatScalars(current) },
+      ],
+    );
+  }
+
   throw new Error(`Unknown puzzle ${id}.`);
 }
 
@@ -541,6 +596,41 @@ function createGraph(definition: PuzzleDefinition, operations: PuzzleOperations)
         })),
       ],
       [edge('input', 'unit-length'), edge('input', 'valid')],
+    );
+  }
+  if (id === 'historical-normalization') {
+    const normalizeHistorical = requireHistoricalNormalizer(operations);
+    return graph(
+      [
+        source('input', 'Input text', 'scalars'),
+        scalarOperation('unicode-15', 'NFKC · Unicode 15.1', 'scalars', (input) => ({
+          kind: 'scalars',
+          value: normalizeHistorical('NFKC', input),
+        })),
+        scalarOperation('unicode-17', 'NFKC · Unicode 17', 'scalars', (input) => ({
+          kind: 'scalars',
+          value: operations.normalize('NFKC', input),
+        })),
+        {
+          id: 'compare',
+          label: 'Results differ',
+          inputKinds: ['scalars', 'scalars'],
+          outputKind: 'boolean',
+          execute: ([historical, current]) => ({
+            kind: 'boolean',
+            value: !unicodeScalarArraysEqual(
+              requireScalarsValue(historical),
+              requireScalarsValue(current),
+            ),
+          }),
+        },
+      ],
+      [
+        edge('input', 'unicode-15'),
+        edge('input', 'unicode-17'),
+        edge('unicode-15', 'compare'),
+        edge('unicode-17', 'compare'),
+      ],
     );
   }
   throw new Error(`Unknown puzzle graph ${id}.`);
@@ -706,4 +796,13 @@ function requireBytes(input: OperationValue | undefined): Uint8Array {
 function requireUtf16Value(input: OperationValue | undefined): Uint16Array {
   if (!input || input.kind !== 'utf16') throw new TypeError('Operation requires UTF-16 input.');
   return input.value;
+}
+
+function requireHistoricalNormalizer(
+  operations: PuzzleOperations,
+): NonNullable<PuzzleOperations['normalizeHistorical']> {
+  if (!operations.normalizeHistorical) {
+    throw new Error('The historical normalization engine is not loaded.');
+  }
+  return operations.normalizeHistorical;
 }

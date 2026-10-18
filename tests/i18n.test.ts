@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { executeGraph } from '../src/engine/execute';
 import { translate } from '../src/i18n';
 import { createPuzzleCollection } from '../src/puzzles/collection';
 import { preparePuzzleInput } from '../src/puzzles/input';
@@ -50,5 +51,58 @@ describe('internationalization', () => {
     expect(evaluation.checks[0]?.label).toBe('输入 A 是 NFC');
     expect(graph.nodes.find(({ id }) => id === 'join')?.label).toBe('拼接 A + B');
     expect(graph.nodes.find(({ id }) => id === 'join')?.explanation).toContain('不对任一侧');
+  });
+
+  it('keeps every runtime topology and locale-neutral result identical across locales', () => {
+    const english = createPuzzleCollection('en');
+    const chinese = createPuzzleCollection('zh-CN');
+    const completeOperations: PuzzleOperations = {
+      ...operations,
+      confusableSkeleton: (input) => input.slice(),
+      generalCategory: () => 'Cf',
+      normalizeHistorical: (_form, input) => input.slice(),
+    };
+
+    for (const [index, englishRuntime] of english.entries()) {
+      const chineseRuntime = chinese[index]!;
+      const englishInputs = Object.fromEntries(
+        englishRuntime.definition.inputs.map((definition) => [
+          definition.id,
+          preparePuzzleInput(definition, ''),
+        ]),
+      );
+      const chineseInputs = Object.fromEntries(
+        chineseRuntime.definition.inputs.map((definition) => [
+          definition.id,
+          preparePuzzleInput(definition, ''),
+        ]),
+      );
+      const englishGraph = englishRuntime.createGraph(completeOperations);
+      const chineseGraph = chineseRuntime.createGraph(completeOperations);
+
+      expect(
+        chineseGraph.nodes.map(({ id, inputKinds, outputKind }) => ({
+          id,
+          inputKinds,
+          outputKind,
+        })),
+        englishRuntime.definition.id,
+      ).toEqual(
+        englishGraph.nodes.map(({ id, inputKinds, outputKind }) => ({
+          id,
+          inputKinds,
+          outputKind,
+        })),
+      );
+      expect(chineseGraph.edges, englishRuntime.definition.id).toEqual(englishGraph.edges);
+      expect(
+        chineseRuntime.evaluate(chineseInputs, completeOperations).success,
+        englishRuntime.definition.id,
+      ).toBe(englishRuntime.evaluate(englishInputs, completeOperations).success);
+      expect(
+        executeGraph(chineseGraph, chineseRuntime.createSources(chineseInputs)).outputs,
+        englishRuntime.definition.id,
+      ).toEqual(executeGraph(englishGraph, englishRuntime.createSources(englishInputs)).outputs);
+    }
   });
 });

@@ -58,8 +58,10 @@ once with `npx playwright install chromium`.
 - `src/puzzles/` contains declarative puzzle content and independently testable success logic.
 - `src/puzzles/definitions/` contains one validated JSON content file per puzzle. The catalog loads
   these files automatically and binds each file's named runtime to tested TypeScript behavior.
-- `src/i18n.ts` owns the small reactive UI locale layer, while
-  `src/puzzles/translations/zh-CN.json` contains the validated Simplified Chinese puzzle copy.
+- `src/puzzles/runtime/` contains the focused, framework-independent runtime registry, evaluation
+  families, graph builders, shared typed-value guards, and localized runtime presentation.
+- `src/i18n.ts` owns the small reactive UI locale layer, `src/locales/` owns application messages,
+  and `src/puzzles/translations/zh-CN.json` contains the validated Simplified Chinese puzzle copy.
 - `src/unicode.ts` contains only version-independent representation utilities.
 - `crates/unicodd-ops-core/` exposes ICU4X normalization, default full case folding, and grapheme
   segmentation plus Unicode names through a C-compatible ABI without `wasm-bindgen`.

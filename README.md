@@ -30,6 +30,7 @@ npm run format:check
 npm run typecheck
 npm test
 npm run build
+npm run size:check
 npm run test:browser
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
@@ -38,6 +39,11 @@ cargo fmt --manifest-path crates/unicode-15/Cargo.toml --all -- --check
 cargo clippy --manifest-path crates/unicode-15/Cargo.toml --all-targets -- -D warnings
 cargo test --manifest-path crates/unicode-15/Cargo.toml
 ```
+
+`npm run size:check` inspects the completed production build and reports raw sizes for the shipped
+JavaScript, CSS, WASM modules, and generated Unicode indexes. JavaScript and CSS also report their
+gzip sizes. The command fails with the exact overage when a guarded asset exceeds its release
+budget.
 
 `npm test` builds the WASM binary first and includes adapter integration tests against the compiled
 artifact. Rust tests also run the official Unicode 17.0.0 normalization, case-folding, and

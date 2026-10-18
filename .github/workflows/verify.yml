@@ -52,6 +52,9 @@ jobs:
       - name: Build production application
         run: npm run build
 
+      - name: Check production size budgets
+        run: npm run size:check
+
       - name: Install smoke-test browser
         run: npx playwright install --with-deps chromium
 

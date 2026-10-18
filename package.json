@@ -12,6 +12,7 @@
     "build:unicode-index": "node tools/build-unicode-index.mjs",
     "prebuild": "npm run build:assets",
     "build": "vue-tsc -b && vite build",
+    "size:check": "node tools/check-size-budget.mjs",
     "typecheck": "vue-tsc -b",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

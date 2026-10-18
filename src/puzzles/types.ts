@@ -20,8 +20,17 @@ export interface PuzzleDefinition {
   resultLabel: string;
   hints: readonly string[];
   explanation: string;
+  capabilities: readonly PuzzleCapability[];
   historicalUnicodeProfile?: string;
 }
+
+export type PuzzleCapability =
+  | 'normalization'
+  | 'case-folding'
+  | 'grapheme-segmentation'
+  | 'confusable-index'
+  | 'property-index'
+  | 'historical-normalization';
 
 export interface PreparedPuzzleInput {
   definition: PuzzleInputDefinition;
@@ -56,8 +65,8 @@ export interface PuzzleOperations {
   normalize: (form: 'NFC' | 'NFD' | 'NFKC' | 'NFKD', input: Uint32Array) => Uint32Array;
   caseFold: (input: Uint32Array) => Uint32Array;
   graphemeBoundaries: (input: Uint32Array) => Uint32Array;
-  confusableSkeleton: (input: Uint32Array) => Uint32Array;
-  generalCategory: (scalar: number) => string | null;
+  confusableSkeleton?: (input: Uint32Array) => Uint32Array;
+  generalCategory?: (scalar: number) => string | null;
   normalizeHistorical?: (form: 'NFC' | 'NFD' | 'NFKC' | 'NFKD', input: Uint32Array) => Uint32Array;
 }
 

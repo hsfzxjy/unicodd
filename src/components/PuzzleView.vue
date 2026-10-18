@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import type { EngineStatus } from '../composables/useUnicodeEngine';
-import { formatUtf16Units } from '../puzzles/input';
+import { serializeUtf16Units } from '../puzzles/input';
+import { moveSequenceValue, removeSequenceValue } from '../puzzles/sequenceEditing';
 import type { PreparedPuzzleInput, PuzzleDefinition, PuzzleEvaluation } from '../puzzles/types';
-import { formatCodePoint } from '../unicode';
+import { displaySequence, formatCodePoint, formatHex, unicodeScalarsToString } from '../unicode';
 
 const props = defineProps<{
   definition: PuzzleDefinition;
@@ -18,28 +19,107 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   updateInput: [id: string, value: string];
-  useExplored: [id: string];
+  useExplored: [id: string, insertionIndex: number];
   openExplorer: [];
   selectPuzzle: [index: number];
 }>();
 
 const visibleHints = ref(0);
+const insertionOffsets = ref<Record<string, number>>({});
+const draggedValue = ref<{ inputId: string; index: number } | null>(null);
 
 watch(
   () => props.definition.id,
   () => {
     visibleHints.value = 0;
+    insertionOffsets.value = {};
   },
 );
 
-function formatInput(input: PreparedPuzzleInput): string {
-  if (input.error) return input.error;
-  if (input.definition.kind === 'utf16-units') {
-    return input.utf16 ? formatUtf16Units(input.utf16) : 'Invalid sequence';
+function inputValues(input: PreparedPuzzleInput): number[] {
+  const values = input.definition.kind === 'utf16-units' ? input.utf16 : input.scalars;
+  return values ? Array.from(values) : [];
+}
+
+function formatBlock(input: PreparedPuzzleInput, value: number): string {
+  return input.definition.kind === 'utf16-units' ? formatHex(value, 4) : formatCodePoint(value);
+}
+
+function renderedInput(input: PreparedPuzzleInput): string {
+  if (input.error) return 'Invalid input';
+  if (input.scalars) return displaySequence(input.scalars);
+  return input.utf16?.length ? 'Not valid scalar text' : '∅';
+}
+
+function sequenceKind(input: PreparedPuzzleInput): string {
+  return input.definition.kind === 'utf16-units' ? 'UTF-16 code units' : 'Unicode scalars';
+}
+
+function insertionOffset(input: PreparedPuzzleInput): number {
+  const length = inputValues(input).length;
+  return Math.min(Math.max(insertionOffsets.value[input.definition.id] ?? length, 0), length);
+}
+
+function selectInsertionPoint(input: PreparedPuzzleInput, index: number): void {
+  insertionOffsets.value = {
+    ...insertionOffsets.value,
+    [input.definition.id]: Math.min(Math.max(index, 0), inputValues(input).length),
+  };
+}
+
+function encodeValues(input: PreparedPuzzleInput, values: readonly number[]): string {
+  return input.definition.kind === 'utf16-units'
+    ? serializeUtf16Units(Uint16Array.from(values))
+    : unicodeScalarsToString(Uint32Array.from(values));
+}
+
+function updateValues(input: PreparedPuzzleInput, values: readonly number[]): void {
+  emit('updateInput', input.definition.id, encodeValues(input, values));
+}
+
+function removeValue(input: PreparedPuzzleInput, index: number): void {
+  const values = removeSequenceValue(inputValues(input), index);
+  selectInsertionPoint(input, Math.min(index, values.length));
+  updateValues(input, values);
+}
+
+function moveValue(input: PreparedPuzzleInput, sourceIndex: number, targetIndex: number): void {
+  const values = inputValues(input);
+  if (sourceIndex === targetIndex || sourceIndex < 0 || targetIndex < 0) return;
+  updateValues(input, moveSequenceValue(values, sourceIndex, targetIndex));
+  selectInsertionPoint(input, targetIndex + 1);
+}
+
+function beginDrag(input: PreparedPuzzleInput, index: number, event: DragEvent): void {
+  draggedValue.value = { inputId: input.definition.id, index };
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', `${input.definition.id}:${index}`);
   }
-  return input.scalars?.length
-    ? Array.from(input.scalars, formatCodePoint).join(' ')
-    : 'Empty sequence';
+}
+
+function dropValue(input: PreparedPuzzleInput, targetIndex: number, event: DragEvent): void {
+  event.preventDefault();
+  const source = draggedValue.value;
+  if (source?.inputId === input.definition.id) moveValue(input, source.index, targetIndex);
+  draggedValue.value = null;
+}
+
+function endDrag(): void {
+  draggedValue.value = null;
+}
+
+function handleBlockKeydown(input: PreparedPuzzleInput, index: number, event: KeyboardEvent): void {
+  if (event.key === 'Delete' || event.key === 'Backspace') {
+    event.preventDefault();
+    removeValue(input, index);
+    return;
+  }
+
+  if (!event.altKey || (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')) return;
+  event.preventDefault();
+  const targetIndex = index + (event.key === 'ArrowLeft' ? -1 : 1);
+  moveValue(input, index, targetIndex);
 }
 
 function inputStatus(input: PreparedPuzzleInput): { label: string; passed: boolean } {
@@ -69,14 +149,35 @@ function selectPuzzle(event: Event): void {
       </div>
       <p class="puzzle-objective">{{ definition.objective }}</p>
       <div class="puzzle-tools">
-        <label class="puzzle-picker-label">
-          <span class="visually-hidden">Choose puzzle</span>
-          <select :value="selectedIndex" aria-label="Choose puzzle" @change="selectPuzzle">
-            <option v-for="(puzzle, index) in puzzles" :key="puzzle.id" :value="index">
-              {{ String(puzzle.number).padStart(2, '0') }} · {{ puzzle.theme }}
-            </option>
-          </select>
-        </label>
+        <nav class="puzzle-navigation" aria-label="Puzzle navigation">
+          <button
+            type="button"
+            :disabled="selectedIndex === 0"
+            aria-label="Previous puzzle"
+            @click="emit('selectPuzzle', selectedIndex - 1)"
+          >
+            ←
+          </button>
+          <label class="puzzle-picker-label">
+            <span class="visually-hidden">Choose puzzle</span>
+            <select :value="selectedIndex" aria-label="Choose puzzle" @change="selectPuzzle">
+              <option v-for="(puzzle, index) in puzzles" :key="puzzle.id" :value="index">
+                {{ String(puzzle.number).padStart(2, '0') }} · {{ puzzle.theme }}
+              </option>
+            </select>
+          </label>
+          <span class="puzzle-position" aria-live="polite">
+            {{ selectedIndex + 1 }}/{{ puzzles.length }}
+          </span>
+          <button
+            type="button"
+            :disabled="selectedIndex === puzzles.length - 1"
+            aria-label="Next puzzle"
+            @click="emit('selectPuzzle', selectedIndex + 1)"
+          >
+            →
+          </button>
+        </nav>
         <span class="profile-label">{{ definition.defaultUnicodeProfile }}</span>
         <button
           id="open-character-lab"
@@ -98,28 +199,86 @@ function selectPuzzle(event: Event): void {
             {{ inputStatus(input).label }}
           </span>
         </div>
-        <textarea
-          :id="`puzzle-${input.definition.id}`"
-          class="puzzle-input"
-          :value="input.raw"
-          :placeholder="input.definition.placeholder"
-          rows="1"
-          spellcheck="false"
-          :aria-describedby="input.error ? `puzzle-${input.definition.id}-error` : undefined"
-          @input="
-            emit('updateInput', input.definition.id, ($event.target as HTMLTextAreaElement).value)
-          "
-        />
-        <div class="puzzle-input-meta">
-          <code>{{ formatInput(input) }}</code>
+        <div class="puzzle-rendered">
+          <span>Rendered</span>
+          <output :for="`puzzle-${input.definition.id}`">{{ renderedInput(input) }}</output>
+        </div>
+        <div class="puzzle-sequence-editor">
+          <div
+            class="puzzle-sequence"
+            role="list"
+            :aria-label="`${input.definition.label} ${sequenceKind(input)}`"
+          >
+            <div
+              v-for="(value, index) in inputValues(input)"
+              :key="`${index}-${value}`"
+              :class="[
+                'sequence-block',
+                { 'insertion-point': insertionOffset(input) === index + 1 },
+              ]"
+              role="listitem"
+              draggable="true"
+              @dragstart="beginDrag(input, index, $event)"
+              @dragend="endDrag"
+              @dragover.prevent
+              @drop.stop="dropValue(input, index, $event)"
+            >
+              <button
+                type="button"
+                class="sequence-code"
+                :aria-label="`${formatBlock(input, value)}, item ${index + 1} of ${inputValues(input).length}. Select as insertion point.`"
+                :title="`${formatBlock(input, value)} · drag to reorder · Alt+Arrow to move`"
+                @click="selectInsertionPoint(input, index + 1)"
+                @keydown="handleBlockKeydown(input, index, $event)"
+              >
+                <code>{{ formatBlock(input, value) }}</code>
+              </button>
+              <button
+                type="button"
+                class="sequence-delete"
+                :aria-label="`Delete ${formatBlock(input, value)}`"
+                title="Delete value"
+                @click="removeValue(input, index)"
+              >
+                ×
+              </button>
+            </div>
+            <div v-if="inputValues(input).length === 0" class="sequence-empty-item" role="listitem">
+              <button
+                type="button"
+                class="sequence-empty"
+                :class="{ 'insertion-point': insertionOffset(input) === 0 }"
+                @click="selectInsertionPoint(input, 0)"
+              >
+                Empty
+              </button>
+            </div>
+          </div>
           <button
             type="button"
+            class="insert-explored"
             :disabled="exploredTarget.length === 0"
-            @click="emit('useExplored', input.definition.id)"
+            :title="`Insert the current lab sequence at position ${insertionOffset(input) + 1}`"
+            @click="emit('useExplored', input.definition.id, insertionOffset(input))"
           >
-            Use explored
+            Insert explored
           </button>
         </div>
+        <label class="puzzle-direct-entry" :for="`puzzle-${input.definition.id}`">
+          <span>{{ input.definition.kind === 'utf16-units' ? 'Hex units' : 'Type' }}</span>
+          <input
+            :id="`puzzle-${input.definition.id}`"
+            class="puzzle-input"
+            type="text"
+            :value="input.raw"
+            :placeholder="input.definition.placeholder"
+            spellcheck="false"
+            :aria-describedby="input.error ? `puzzle-${input.definition.id}-error` : undefined"
+            @input="
+              emit('updateInput', input.definition.id, ($event.target as HTMLInputElement).value)
+            "
+          />
+        </label>
         <p
           v-if="input.error"
           :id="`puzzle-${input.definition.id}-error`"

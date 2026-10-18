@@ -5,7 +5,7 @@ import {
   type UnicodeEngineRegistry,
 } from './types';
 
-const registryUrl = '/wasm/engines.json';
+const registryUrl = `${import.meta.env.BASE_URL}wasm/engines.json`;
 let registryPromise: Promise<UnicodeEngineRegistry> | null = null;
 const enginePromises = new Map<string, Promise<LoadedUnicodeEngine>>();
 

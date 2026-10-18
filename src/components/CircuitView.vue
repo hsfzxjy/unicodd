@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Handle, MarkerType, Position, type Edge, type Node } from '@vue-flow/core';
 import dagre from '@dagrejs/dagre';
 import { executeGraph } from '../engine/execute';
-import type { OperationGraph, OperationValue } from '../engine/types';
+import type { OperationGraph, OperationNode, OperationValue, ValueKind } from '../engine/types';
 import { formatCodePoint, formatHex } from '../unicode';
 
 const props = defineProps<{
@@ -16,6 +16,15 @@ const props = defineProps<{
 
 const nodeWidth = 214;
 const nodeHeight = 102;
+const selectedOperationId = ref<string | null>(null);
+
+const valueKindLabels: Record<ValueKind, string> = {
+  scalars: 'Unicode scalars',
+  bytes: 'raw bytes',
+  utf16: 'UTF-16 code units',
+  count: 'numeric count',
+  boolean: 'yes/no result',
+};
 
 function formatValue(value: OperationValue, unit?: string): string {
   switch (value.kind) {
@@ -107,7 +116,9 @@ const flow = computed(() => {
       id: operation.id,
       position: { x: point.x - nodeWidth / 2, y: point.y - nodeHeight / 2 },
       data: {
+        id: operation.id,
         label: operation.label,
+        explanation: operation.explanation,
         type: operation.outputKind,
         value: output ? formatValue(output, operation.outputUnit) : 'No output',
         result: output?.kind === 'boolean' ? output.value : null,
@@ -131,6 +142,40 @@ const flow = computed(() => {
 
   return { nodes: assigned.nodes, edges: assigned.edges };
 });
+
+const selectedOperation = computed(() =>
+  props.graph.nodes.find((operation) => operation.id === selectedOperationId.value),
+);
+
+const selectedNodeData = computed(
+  () => flow.value.nodes.find((node) => node.id === selectedOperationId.value)?.data,
+);
+
+watch(
+  () => props.graph.nodes.map(({ id }) => id).join('|'),
+  () => {
+    selectedOperationId.value = null;
+  },
+);
+
+function describeInputs(operation: OperationNode): string {
+  return operation.inputKinds.length
+    ? operation.inputKinds.map((kind) => valueKindLabels[kind]).join(' + ')
+    : 'Puzzle input';
+}
+
+function describeOutput(operation: OperationNode): string {
+  const unit = operation.outputUnit ? ` · measured in ${operation.outputUnit}` : '';
+  return `${valueKindLabels[operation.outputKind]}${unit}`;
+}
+
+function toggleExplanation(id: string): void {
+  selectedOperationId.value = selectedOperationId.value === id ? null : id;
+}
+
+function closeExplanation(): void {
+  selectedOperationId.value = null;
+}
 </script>
 
 <template>
@@ -139,13 +184,15 @@ const flow = computed(() => {
       <div>
         <p class="eyebrow">Live operation graph</p>
         <h2 id="graph-heading">{{ title }}</h2>
-        <p class="supporting-copy graph-intro">{{ description }} Drag to pan when needed.</p>
+        <p class="supporting-copy graph-intro">
+          {{ description }} Select a node to explain it. Drag the canvas to pan when needed.
+        </p>
       </div>
       <span class="read-only-label">Read only</span>
     </div>
 
     <div v-if="error" class="graph-error" role="status">Graph paused: {{ error }}</div>
-    <div v-else class="flow-shell">
+    <div v-else class="flow-shell" @keydown.esc="closeExplanation">
       <VueFlow
         :nodes="flow.nodes"
         :edges="flow.edges"
@@ -159,9 +206,21 @@ const flow = computed(() => {
         :default-viewport="{ x: 16, y: 16, zoom: 0.9 }"
       >
         <template #node-operation="{ data }">
-          <article
+          <div
             class="operation-node"
-            :class="{ 'boolean-result': data.result !== null, passed: data.result === true }"
+            :class="{
+              'boolean-result': data.result !== null,
+              passed: data.result === true,
+              selected: selectedOperationId === data.id,
+            }"
+            role="button"
+            tabindex="0"
+            :aria-expanded="selectedOperationId === data.id"
+            aria-controls="operation-explanation"
+            aria-description="Select for an explanation of this operation."
+            @click.stop="toggleExplanation(data.id)"
+            @keydown.enter.prevent.stop="toggleExplanation(data.id)"
+            @keydown.space.prevent.stop="toggleExplanation(data.id)"
           >
             <Handle
               v-for="port in data.inputPorts"
@@ -175,6 +234,7 @@ const flow = computed(() => {
             <div class="operation-meta">
               <span>{{ data.step }}</span>
               <span>{{ data.type }}</span>
+              <span class="operation-help" aria-hidden="true"></span>
             </div>
             <strong>{{ data.label }}</strong>
             <code>{{ data.value }}</code>
@@ -186,9 +246,43 @@ const flow = computed(() => {
               :position="Position.Right"
               :style="{ top: port.top }"
             />
-          </article>
+          </div>
         </template>
       </VueFlow>
+
+      <aside
+        v-if="selectedOperation"
+        id="operation-explanation"
+        class="operation-explanation"
+        role="region"
+        aria-labelledby="operation-explanation-title"
+        aria-live="polite"
+      >
+        <div>
+          <p class="eyebrow">Step {{ selectedNodeData?.step }} · Operation explanation</p>
+          <h3 id="operation-explanation-title">{{ selectedOperation.label }}</h3>
+        </div>
+        <button type="button" aria-label="Close operation explanation" @click="closeExplanation">
+          ×
+        </button>
+        <p>{{ selectedOperation.explanation }}</p>
+        <dl>
+          <div>
+            <dt>Input</dt>
+            <dd>{{ describeInputs(selectedOperation) }}</dd>
+          </div>
+          <div>
+            <dt>Output</dt>
+            <dd>{{ describeOutput(selectedOperation) }}</dd>
+          </div>
+          <div>
+            <dt>Current</dt>
+            <dd>
+              <code>{{ selectedNodeData?.value }}</code>
+            </dd>
+          </div>
+        </dl>
+      </aside>
     </div>
   </section>
 </template>

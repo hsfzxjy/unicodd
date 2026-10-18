@@ -83,7 +83,9 @@ export function isWellFormedUtf16(units: Uint16Array): boolean {
 }
 
 export function formatUtf16Units(units: Uint16Array): string {
-  return units.length
-    ? Array.from(units, (unit) => unit.toString(16).toUpperCase().padStart(4, '0')).join(' ')
-    : 'Empty sequence';
+  return units.length ? serializeUtf16Units(units) : 'Empty sequence';
+}
+
+export function serializeUtf16Units(units: Uint16Array): string {
+  return Array.from(units, (unit) => unit.toString(16).toUpperCase().padStart(4, '0')).join(' ');
 }

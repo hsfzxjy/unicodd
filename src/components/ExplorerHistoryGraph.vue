@@ -110,8 +110,8 @@ function fitGraph(store: VueFlowStore): void {
             class="history-node nodrag nopan"
             :class="{ active: data.active }"
             :aria-current="data.active ? 'true' : undefined"
-            :aria-label="`Explore ${data.codePoints}`"
           >
+            <span class="visually-hidden">Explore </span>
             <strong>{{ data.display }}</strong>
             <code>{{ data.codePoints }}</code>
           </button>

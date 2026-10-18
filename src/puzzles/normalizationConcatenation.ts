@@ -36,6 +36,7 @@ export const normalizationConcatenationPuzzle: PuzzleDefinition = {
   ],
   explanation:
     'NFC is not closed under concatenation. A starter at the end of Input A can compose with a combining mark at the start of Input B, even though each input was already NFC on its own.',
+  capabilities: ['normalization'],
 };
 
 export function evaluateNormalizationPuzzle(
@@ -70,11 +71,25 @@ export function createNormalizationPuzzleGraph(normalizeNfc: NormalizeNfc): Oper
   });
   return {
     nodes: [
-      { id: 'left', label: 'Input A', inputKinds: [], outputKind: 'scalars' },
-      { id: 'right', label: 'Input B', inputKinds: [], outputKind: 'scalars' },
+      {
+        id: 'left',
+        label: 'Input A',
+        explanation: 'Supplies the first entered string as an exact sequence of Unicode scalars.',
+        inputKinds: [],
+        outputKind: 'scalars',
+      },
+      {
+        id: 'right',
+        label: 'Input B',
+        explanation: 'Supplies the second entered string as an exact sequence of Unicode scalars.',
+        inputKinds: [],
+        outputKind: 'scalars',
+      },
       {
         id: 'left-nfc',
         label: 'NFC(A)',
+        explanation:
+          'Normalizes Input A to canonical composition form (NFC) using the active Unicode engine.',
         inputKinds: ['scalars'],
         outputKind: 'scalars',
         execute: normalizeOperation,
@@ -82,6 +97,8 @@ export function createNormalizationPuzzleGraph(normalizeNfc: NormalizeNfc): Oper
       {
         id: 'right-nfc',
         label: 'NFC(B)',
+        explanation:
+          'Normalizes Input B to canonical composition form (NFC) using the active Unicode engine.',
         inputKinds: ['scalars'],
         outputKind: 'scalars',
         execute: normalizeOperation,
@@ -89,6 +106,8 @@ export function createNormalizationPuzzleGraph(normalizeNfc: NormalizeNfc): Oper
       {
         id: 'join',
         label: 'Concatenate A + B',
+        explanation:
+          'Places the exact scalar sequence of Input B after Input A without normalizing either side.',
         inputKinds: ['scalars', 'scalars'],
         outputKind: 'scalars',
         execute: ([left, right]): OperationValue => ({
@@ -99,6 +118,8 @@ export function createNormalizationPuzzleGraph(normalizeNfc: NormalizeNfc): Oper
       {
         id: 'joined-nfc',
         label: 'NFC(A + B)',
+        explanation:
+          'Normalizes the concatenated scalar sequence to NFC so boundary composition becomes visible.',
         inputKinds: ['scalars'],
         outputKind: 'scalars',
         execute: normalizeOperation,
@@ -106,6 +127,8 @@ export function createNormalizationPuzzleGraph(normalizeNfc: NormalizeNfc): Oper
       {
         id: 'joined-check',
         label: 'A + B is NFC',
+        explanation:
+          'Compares the concatenated input with its NFC result. Equal sequences mean the join was already NFC-normalized.',
         inputKinds: ['scalars', 'scalars'],
         outputKind: 'boolean',
         execute: ([input, normalized]): OperationValue => ({

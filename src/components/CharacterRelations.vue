@@ -13,6 +13,7 @@ defineProps<{
 
 const emit = defineEmits<{
   explore: [relationship: CharacterRelationship];
+  retry: [];
 }>();
 
 function formatScalars(target: Uint32Array): string {
@@ -27,12 +28,16 @@ function formatScalars(target: Uint32Array): string {
       <span v-if="unicodeVersion">Unicode {{ unicodeVersion }}</span>
     </div>
 
-    <p v-if="status === 'loading'" class="decomposition-empty" role="status">
+    <p v-if="status === 'idle'" class="decomposition-empty">
+      Relationship data loads when the character lab opens.
+    </p>
+    <p v-else-if="status === 'loading'" class="decomposition-empty" role="status">
       Loading relationship indexes…
     </p>
-    <p v-else-if="status === 'error'" class="error-message" role="alert">
-      {{ error ?? 'Character relationships are unavailable.' }}
-    </p>
+    <div v-else-if="status === 'error'" class="relationship-load-error" role="alert">
+      <p class="error-message">{{ error ?? 'Character relationships are unavailable.' }}</p>
+      <button type="button" @click="emit('retry')">Retry relationship data</button>
+    </div>
     <div v-else class="relationship-groups">
       <article v-for="group in groups" :key="group.id" class="relationship-group">
         <div class="relationship-heading">

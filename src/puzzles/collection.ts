@@ -44,6 +44,7 @@ const definitions: PuzzleDefinition[] = [
     ],
     explanation:
       'A supplementary scalar is still one Unicode scalar and often one grapheme, but UTF-16 stores it as a surrogate pair while UTF-8 uses four bytes.',
+    capabilities: ['grapheme-segmentation'],
   },
   {
     id: 'grapheme-many-scalars',
@@ -63,6 +64,7 @@ const definitions: PuzzleDefinition[] = [
     ],
     explanation:
       'User-perceived characters are grapheme clusters, not fixed-width storage units. One cluster can contain a base plus several marks, or an entire emoji ZWJ sequence.',
+    capabilities: ['grapheme-segmentation'],
   },
   {
     id: 'case-fold-collision',
@@ -85,6 +87,7 @@ const definitions: PuzzleDefinition[] = [
     ],
     explanation:
       'Case folding is intended for caseless comparison, not display. Full folding may expand characters—German ß folds to ss—so distinct strings can share one comparison key.',
+    capabilities: ['case-folding'],
   },
   {
     id: 'compatibility-normalization',
@@ -104,6 +107,7 @@ const definitions: PuzzleDefinition[] = [
     ],
     explanation:
       'NFC only resolves canonical equivalence. NFKC additionally removes compatibility distinctions, so symbols such as circled digits can normalize to ordinary text.',
+    capabilities: ['normalization'],
   },
   {
     id: 'confusable-skeleton-collision',
@@ -128,6 +132,7 @@ const definitions: PuzzleDefinition[] = [
     ],
     explanation:
       'UTS #39 skeletons flag text that may be visually confusable. The relationship is a security signal, not canonical equivalence, semantic equality, or a guarantee for every font.',
+    capabilities: ['normalization', 'confusable-index'],
   },
   {
     id: 'invisible-format-controls',
@@ -147,6 +152,7 @@ const definitions: PuzzleDefinition[] = [
     ],
     explanation:
       'A string can contain real data without an ordinary visible glyph. Format controls can affect layout, joining, ordering, or parsing even when the rendered line appears empty.',
+    capabilities: ['property-index'],
   },
   {
     id: 'malformed-utf16',
@@ -175,6 +181,7 @@ const definitions: PuzzleDefinition[] = [
     ],
     explanation:
       'UTF-16 code units can contain unpaired surrogates even though Unicode scalar sequences cannot. Validation must detect that structure explicitly instead of silently replacing it.',
+    capabilities: [],
   },
   {
     id: 'historical-normalization',
@@ -197,6 +204,7 @@ const definitions: PuzzleDefinition[] = [
     ],
     explanation:
       'U+A7F1 was unassigned in Unicode 15.1, so that engine preserves it. Its later assignment includes a compatibility decomposition to ASCII S, which Unicode 17 NFKC applies. Historical behavior requires historical data—not just a different label.',
+    capabilities: ['normalization', 'historical-normalization'],
   },
 ];
 
@@ -362,8 +370,9 @@ function evaluate(
   if (id === 'confusable-skeleton-collision') {
     const left = requireScalars(inputs.left);
     const right = requireScalars(inputs.right);
-    const leftSkeleton = operations.confusableSkeleton(left);
-    const rightSkeleton = operations.confusableSkeleton(right);
+    const skeleton = requireConfusableSkeleton(operations);
+    const leftSkeleton = skeleton(left);
+    const rightSkeleton = skeleton(right);
     const leftNfc = operations.normalize('NFC', left);
     const rightNfc = operations.normalize('NFC', right);
     const nonempty = left.length > 0 && right.length > 0;
@@ -392,7 +401,8 @@ function evaluate(
 
   if (id === 'invisible-format-controls') {
     const input = requireScalars(inputs.input);
-    const categories = Array.from(input, (scalar) => operations.generalCategory(scalar) ?? '—');
+    const generalCategory = requireGeneralCategory(operations);
+    const categories = Array.from(input, (scalar) => generalCategory(scalar) ?? '—');
     const onlyFormat = input.length > 0 && categories.every((category) => category === 'Cf');
     return evaluation(
       onlyFormat,
@@ -475,10 +485,16 @@ function createGraph(definition: PuzzleDefinition, operations: PuzzleOperations)
     return graph(
       [
         source('input', 'Input text', 'scalars'),
-        scalarOperation('utf8', 'UTF-8 encode', 'bytes', (input) => ({
-          kind: 'bytes',
-          value: utf8EncodeScalars(input),
-        })),
+        scalarOperation(
+          'utf8',
+          'UTF-8 encode',
+          'bytes',
+          (input) => ({
+            kind: 'bytes',
+            value: utf8EncodeScalars(input),
+          }),
+          'Encodes every Unicode scalar into its variable-length UTF-8 byte sequence.',
+        ),
         unary(
           'utf8-length',
           'UTF-8 length',
@@ -489,11 +505,18 @@ function createGraph(definition: PuzzleDefinition, operations: PuzzleOperations)
             value: requireBytes(input).length,
           }),
           'bytes',
+          'Counts the raw bytes produced by UTF-8 encoding.',
         ),
-        scalarOperation('utf16', 'UTF-16 encode', 'utf16', (input) => ({
-          kind: 'utf16',
-          value: stringToUtf16CodeUnits(unicodeScalarsToString(input)),
-        })),
+        scalarOperation(
+          'utf16',
+          'UTF-16 encode',
+          'utf16',
+          (input) => ({
+            kind: 'utf16',
+            value: stringToUtf16CodeUnits(unicodeScalarsToString(input)),
+          }),
+          'Encodes the scalar sequence as UTF-16 code units. Supplementary scalars become surrogate pairs.',
+        ),
         unary(
           'utf16-length',
           'UTF-16 length',
@@ -504,6 +527,7 @@ function createGraph(definition: PuzzleDefinition, operations: PuzzleOperations)
             value: requireUtf16Value(input).length,
           }),
           'units',
+          'Counts UTF-16 code units, matching JavaScript string length semantics.',
         ),
         scalarCountNode('scalar-length'),
       ],
@@ -531,46 +555,79 @@ function createGraph(definition: PuzzleDefinition, operations: PuzzleOperations)
             value: graphemeCount(requireScalarsValue(input), operations),
           }),
           'graphemes',
+          'Segments the sequence into extended grapheme clusters and counts the user-perceived text units.',
         ),
       ],
       [edge('input', 'scalar-length'), edge('input', 'grapheme-count')],
     );
   }
   if (id === 'case-fold-collision') {
-    return twoTransformGraph('Default case fold', operations.caseFold, 'Folds match');
+    return twoTransformGraph(
+      'Default case fold',
+      operations.caseFold,
+      'Folds match',
+      'Applies Unicode default full case folding for caseless comparison; this is not locale-specific lowercasing.',
+      'Compares the two folded scalar sequences exactly.',
+    );
   }
   if (id === 'compatibility-normalization') {
     return graph(
       [
         source('input', 'Input text', 'scalars'),
-        scalarOperation('nfc', 'NFC', 'scalars', (input) => ({
-          kind: 'scalars',
-          value: operations.normalize('NFC', input),
-        })),
-        scalarOperation('nfkc', 'NFKC', 'scalars', (input) => ({
-          kind: 'scalars',
-          value: operations.normalize('NFKC', input),
-        })),
+        scalarOperation(
+          'nfc',
+          'NFC',
+          'scalars',
+          (input) => ({
+            kind: 'scalars',
+            value: operations.normalize('NFC', input),
+          }),
+          'Applies canonical composition only, preserving compatibility distinctions.',
+        ),
+        scalarOperation(
+          'nfkc',
+          'NFKC',
+          'scalars',
+          (input) => ({
+            kind: 'scalars',
+            value: operations.normalize('NFKC', input),
+          }),
+          'Applies compatibility decomposition followed by canonical composition, so formatting variants may collapse.',
+        ),
       ],
       [edge('input', 'nfc'), edge('input', 'nfkc')],
     );
   }
   if (id === 'confusable-skeleton-collision') {
-    return twoTransformGraph('UTS #39 skeleton', operations.confusableSkeleton, 'Skeletons match');
+    return twoTransformGraph(
+      'UTS #39 skeleton',
+      requireConfusableSkeleton(operations),
+      'Skeletons match',
+      'Computes the Unicode UTS #39 confusable skeleton used to detect visually deceptive identifiers.',
+      'Compares the two confusable skeleton sequences exactly; matching does not imply semantic equivalence.',
+    );
   }
   if (id === 'invisible-format-controls') {
     return graph(
       [
         source('input', 'Input text', 'scalars'),
         scalarCountNode('scalar-length'),
-        unary('format-check', 'Only format characters', 'scalars', 'boolean', ([input]) => ({
-          kind: 'boolean',
-          value:
-            requireScalarsValue(input).length > 0 &&
-            Array.from(requireScalarsValue(input)).every(
-              (scalar) => operations.generalCategory(scalar) === 'Cf',
-            ),
-        })),
+        unary(
+          'format-check',
+          'Only format characters',
+          'scalars',
+          'boolean',
+          ([input]) => ({
+            kind: 'boolean',
+            value:
+              requireScalarsValue(input).length > 0 &&
+              Array.from(requireScalarsValue(input)).every(
+                (scalar) => requireGeneralCategory(operations)(scalar) === 'Cf',
+              ),
+          }),
+          undefined,
+          'Checks that the non-empty input consists entirely of Unicode General_Category=Cf format controls.',
+        ),
       ],
       [edge('input', 'scalar-length'), edge('input', 'format-check')],
     );
@@ -589,11 +646,20 @@ function createGraph(definition: PuzzleDefinition, operations: PuzzleOperations)
             value: requireUtf16Value(input).length,
           }),
           'units',
+          'Counts the supplied 16-bit code units without first decoding them as Unicode scalars.',
         ),
-        unary('valid', 'Structurally valid', 'utf16', 'boolean', ([input]) => ({
-          kind: 'boolean',
-          value: isWellFormedUtf16(requireUtf16Value(input)),
-        })),
+        unary(
+          'valid',
+          'Structurally valid',
+          'utf16',
+          'boolean',
+          ([input]) => ({
+            kind: 'boolean',
+            value: isWellFormedUtf16(requireUtf16Value(input)),
+          }),
+          undefined,
+          'Validates surrogate pairing without replacing or discarding malformed UTF-16 code units.',
+        ),
       ],
       [edge('input', 'unit-length'), edge('input', 'valid')],
     );
@@ -603,17 +669,31 @@ function createGraph(definition: PuzzleDefinition, operations: PuzzleOperations)
     return graph(
       [
         source('input', 'Input text', 'scalars'),
-        scalarOperation('unicode-15', 'NFKC · Unicode 15.1', 'scalars', (input) => ({
-          kind: 'scalars',
-          value: normalizeHistorical('NFKC', input),
-        })),
-        scalarOperation('unicode-17', 'NFKC · Unicode 17', 'scalars', (input) => ({
-          kind: 'scalars',
-          value: operations.normalize('NFKC', input),
-        })),
+        scalarOperation(
+          'unicode-15',
+          'NFKC · Unicode 15.1',
+          'scalars',
+          (input) => ({
+            kind: 'scalars',
+            value: normalizeHistorical('NFKC', input),
+          }),
+          'Runs compatibility normalization with the separately pinned Unicode 15.1 engine.',
+        ),
+        scalarOperation(
+          'unicode-17',
+          'NFKC · Unicode 17',
+          'scalars',
+          (input) => ({
+            kind: 'scalars',
+            value: operations.normalize('NFKC', input),
+          }),
+          'Runs compatibility normalization with the current pinned Unicode 17 engine.',
+        ),
         {
           id: 'compare',
           label: 'Results differ',
+          explanation:
+            'Compares the two versioned normalization results exactly to expose a real Unicode-version difference.',
           inputKinds: ['scalars', 'scalars'],
           outputKind: 'boolean',
           execute: ([historical, current]) => ({
@@ -654,22 +734,37 @@ function twoTransformGraph(
   transformLabel: string,
   transform: (input: Uint32Array) => Uint32Array,
   comparisonLabel: string,
+  transformExplanation: string,
+  comparisonExplanation: string,
 ): OperationGraph {
   return graph(
     [
       source('left', 'Input A', 'scalars'),
       source('right', 'Input B', 'scalars'),
-      scalarOperation('left-result', `${transformLabel}(A)`, 'scalars', (input) => ({
-        kind: 'scalars',
-        value: transform(input),
-      })),
-      scalarOperation('right-result', `${transformLabel}(B)`, 'scalars', (input) => ({
-        kind: 'scalars',
-        value: transform(input),
-      })),
+      scalarOperation(
+        'left-result',
+        `${transformLabel}(A)`,
+        'scalars',
+        (input) => ({
+          kind: 'scalars',
+          value: transform(input),
+        }),
+        transformExplanation,
+      ),
+      scalarOperation(
+        'right-result',
+        `${transformLabel}(B)`,
+        'scalars',
+        (input) => ({
+          kind: 'scalars',
+          value: transform(input),
+        }),
+        transformExplanation,
+      ),
       {
         id: 'compare',
         label: comparisonLabel,
+        explanation: comparisonExplanation,
         inputKinds: ['scalars', 'scalars'],
         outputKind: 'boolean',
         execute: ([left, right]) => ({
@@ -696,7 +791,13 @@ function graph(nodes: OperationNode[], edges: OperationGraph['edges']): Operatio
 }
 
 function source(id: string, label: string, outputKind: OperationNode['outputKind']): OperationNode {
-  return { id, label, inputKinds: [], outputKind };
+  return {
+    id,
+    label,
+    explanation: `Supplies ${label.toLowerCase()} to the graph as ${outputKind}.`,
+    inputKinds: [],
+    outputKind,
+  };
 }
 
 function unary(
@@ -706,8 +807,9 @@ function unary(
   outputKind: OperationNode['outputKind'],
   execute: NonNullable<OperationNode['execute']>,
   outputUnit?: string,
+  explanation = `Transforms ${inputKind} input into ${outputKind} output.`,
 ): OperationNode {
-  return { id, label, inputKinds: [inputKind], outputKind, outputUnit, execute };
+  return { id, label, explanation, inputKinds: [inputKind], outputKind, outputUnit, execute };
 }
 
 function scalarOperation(
@@ -715,8 +817,17 @@ function scalarOperation(
   label: string,
   outputKind: OperationNode['outputKind'],
   execute: (input: Uint32Array) => OperationValue,
+  explanation?: string,
 ): OperationNode {
-  return unary(id, label, 'scalars', outputKind, ([input]) => execute(requireScalarsValue(input)));
+  return unary(
+    id,
+    label,
+    'scalars',
+    outputKind,
+    ([input]) => execute(requireScalarsValue(input)),
+    undefined,
+    explanation,
+  );
 }
 
 function scalarCountNode(id: string): OperationNode {
@@ -727,6 +838,7 @@ function scalarCountNode(id: string): OperationNode {
     'count',
     ([input]) => ({ kind: 'count', value: requireScalarsValue(input).length }),
     'scalars',
+    'Counts Unicode scalar values. This differs from byte, UTF-16 code-unit, and grapheme-cluster length.',
   );
 }
 
@@ -805,4 +917,22 @@ function requireHistoricalNormalizer(
     throw new Error('The historical normalization engine is not loaded.');
   }
   return operations.normalizeHistorical;
+}
+
+function requireConfusableSkeleton(
+  operations: PuzzleOperations,
+): NonNullable<PuzzleOperations['confusableSkeleton']> {
+  if (!operations.confusableSkeleton) {
+    throw new Error('This puzzle requires the Unicode confusable index.');
+  }
+  return operations.confusableSkeleton;
+}
+
+function requireGeneralCategory(
+  operations: PuzzleOperations,
+): NonNullable<PuzzleOperations['generalCategory']> {
+  if (!operations.generalCategory) {
+    throw new Error('This puzzle requires the Unicode property index.');
+  }
+  return operations.generalCategory;
 }

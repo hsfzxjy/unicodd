@@ -53,6 +53,7 @@ const emit = defineEmits<{
   edit: [action: EditorAction];
   activateHistory: [nodeId: string];
   search: [query: string];
+  retryDiscovery: [];
   insertDiscovered: [target: Uint32Array];
 }>();
 
@@ -141,7 +142,6 @@ function exploreScalar(scalar: number, relation: ExplorationRelation): void {
             :key="`${details.scalar}-${details.index}`"
             type="button"
             class="scalar-detail"
-            :aria-label="`Explore ${details.codePoint} ${details.name ?? ''}`"
             @click="
               exploreScalar(details.scalar, {
                 kind: 'scalar',
@@ -149,6 +149,7 @@ function exploreScalar(scalar: number, relation: ExplorationRelation): void {
               })
             "
           >
+            <span class="visually-hidden">Explore </span>
             <span class="scalar-preview">{{ details.display }}</span>
             <span class="scalar-identity">
               <strong>{{ details.codePoint }}</strong>
@@ -236,6 +237,7 @@ function exploreScalar(scalar: number, relation: ExplorationRelation): void {
         :unicode-version="discoveryUnicodeVersion"
         :uts39-version="discoveryUts39Version"
         @explore="emit('explore', $event.target, { kind: $event.kind, label: $event.label })"
+        @retry="emit('retryDiscovery')"
       />
 
       <CharacterSearch

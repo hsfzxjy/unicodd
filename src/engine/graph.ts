@@ -6,12 +6,15 @@ export const textMetricsGraph: OperationGraph = {
     {
       id: 'input',
       label: 'Input text',
+      explanation: 'Supplies the entered text to the graph as Unicode scalar values.',
       inputKinds: [],
       outputKind: 'scalars',
     },
     {
       id: 'utf8',
       label: 'UTF-8 encode',
+      explanation:
+        'Encodes each Unicode scalar as its variable-length UTF-8 byte sequence without normalizing the text.',
       inputKinds: ['scalars'],
       outputKind: 'bytes',
       execute: ([input]): OperationValue => {
@@ -22,6 +25,7 @@ export const textMetricsGraph: OperationGraph = {
     {
       id: 'length',
       label: 'Byte length',
+      explanation: 'Counts the raw bytes produced by UTF-8 encoding.',
       inputKinds: ['bytes'],
       outputKind: 'count',
       execute: ([input]): OperationValue => {

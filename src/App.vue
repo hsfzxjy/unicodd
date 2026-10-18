@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import CharacterExplorer from './components/CharacterExplorer.vue';
 import CircuitView from './components/CircuitView.vue';
 import PuzzleView from './components/PuzzleView.vue';
@@ -11,8 +11,11 @@ import { useUnicodeEngine } from './composables/useUnicodeEngine';
 import { buildGraphemeRanges, scalarBoundaries, targetForSelection } from './explorer/graphemes';
 import type { ExplorationRelation } from './explorer/history';
 import type { EditorAction, GraphemeRange, TextSelection } from './explorer/types';
+import { requiresDiscoveryIndex } from './puzzles/capabilities';
 import { puzzleCollection } from './puzzles/collection';
-import { formatUtf16Units, preparePuzzleInput } from './puzzles/input';
+import { preparePuzzleInput, serializeUtf16Units } from './puzzles/input';
+import { puzzleHref, puzzleIndexFromSearch } from './puzzles/navigation';
+import { insertSequenceValues } from './puzzles/sequenceEditing';
 import type { PreparedPuzzleInput, PuzzleOperations } from './puzzles/types';
 import { displaySequence, stringToUtf16CodeUnits, unicodeScalarsToString } from './unicode';
 
@@ -20,10 +23,15 @@ const editor = useUnicodeEditor('é');
 const engine = useUnicodeEngine();
 const explorer = useCharacterExplorer(engine.adapter);
 const discovery = useUnicodeDiscovery(engine.adapter, explorer.target);
+const homeHref = import.meta.env.BASE_URL;
 const discoveryOpen = ref(false);
+const guideOpen = ref(true);
 const closeDiscoveryButton = ref<HTMLButtonElement | null>(null);
-const selectedPuzzleIndex = ref(0);
+const discoveryOverlay = ref<HTMLElement | null>(null);
+let discoveryReturnFocus: HTMLElement | null = null;
+let previousBodyOverflow = '';
 const puzzleDefinitions = puzzleCollection.map(({ definition }) => definition);
+const selectedPuzzleIndex = ref(puzzleIndexFromSearch(window.location.search, puzzleDefinitions));
 const puzzleValues = reactive(
   Object.fromEntries(
     puzzleCollection.map(({ definition }) => [
@@ -35,6 +43,9 @@ const puzzleValues = reactive(
 
 const selectedPuzzle = computed(
   () => puzzleCollection[selectedPuzzleIndex.value] ?? puzzleCollection[0]!,
+);
+const selectedPuzzleNeedsDiscovery = computed(() =>
+  requiresDiscoveryIndex(selectedPuzzle.value.definition),
 );
 const preparedInputs = computed(() =>
   selectedPuzzle.value.definition.inputs.map((definition) =>
@@ -52,14 +63,23 @@ const puzzleOperations = computed<PuzzleOperations | null>(() => {
   const index = discovery.relationshipIndex.value;
   const historicalProfile = selectedPuzzle.value.definition.historicalUnicodeProfile;
   const historicalAdapter = engine.historicalAdapter.value;
-  if (!adapter || !index || (historicalProfile && !historicalAdapter)) return null;
+  if (
+    !adapter ||
+    (selectedPuzzleNeedsDiscovery.value && !index) ||
+    (historicalProfile && !historicalAdapter)
+  ) {
+    return null;
+  }
   return {
     normalize: (form, input) => adapter.normalize(form, input),
     caseFold: (input) => adapter.caseFold(input),
     graphemeBoundaries: (input) => adapter.graphemeBoundaries(input),
-    confusableSkeleton: (input) =>
-      index.confusableSkeleton(input, (value) => adapter.normalize('NFD', value)),
-    generalCategory: (scalar) => index.propertiesFor(scalar)?.generalCategory ?? null,
+    confusableSkeleton: index
+      ? (input) => index.confusableSkeleton(input, (value) => adapter.normalize('NFD', value))
+      : undefined,
+    generalCategory: index
+      ? (scalar) => index.propertiesFor(scalar)?.generalCategory ?? null
+      : undefined,
     normalizeHistorical: historicalAdapter
       ? (form, input) => historicalAdapter.normalize(form, input)
       : undefined,
@@ -95,13 +115,29 @@ const puzzleError = computed(
     (selectedPuzzle.value.definition.historicalUnicodeProfile
       ? engine.historicalError.value
       : null) ??
-    discovery.error.value,
+    (selectedPuzzleNeedsDiscovery.value ? discovery.error.value : null),
 );
 
 watch(
   () => selectedPuzzle.value.definition.historicalUnicodeProfile,
   (profile) => {
     if (profile) void engine.loadHistoricalProfile(profile);
+  },
+  { immediate: true },
+);
+
+watch(
+  () => selectedPuzzle.value.definition.title,
+  (title) => {
+    document.title = `${title} — unicodd`;
+  },
+  { immediate: true },
+);
+
+watch(
+  selectedPuzzleNeedsDiscovery,
+  (needed) => {
+    if (needed) void discovery.ensureRelationships();
   },
   { immediate: true },
 );
@@ -146,31 +182,120 @@ function updatePuzzleInput(id: string, value: string): void {
   if (values) values[id] = value;
 }
 
-function useExploredTarget(id: string): void {
+function useExploredTarget(id: string, insertionIndex: number): void {
   const input = selectedPuzzle.value.definition.inputs.find((candidate) => candidate.id === id);
-  if (!input) return;
-  const value =
-    input.kind === 'utf16-units'
-      ? formatUtf16Units(stringToUtf16CodeUnits(unicodeScalarsToString(explorer.target.value)))
-      : unicodeScalarsToString(explorer.target.value);
-  updatePuzzleInput(id, value);
+  const prepared = preparedInputMap.value[id];
+  if (!input || !prepared || exploredTargetIsEmpty()) return;
+
+  if (input.kind === 'utf16-units') {
+    if (!prepared.utf16) return;
+    const discoveredUnits = stringToUtf16CodeUnits(unicodeScalarsToString(explorer.target.value));
+    const combined = insertSequenceValues(
+      Array.from(prepared.utf16),
+      insertionIndex,
+      Array.from(discoveredUnits),
+    );
+    updatePuzzleInput(id, serializeUtf16Units(Uint16Array.from(combined)));
+    return;
+  }
+
+  if (!prepared.scalars) return;
+  const combined = insertSequenceValues(
+    Array.from(prepared.scalars),
+    insertionIndex,
+    Array.from(explorer.target.value),
+  );
+  updatePuzzleInput(id, unicodeScalarsToString(Uint32Array.from(combined)));
+}
+
+function exploredTargetIsEmpty(): boolean {
+  return explorer.target.value.length === 0;
 }
 
 function selectPuzzle(index: number): void {
-  selectedPuzzleIndex.value = Math.min(Math.max(index, 0), puzzleCollection.length - 1);
+  const nextIndex = Math.min(Math.max(index, 0), puzzleCollection.length - 1);
+  if (nextIndex === selectedPuzzleIndex.value) return;
+  selectedPuzzleIndex.value = nextIndex;
+  const definition = puzzleCollection[nextIndex]?.definition;
+  if (definition) {
+    window.history.pushState(
+      { puzzle: definition.id },
+      '',
+      puzzleHref(window.location.href, definition.id),
+    );
+  }
+}
+
+function retryPuzzleAssets(): void {
+  if (selectedPuzzleNeedsDiscovery.value) void discovery.ensureRelationships();
+  const profile = selectedPuzzle.value.definition.historicalUnicodeProfile;
+  if (profile) void engine.loadHistoricalProfile(profile);
 }
 
 async function openDiscovery(): Promise<void> {
+  discoveryReturnFocus =
+    document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  previousBodyOverflow = document.body.style.overflow;
+  document.body.style.overflow = 'hidden';
   discoveryOpen.value = true;
+  void discovery.ensureRelationships();
   await nextTick();
   closeDiscoveryButton.value?.focus();
 }
 
 async function closeDiscovery(): Promise<void> {
+  if (!discoveryOpen.value) return;
   discoveryOpen.value = false;
+  document.body.style.overflow = previousBodyOverflow;
   await nextTick();
-  document.getElementById('open-character-lab')?.focus();
+  const returnTarget = discoveryReturnFocus?.isConnected
+    ? discoveryReturnFocus
+    : document.getElementById('open-character-lab');
+  returnTarget?.focus();
+  discoveryReturnFocus = null;
 }
+
+function handleDiscoveryKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    void closeDiscovery();
+    return;
+  }
+  if (event.key !== 'Tab') return;
+
+  const overlay = discoveryOverlay.value;
+  if (!overlay) return;
+  const focusable = Array.from(
+    overlay.querySelectorAll<HTMLElement>(
+      'button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), [href], [tabindex]:not([tabindex="-1"])',
+    ),
+  ).filter((element) => element.getClientRects().length > 0);
+  if (!focusable.length) {
+    event.preventDefault();
+    overlay.focus();
+    return;
+  }
+
+  const first = focusable[0]!;
+  const last = focusable[focusable.length - 1]!;
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+function syncPuzzleFromLocation(): void {
+  selectedPuzzleIndex.value = puzzleIndexFromSearch(window.location.search, puzzleDefinitions);
+}
+
+onMounted(() => window.addEventListener('popstate', syncPuzzleFromLocation));
+onBeforeUnmount(() => {
+  window.removeEventListener('popstate', syncPuzzleFromLocation);
+  document.body.style.overflow = previousBodyOverflow;
+});
 
 watch(
   [() => engine.status.value, graphemes],
@@ -186,13 +311,39 @@ watch(
 <template>
   <main :inert="discoveryOpen">
     <header class="site-header">
-      <a class="wordmark" href="#" aria-label="unicodd home">unicodd<span>·</span></a>
+      <a class="wordmark" :href="homeHref" aria-label="unicodd home">unicodd<span>·</span></a>
       <p>When text behaves oddly.</p>
-      <span class="milestone-label">
-        Puzzle {{ String(selectedPuzzle.definition.number).padStart(2, '0') }} /
-        {{ puzzleCollection.length }} · Milestone 7
-      </span>
+      <div class="site-actions">
+        <button
+          type="button"
+          :aria-expanded="guideOpen"
+          aria-controls="play-guide"
+          @click="guideOpen = !guideOpen"
+        >
+          How to play
+        </button>
+        <span class="milestone-label">
+          {{ String(selectedPuzzle.definition.number).padStart(2, '0') }} /
+          {{ puzzleCollection.length }}
+        </span>
+      </div>
     </header>
+
+    <aside v-show="guideOpen" id="play-guide" class="play-guide" aria-labelledby="play-guide-title">
+      <div>
+        <p class="eyebrow">Four-step loop</p>
+        <h2 id="play-guide-title">Construct, inspect, apply, observe</h2>
+      </div>
+      <ol>
+        <li><strong>Construct</strong><span>Type in the puzzle inputs.</span></li>
+        <li>
+          <strong>Inspect</strong><span>Open the character lab and follow relationships.</span>
+        </li>
+        <li><strong>Apply</strong><span>Use a discovery only through an explicit action.</span></li>
+        <li><strong>Observe</strong><span>Read the live operation graph and checks.</span></li>
+      </ol>
+      <button type="button" aria-label="Dismiss how to play" @click="guideOpen = false">×</button>
+    </aside>
 
     <PuzzleView
       :definition="selectedPuzzle.definition"
@@ -217,8 +368,18 @@ watch(
       :title="selectedPuzzle.definition.graphTitle"
       :description="selectedPuzzle.definition.graphDescription"
     />
-    <section v-else class="panel graph-panel" aria-live="polite">
-      Loading the operation graph…
+    <section v-else class="panel graph-panel graph-loading" aria-live="polite">
+      <template v-if="puzzleError">
+        <p class="error-message" role="alert">{{ puzzleError }}</p>
+        <button
+          v-if="selectedPuzzleNeedsDiscovery || selectedPuzzle.definition.historicalUnicodeProfile"
+          type="button"
+          @click="retryPuzzleAssets"
+        >
+          Retry puzzle data
+        </button>
+      </template>
+      <p v-else>Loading the operation graph…</p>
     </section>
   </main>
 
@@ -227,22 +388,25 @@ watch(
       v-show="discoveryOpen"
       class="discovery-backdrop"
       @click.self="closeDiscovery"
-      @keydown.esc="closeDiscovery"
+      @keydown="handleDiscoveryKeydown"
     >
       <section
         id="discovery-workspace"
+        ref="discoveryOverlay"
         class="discovery-overlay"
         role="dialog"
         aria-modal="true"
         aria-labelledby="discovery-heading"
+        aria-describedby="discovery-description"
+        tabindex="-1"
       >
         <div class="discovery-toolbar">
           <div>
             <p class="eyebrow">Character lab</p>
             <h2 id="discovery-heading">Discover before you construct</h2>
-            <p>
+            <p id="discovery-description">
               Inspect decomposition and relatives. The puzzle changes only when you explicitly use a
-              discovered sequence.
+              discovered sequence. Press Escape or click outside to close.
             </p>
           </div>
           <div class="discovery-toolbar-actions">
@@ -290,6 +454,7 @@ watch(
             @edit="editWithTarget"
             @activate-history="explorer.activate"
             @search="discovery.search"
+            @retry-discovery="discovery.ensureRelationships"
             @insert-discovered="insertDiscovered"
           />
         </div>

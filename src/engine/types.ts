@@ -10,6 +10,7 @@ export type OperationValue =
 export interface OperationNode {
   id: string;
   label: string;
+  explanation: string;
   inputKinds: readonly ValueKind[];
   outputKind: ValueKind;
   outputUnit?: string;

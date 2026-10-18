@@ -7,7 +7,7 @@ import type {
 import { loadNameIndex, loadRelationshipIndex } from '../explorer/loadDiscovery';
 import type { UnicodeWasmAdapter } from '../wasm/adapter';
 
-export type DiscoveryStatus = 'loading' | 'ready' | 'error';
+export type DiscoveryStatus = 'idle' | 'loading' | 'ready' | 'error';
 export type SearchStatus = 'idle' | 'loading' | 'ready' | 'error';
 
 export function useUnicodeDiscovery(
@@ -15,22 +15,34 @@ export function useUnicodeDiscovery(
   target: Readonly<Ref<Uint32Array>>,
 ) {
   const relationshipIndex = shallowRef<Awaited<ReturnType<typeof loadRelationshipIndex>>>();
-  const status = ref<DiscoveryStatus>('loading');
+  const status = ref<DiscoveryStatus>('idle');
   const error = ref<string | null>(null);
   const searchStatus = ref<SearchStatus>('idle');
   const searchError = ref<string | null>(null);
   const searchResults = shallowRef<CharacterSearchResult[]>([]);
   let searchRevision = 0;
+  let relationshipRequest: Promise<void> | null = null;
 
-  void loadRelationshipIndex()
-    .then((index) => {
-      relationshipIndex.value = index;
-      status.value = 'ready';
-    })
-    .catch((reason: unknown) => {
-      status.value = 'error';
-      error.value = reason instanceof Error ? reason.message : 'Unicode discovery data failed.';
-    });
+  function ensureRelationships(): Promise<void> {
+    if (status.value === 'ready') return Promise.resolve();
+    if (relationshipRequest) return relationshipRequest;
+
+    status.value = 'loading';
+    error.value = null;
+    relationshipRequest = loadRelationshipIndex()
+      .then((index) => {
+        relationshipIndex.value = index;
+        status.value = 'ready';
+      })
+      .catch((reason: unknown) => {
+        status.value = 'error';
+        error.value = reason instanceof Error ? reason.message : 'Unicode discovery data failed.';
+      })
+      .finally(() => {
+        relationshipRequest = null;
+      });
+    return relationshipRequest;
+  }
 
   function nameScalars(input: Uint32Array): string | null {
     const engine = adapter.value;
@@ -94,6 +106,7 @@ export function useUnicodeDiscovery(
     searchResults,
     unicodeVersion,
     uts39Version,
+    ensureRelationships,
     search,
   };
 }

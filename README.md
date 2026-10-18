@@ -29,6 +29,7 @@ npm run format:check
 npm run typecheck
 npm test
 npm run build
+npm run test:browser
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
@@ -41,6 +42,10 @@ cargo test --manifest-path crates/unicode-15/Cargo.toml
 artifact. Rust tests also run the official Unicode 17.0.0 normalization, case-folding, and
 grapheme-break conformance data plus the Unicode 15.1.0 normalization corpus. Normalization is
 checked across all four supported forms for both profiles.
+
+The Playwright smoke suite builds and serves the application at `/unicodd/` to verify non-root
+static hosting, lazy discovery data, and lazy historical-engine loading. Install its local browser
+once with `npx playwright install chromium`.
 
 ## Architecture
 
@@ -62,3 +67,10 @@ checked across all four supported forms for both profiles.
 
 Scalar sequences (`Uint32Array`), raw bytes (`Uint8Array`), and UTF-16 code units (`Uint16Array`)
 are deliberately distinct types. The editor does not normalize or otherwise transform input.
+
+## Playing
+
+Use the previous/next buttons or the puzzle list to move through the collection. Puzzle links use a
+stable `?puzzle=<id>` query parameter and work with browser back/forward navigation. “How to play”
+summarizes the construct → inspect → apply → observe loop; the character lab never changes a puzzle
+input until an explicit action is chosen.

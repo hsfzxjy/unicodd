@@ -3,6 +3,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { executeGraph } from '../src/engine/execute';
 import type { RawRelationshipIndex } from '../src/explorer/discoveryTypes';
 import { UnicodeRelationshipIndex } from '../src/explorer/relationships';
+import { requiresDiscoveryIndex } from '../src/puzzles/capabilities';
 import { puzzleCollection } from '../src/puzzles/collection';
 import { decodeUtf16Strict, parseUtf16Units, preparePuzzleInput } from '../src/puzzles/input';
 import type { PreparedPuzzleInput, PuzzleOperations } from '../src/puzzles/types';
@@ -72,6 +73,47 @@ describe('Milestone 6 puzzle collection', () => {
     expect(new Set(puzzleCollection.map(({ definition }) => definition.id)).size).toBe(9);
   });
 
+  it('declares the optional data capabilities used by each puzzle', () => {
+    expect(
+      Object.fromEntries(
+        puzzleCollection.map(({ definition }) => [definition.id, definition.capabilities]),
+      ),
+    ).toEqual({
+      'nfc-concatenation-boundary': ['normalization'],
+      'encoding-lengths': ['grapheme-segmentation'],
+      'grapheme-many-scalars': ['grapheme-segmentation'],
+      'case-fold-collision': ['case-folding'],
+      'compatibility-normalization': ['normalization'],
+      'confusable-skeleton-collision': ['normalization', 'confusable-index'],
+      'invisible-format-controls': ['property-index'],
+      'malformed-utf16': [],
+      'historical-normalization': ['normalization', 'historical-normalization'],
+    });
+
+    expect(
+      puzzleCollection
+        .filter(({ definition }) => requiresDiscoveryIndex(definition))
+        .map(({ definition }) => definition.id),
+    ).toEqual(['confusable-skeleton-collision', 'invisible-format-controls']);
+  });
+
+  it('evaluates unrelated puzzles without discovery-index operations', () => {
+    const operationsWithoutDiscovery: PuzzleOperations = {
+      normalize: operations.normalize,
+      caseFold: operations.caseFold,
+      graphemeBoundaries: operations.graphemeBoundaries,
+      normalizeHistorical: operations.normalizeHistorical,
+    };
+    const independentPuzzleIds = puzzleCollection
+      .filter(({ definition }) => !requiresDiscoveryIndex(definition))
+      .map(({ definition }) => definition.id);
+
+    for (const id of independentPuzzleIds) {
+      const { runtime, inputs } = prepare(id, solutions[id]!);
+      expect(runtime.evaluate(inputs, operationsWithoutDiscovery).success, id).toBe(true);
+    }
+  });
+
   it('parses raw UTF-16 without replacing unpaired surrogates', () => {
     expect(parseUtf16Units('D83E DDE9')).toEqual(Uint16Array.from([0xd83e, 0xdde9]));
     expect(decodeUtf16Strict(Uint16Array.from([0xd83e, 0xdde9]))).toEqual(Uint32Array.of(0x1f9e9));
@@ -133,5 +175,18 @@ describe('Milestone 6 puzzle collection', () => {
       value: Uint32Array.of(0x53),
     });
     expect(historicalTrace.outputs.get('compare')).toEqual({ kind: 'boolean', value: true });
+  });
+
+  it('documents every operation shown in the circuit graph', () => {
+    for (const puzzle of puzzleCollection) {
+      const nodes = puzzle.createGraph(operations).nodes;
+      expect(nodes.length, puzzle.definition.id).toBeGreaterThan(0);
+      for (const node of nodes) {
+        expect(
+          node.explanation.trim().length,
+          `${puzzle.definition.id}:${node.id}`,
+        ).toBeGreaterThan(20);
+      }
+    }
   });
 });

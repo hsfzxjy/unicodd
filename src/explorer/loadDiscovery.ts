@@ -2,38 +2,51 @@ import type { DiscoveryManifest, RawNameIndex, RawRelationshipIndex } from './di
 import { UnicodeRelationshipIndex } from './relationships';
 import { UnicodeNameIndex } from './search';
 
-const manifestUrl = '/unicode-indexes/unicode-current.json';
+const manifestUrl = `${import.meta.env.BASE_URL}unicode-indexes/unicode-current.json`;
 let manifestPromise: Promise<DiscoveryManifest> | undefined;
 let relationshipPromise: Promise<UnicodeRelationshipIndex> | undefined;
 let namePromise: Promise<UnicodeNameIndex> | undefined;
 
 export function loadRelationshipIndex(): Promise<UnicodeRelationshipIndex> {
-  relationshipPromise ??= loadManifest().then(async (manifest) => {
-    const raw = await fetchJson<RawRelationshipIndex>(resolveAsset(manifest.relationships));
-    if (
-      raw.unicode_version !== manifest.unicodeVersion ||
-      raw.uts39_version !== manifest.uts39Version
-    ) {
-      throw new Error('Unicode relationship index version does not match its manifest.');
-    }
-    return new UnicodeRelationshipIndex(raw);
-  });
+  relationshipPromise ??= loadManifest()
+    .then(async (manifest) => {
+      const raw = await fetchJson<RawRelationshipIndex>(resolveAsset(manifest.relationships));
+      if (
+        raw.unicode_version !== manifest.unicodeVersion ||
+        raw.uts39_version !== manifest.uts39Version
+      ) {
+        throw new Error('Unicode relationship index version does not match its manifest.');
+      }
+      return new UnicodeRelationshipIndex(raw);
+    })
+    .catch((reason: unknown) => {
+      relationshipPromise = undefined;
+      throw reason;
+    });
   return relationshipPromise;
 }
 
 export function loadNameIndex(): Promise<UnicodeNameIndex> {
-  namePromise ??= loadManifest().then(async (manifest) => {
-    const raw = await fetchJson<RawNameIndex>(resolveAsset(manifest.names));
-    if (raw.unicode_version !== manifest.unicodeVersion) {
-      throw new Error('Unicode name index version does not match its manifest.');
-    }
-    return new UnicodeNameIndex(raw);
-  });
+  namePromise ??= loadManifest()
+    .then(async (manifest) => {
+      const raw = await fetchJson<RawNameIndex>(resolveAsset(manifest.names));
+      if (raw.unicode_version !== manifest.unicodeVersion) {
+        throw new Error('Unicode name index version does not match its manifest.');
+      }
+      return new UnicodeNameIndex(raw);
+    })
+    .catch((reason: unknown) => {
+      namePromise = undefined;
+      throw reason;
+    });
   return namePromise;
 }
 
 function loadManifest(): Promise<DiscoveryManifest> {
-  manifestPromise ??= fetchJson<DiscoveryManifest>(manifestUrl);
+  manifestPromise ??= fetchJson<DiscoveryManifest>(manifestUrl).catch((reason: unknown) => {
+    manifestPromise = undefined;
+    throw reason;
+  });
   return manifestPromise;
 }
 

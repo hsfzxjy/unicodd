@@ -1,0 +1,59 @@
+name: Verify
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install stable Rust with WASM support
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+          targets: wasm32-unknown-unknown
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check frontend formatting and types
+        run: |
+          npm run format:check
+          npm run typecheck
+
+      - name: Check current Rust workspace
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy --workspace --all-targets -- -D warnings
+          cargo test --workspace
+
+      - name: Check historical Rust workspace
+        run: |
+          cargo fmt --manifest-path crates/unicode-15/Cargo.toml --all -- --check
+          cargo clippy --manifest-path crates/unicode-15/Cargo.toml --all-targets -- -D warnings
+          cargo test --manifest-path crates/unicode-15/Cargo.toml
+
+      - name: Run frontend tests
+        run: npm test
+
+      - name: Build production application
+        run: npm run build
+
+      - name: Install smoke-test browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run production smoke tests
+        run: npm run test:browser

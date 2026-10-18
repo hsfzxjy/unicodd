@@ -57,6 +57,30 @@ describe('JSON puzzle catalog', () => {
     );
   });
 
+  it('requires narrowly validated official Unicode references', () => {
+    expect(() => parsePuzzleFile(editablePuzzle({ references: [] }))).toThrow(
+      /at least one reference/,
+    );
+    expect(() =>
+      parsePuzzleFile(
+        editablePuzzle({ references: [{ label: 'Not official', url: 'https://example.com/' }] }),
+      ),
+    ).toThrow(/must use HTTPS on www\.unicode\.org/);
+    expect(() =>
+      parsePuzzleFile(
+        editablePuzzle({
+          references: [
+            {
+              label: 'Unicode data',
+              url: 'https://www.unicode.org/Public/17.0.0/ucd/UnicodeData.txt',
+              note: 'Unexpected field',
+            },
+          ],
+        }),
+      ),
+    ).toThrow(/Unknown property “note”/);
+  });
+
   it('rejects duplicate ids and puzzle numbers across files', () => {
     expect(() =>
       loadPuzzleCatalog({

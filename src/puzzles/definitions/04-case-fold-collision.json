@@ -32,5 +32,11 @@
     "Compare Straße with STRASSE."
   ],
   "explanation": "Case folding is intended for caseless comparison, not display. Full folding may expand characters—German ß folds to ss—so distinct strings can share one comparison key.",
+  "references": [
+    {
+      "label": "Unicode 17.0 · CaseFolding.txt",
+      "url": "https://www.unicode.org/Public/17.0.0/ucd/CaseFolding.txt"
+    }
+  ],
   "capabilities": ["case-folding"]
 }

@@ -26,5 +26,11 @@
     "Try the lone high-surrogate code unit D83E."
   ],
   "explanation": "UTF-16 code units can contain unpaired surrogates even though Unicode scalar sequences cannot. Validation must detect that structure explicitly instead of silently replacing it.",
+  "references": [
+    {
+      "label": "Unicode 17.0 · The Unicode Standard",
+      "url": "https://www.unicode.org/versions/Unicode17.0.0/"
+    }
+  ],
   "capabilities": []
 }

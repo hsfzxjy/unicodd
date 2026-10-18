@@ -68,6 +68,7 @@ export const englishMessages = {
   'puzzle.solved': 'Puzzle solved',
   'puzzle.showHint': 'Show a hint',
   'puzzle.showNextHint': 'Show next hint',
+  'puzzle.sources': 'Sources',
   'circuit.eyebrow': 'Live operation graph',
   'circuit.instructions':
     'Select a node to explain it. Drag the canvas sideways to inspect the complete pipeline.',

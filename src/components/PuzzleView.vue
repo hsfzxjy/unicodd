@@ -356,6 +356,18 @@ function selectPuzzle(event: Event): void {
             <strong>{{ item.value }}</strong>
           </li>
         </ul>
+        <nav class="puzzle-sources" :aria-label="t('puzzle.sources')">
+          <span>{{ t('puzzle.sources') }}</span>
+          <a
+            v-for="reference in definition.references"
+            :key="reference.url"
+            :href="reference.url"
+            target="_blank"
+            rel="noreferrer"
+          >
+            {{ reference.label }}
+          </a>
+        </nav>
       </article>
     </div>
 

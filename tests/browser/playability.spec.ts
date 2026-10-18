@@ -178,6 +178,44 @@ test('solves the first puzzle and exposes graph values without color alone', asy
   await expect(explanation).toBeHidden();
 });
 
+test('solves every puzzle and keeps its source attribution across locales', async ({ page }) => {
+  const solutions = [
+    { left: 'e', right: '\u0301' },
+    { input: '🧩' },
+    { input: 'e\u0301\u0323' },
+    { left: 'Straße', right: 'STRASSE' },
+    { input: '①' },
+    { left: 'a', right: 'а' },
+    { input: '\u200b' },
+    { input: 'D83E' },
+    { input: '\ua7f1' },
+  ];
+
+  await page.goto('./');
+  await dismissGuide(page);
+
+  for (const [index, values] of solutions.entries()) {
+    await page.getByLabel('Choose puzzle').selectOption(String(index));
+    for (const [id, value] of Object.entries(values)) {
+      await page.locator(`#puzzle-${id}`).fill(value);
+    }
+    await expect(page.getByText('Puzzle solved', { exact: true })).toBeVisible();
+    const sources = page.getByRole('navigation', { name: 'Sources' });
+    await expect(sources).toBeVisible();
+    await expect(sources.getByRole('link').first()).toHaveAttribute(
+      'href',
+      /^https:\/\/www\.unicode\.org\//,
+    );
+  }
+
+  await page.getByLabel('Language').selectOption('zh-CN');
+  for (const index of solutions.keys()) {
+    await page.getByLabel('选择谜题').selectOption(String(index));
+    await expect(page.getByText('谜题已解开', { exact: true })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: '资料来源' })).toBeVisible();
+  }
+});
+
 test('contains dialog focus and keeps the workbench reachable on mobile', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('./');

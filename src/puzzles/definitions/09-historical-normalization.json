@@ -26,5 +26,15 @@
     "Search the character lab for U+A7F1 MODIFIER LETTER CAPITAL S."
   ],
   "explanation": "U+A7F1 was unassigned in Unicode 15.1, so that engine preserves it. Its later assignment includes a compatibility decomposition to ASCII S, which Unicode 17 NFKC applies. Historical behavior requires historical data—not just a different label.",
+  "references": [
+    {
+      "label": "Unicode 15.1 · NormalizationTest.txt",
+      "url": "https://www.unicode.org/Public/15.1.0/ucd/NormalizationTest.txt"
+    },
+    {
+      "label": "Unicode 17.0 · NormalizationTest.txt",
+      "url": "https://www.unicode.org/Public/17.0.0/ucd/NormalizationTest.txt"
+    }
+  ],
   "capabilities": ["normalization", "historical-normalization"]
 }

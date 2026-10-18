@@ -344,6 +344,30 @@ main {
   color: #18714d;
 }
 
+.puzzle-sources {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px 7px;
+  margin-top: 6px;
+  padding-top: 5px;
+  border-top: 1px solid var(--line);
+  font-size: 0.58rem;
+  line-height: 1.25;
+}
+
+.puzzle-sources span {
+  color: var(--muted);
+  font-weight: 750;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.puzzle-sources a {
+  color: var(--accent-strong);
+  text-underline-offset: 2px;
+}
+
 .puzzle-rendered {
   display: flex;
   align-items: center;

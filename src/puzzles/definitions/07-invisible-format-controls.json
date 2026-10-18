@@ -25,5 +25,11 @@
     "Try U+200B ZERO WIDTH SPACE."
   ],
   "explanation": "A string can contain real data without an ordinary visible glyph. Format controls can affect layout, joining, ordering, or parsing even when the rendered line appears empty.",
+  "references": [
+    {
+      "label": "Unicode 17.0 · UnicodeData.txt",
+      "url": "https://www.unicode.org/Public/17.0.0/ucd/UnicodeData.txt"
+    }
+  ],
   "capabilities": ["property-index"]
 }

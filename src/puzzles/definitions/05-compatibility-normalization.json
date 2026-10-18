@@ -25,5 +25,11 @@
     "Try ①, fullwidth ａ, or superscript ¹."
   ],
   "explanation": "NFC only resolves canonical equivalence. NFKC additionally removes compatibility distinctions, so symbols such as circled digits can normalize to ordinary text.",
+  "references": [
+    {
+      "label": "Unicode 17.0 · NormalizationTest.txt",
+      "url": "https://www.unicode.org/Public/17.0.0/ucd/NormalizationTest.txt"
+    }
+  ],
   "capabilities": ["normalization"]
 }

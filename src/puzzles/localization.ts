@@ -19,6 +19,7 @@ interface PuzzleTranslation {
   resultLabel: string;
   hints: string[];
   explanation: string;
+  references: string[];
 }
 
 const chineseTranslations = chinesePuzzleTranslations as Record<string, PuzzleTranslation>;
@@ -47,6 +48,10 @@ export function localizePuzzleDefinition(
     resultLabel: translation.resultLabel,
     hints: translation.hints,
     explanation: translation.explanation,
+    references: definition.references.map((reference, index) => ({
+      ...reference,
+      label: translation.references[index]!,
+    })),
   };
 }
 
@@ -97,6 +102,13 @@ function validateTranslation(definition: PuzzleDefinition, translation: PuzzleTr
     translation.hints.some((hint) => typeof hint !== 'string' || !hint.trim())
   ) {
     throw new Error(`Puzzle “${definition.id}” must translate every hint into zh-CN.`);
+  }
+  if (
+    !Array.isArray(translation.references) ||
+    translation.references.length !== definition.references.length ||
+    translation.references.some((reference) => typeof reference !== 'string' || !reference.trim())
+  ) {
+    throw new Error(`Puzzle “${definition.id}” must translate every reference into zh-CN.`);
   }
   const translatedInputIds = Object.keys(translation.inputs).sort();
   const inputIds = definition.inputs.map(({ id }) => id).sort();

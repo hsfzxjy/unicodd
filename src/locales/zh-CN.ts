@@ -70,6 +70,7 @@ export const chineseMessages: Record<MessageKey, string> = {
   'puzzle.solved': '谜题已解开',
   'puzzle.showHint': '显示提示',
   'puzzle.showNextHint': '显示下一条提示',
+  'puzzle.sources': '资料来源',
   'circuit.eyebrow': '实时运算图',
   'circuit.instructions': '选择节点可查看说明。横向拖动画布可检查完整处理流程。',
   'circuit.readOnly': '只读',

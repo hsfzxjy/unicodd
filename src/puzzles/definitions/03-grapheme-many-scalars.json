@@ -25,5 +25,11 @@
     "Try e followed by U+0301 and U+0323."
   ],
   "explanation": "User-perceived characters are grapheme clusters, not fixed-width storage units. One cluster can contain a base plus several marks, or an entire emoji ZWJ sequence.",
+  "references": [
+    {
+      "label": "Unicode 17.0 · GraphemeBreakTest.txt",
+      "url": "https://www.unicode.org/Public/17.0.0/ucd/auxiliary/GraphemeBreakTest.txt"
+    }
+  ],
   "capabilities": ["grapheme-segmentation"]
 }

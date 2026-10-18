@@ -32,5 +32,11 @@
     "Each input can be normalized alone while their boundary creates a new composition opportunity."
   ],
   "explanation": "NFC is not closed under concatenation. A starter at the end of Input A can compose with a combining mark at the start of Input B, even though each input was already NFC on its own.",
+  "references": [
+    {
+      "label": "Unicode 17.0 · NormalizationTest.txt",
+      "url": "https://www.unicode.org/Public/17.0.0/ucd/NormalizationTest.txt"
+    }
+  ],
   "capabilities": ["normalization"]
 }

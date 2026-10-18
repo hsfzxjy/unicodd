@@ -4,9 +4,9 @@ import { executeGraph } from '../src/engine/execute';
 import type { RawRelationshipIndex } from '../src/explorer/discoveryTypes';
 import { UnicodeRelationshipIndex } from '../src/explorer/relationships';
 import { requiresDiscoveryIndex } from '../src/puzzles/capabilities';
-import { puzzleCollection } from '../src/puzzles/collection';
+import { createPuzzleCollection, puzzleCollection } from '../src/puzzles/collection';
 import { decodeUtf16Strict, parseUtf16Units, preparePuzzleInput } from '../src/puzzles/input';
-import type { PreparedPuzzleInput, PuzzleOperations } from '../src/puzzles/types';
+import type { PreparedPuzzleInput, PuzzleOperations, PuzzleRuntime } from '../src/puzzles/types';
 import type { UnicodeWasmAdapter } from '../src/wasm/adapter';
 import { instantiateUnicodeEngine } from '../src/wasm/loader';
 
@@ -53,8 +53,12 @@ describe('Milestone 6 puzzle collection', () => {
     'historical-normalization': { input: '\ua7f1' },
   };
 
-  function prepare(id: string, values: Record<string, string>) {
-    const runtime = puzzleCollection.find(({ definition }) => definition.id === id);
+  function prepare(
+    id: string,
+    values: Record<string, string>,
+    collection: readonly PuzzleRuntime[] = puzzleCollection,
+  ) {
+    const runtime = collection.find(({ definition }) => definition.id === id);
     if (!runtime) throw new Error(`Missing puzzle ${id}.`);
     const inputs = Object.fromEntries(
       runtime.definition.inputs.map((definition) => [
@@ -121,10 +125,27 @@ describe('Milestone 6 puzzle collection', () => {
     expect(() => parseUtf16Units('D83E 10000')).toThrow(/Invalid UTF-16 unit/);
   });
 
-  it.each(Object.entries(solutions))('accepts the intended solution for %s', (id, values) => {
-    const { runtime, inputs } = prepare(id, values);
-    expect(Object.values(inputs).every(({ error }) => error === null)).toBe(true);
-    expect(runtime.evaluate(inputs, operations).success).toBe(true);
+  for (const locale of ['en', 'zh-CN'] as const) {
+    it.each(Object.entries(solutions))(
+      `accepts the intended solution for %s in ${locale}`,
+      (id, values) => {
+        const { runtime, inputs } = prepare(id, values, createPuzzleCollection(locale));
+        expect(Object.values(inputs).every(({ error }) => error === null)).toBe(true);
+        expect(runtime.evaluate(inputs, operations).success).toBe(true);
+        expect(runtime.definition.hints).toHaveLength(3);
+        expect(runtime.definition.hints.every((hint) => hint.trim().length > 0)).toBe(true);
+      },
+    );
+  }
+
+  it('attributes every puzzle to versioned official Unicode material', () => {
+    for (const { definition } of puzzleCollection) {
+      expect(definition.references.length, definition.id).toBeGreaterThan(0);
+      for (const reference of definition.references) {
+        expect(reference.label, definition.id).toMatch(/Unicode|UTS/);
+        expect(new URL(reference.url).origin, definition.id).toBe('https://www.unicode.org');
+      }
+    }
   });
 
   it.each(puzzleCollection.map(({ definition }) => definition.id))(

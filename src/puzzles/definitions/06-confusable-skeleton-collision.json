@@ -32,5 +32,11 @@
     "Compare Latin a with Cyrillic а (U+0430)."
   ],
   "explanation": "UTS #39 skeletons flag text that may be visually confusable. The relationship is a security signal, not canonical equivalence, semantic equality, or a guarantee for every font.",
+  "references": [
+    {
+      "label": "UTS #39 · Unicode 17 confusables.txt",
+      "url": "https://www.unicode.org/Public/security/17.0.0/confusables.txt"
+    }
+  ],
   "capabilities": ["normalization", "confusable-index"]
 }

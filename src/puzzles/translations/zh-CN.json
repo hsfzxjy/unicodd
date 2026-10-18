@@ -16,7 +16,8 @@
       "试着把基本字母放入输入 A，把组合标记放入输入 B。",
       "每个输入单独看都可以是规范化的，但两者边界会产生新的组合机会。"
     ],
-    "explanation": "NFC 在拼接运算下并不封闭。输入 A 末尾的起始字符可以与输入 B 开头的组合标记合成，即使两个输入各自都已经是 NFC。"
+    "explanation": "NFC 在拼接运算下并不封闭。输入 A 末尾的起始字符可以与输入 B 开头的组合标记合成，即使两个输入各自都已经是 NFC。",
+    "references": ["Unicode 17.0 · 规范化测试数据"]
   },
   "encoding-lengths": {
     "theme": "编码",
@@ -34,7 +35,8 @@
       "表情符号是寻找辅助字符的常见起点。",
       "试试 🧩，或另一个不带变体选择符的单个表情符号。"
     ],
-    "explanation": "辅助平面标量仍然只是一个 Unicode 标量值，也常常是一个字素簇；但 UTF-16 用代理对存储它，而 UTF-8 使用四个字节。"
+    "explanation": "辅助平面标量仍然只是一个 Unicode 标量值，也常常是一个字素簇；但 UTF-16 用代理对存储它，而 UTF-8 使用四个字节。",
+    "references": ["Unicode 17.0 · Unicode 标准"]
   },
   "grapheme-many-scalars": {
     "theme": "字素簇",
@@ -52,7 +54,8 @@
       "由 U+200D ZERO WIDTH JOINER 连接的表情符号也可以形成一个字素簇。",
       "试试 e，后接 U+0301 和 U+0323。"
     ],
-    "explanation": "用户感知到的字符是字素簇，而不是固定宽度的存储单位。一个字素簇可以包含基本字符和多个标记，也可以包含完整的表情符号 ZWJ 序列。"
+    "explanation": "用户感知到的字符是字素簇，而不是固定宽度的存储单位。一个字素簇可以包含基本字符和多个标记，也可以包含完整的表情符号 ZWJ 序列。",
+    "references": ["Unicode 17.0 · 字素边界测试数据"]
   },
   "case-fold-collision": {
     "theme": "大小写折叠",
@@ -71,7 +74,8 @@
       "完整折叠可以把一个标量值展开为多个标量值。",
       "比较 Straße 和 STRASSE。"
     ],
-    "explanation": "大小写折叠用于不区分大小写的比较，而非显示。完整折叠可能会展开字符——德语 ß 会折叠为 ss——因此不同字符串可以共享同一个比较键。"
+    "explanation": "大小写折叠用于不区分大小写的比较，而非显示。完整折叠可能会展开字符——德语 ß 会折叠为 ss——因此不同字符串可以共享同一个比较键。",
+    "references": ["Unicode 17.0 · 大小写折叠数据"]
   },
   "compatibility-normalization": {
     "theme": "兼容性",
@@ -89,7 +93,8 @@
       "探索器会把兼容相关字符与规范相关字符分开列出。",
       "试试 ①、全角 ａ 或上标 ¹。"
     ],
-    "explanation": "NFC 只处理规范等价。NFKC 还会消除兼容性差异，因此带圈数字等符号可以规范化为普通文本。"
+    "explanation": "NFC 只处理规范等价。NFKC 还会消除兼容性差异，因此带圈数字等符号可以规范化为普通文本。",
+    "references": ["Unicode 17.0 · 规范化测试数据"]
   },
   "confusable-skeleton-collision": {
     "theme": "易混淆字符",
@@ -108,7 +113,8 @@
       "探索拉丁字母 a 的视觉易混淆字符。",
       "比较拉丁字母 a 与西里尔字母 а（U+0430）。"
     ],
-    "explanation": "UTS #39 骨架用于标记可能造成视觉混淆的文本。这是一种安全信号，不代表规范等价、语义相等，也不能保证适用于所有字体。"
+    "explanation": "UTS #39 骨架用于标记可能造成视觉混淆的文本。这是一种安全信号，不代表规范等价、语义相等，也不能保证适用于所有字体。",
+    "references": ["UTS #39 · Unicode 17 易混淆字符数据"]
   },
   "invisible-format-controls": {
     "theme": "不可见文本",
@@ -126,7 +132,8 @@
       "格式字符的 General_Category 为 Cf。",
       "试试 U+200B ZERO WIDTH SPACE。"
     ],
-    "explanation": "字符串即使没有普通可见字形，也可以包含真实数据。格式控制字符可能影响布局、连接、顺序或解析，即使渲染后的行看起来为空。"
+    "explanation": "字符串即使没有普通可见字形，也可以包含真实数据。格式控制字符可能影响布局、连接、顺序或解析，即使渲染后的行看起来为空。",
+    "references": ["Unicode 17.0 · Unicode 字符数据"]
   },
   "malformed-utf16": {
     "theme": "格式错误的 UTF-16",
@@ -144,7 +151,8 @@
       "删除有效代理对中的任意一半。",
       "试试单独的高代理码元 D83E。"
     ],
-    "explanation": "UTF-16 码元可以包含未配对代理项，但 Unicode 标量序列不能。验证必须明确检测这种结构，而不能静默替换它。"
+    "explanation": "UTF-16 码元可以包含未配对代理项，但 Unicode 标量序列不能。验证必须明确检测这种结构，而不能静默替换它。",
+    "references": ["Unicode 17.0 · Unicode 标准"]
   },
   "historical-normalization": {
     "theme": "Unicode 版本",
@@ -162,6 +170,7 @@
       "Unicode 16 新增了一个修饰字母，其兼容分解是 ASCII 字母。",
       "在字符实验室中搜索 U+A7F1 MODIFIER LETTER CAPITAL S。"
     ],
-    "explanation": "U+A7F1 在 Unicode 15.1 中尚未分配，因此该引擎会保留它。后来分配给它的字符具有到 ASCII S 的兼容分解，Unicode 17 的 NFKC 会应用此映射。历史行为需要真实的历史数据，而不只是更换版本标签。"
+    "explanation": "U+A7F1 在 Unicode 15.1 中尚未分配，因此该引擎会保留它。后来分配给它的字符具有到 ASCII S 的兼容分解，Unicode 17 的 NFKC 会应用此映射。历史行为需要真实的历史数据，而不只是更换版本标签。",
+    "references": ["Unicode 15.1 · 规范化测试数据", "Unicode 17.0 · 规范化测试数据"]
   }
 }

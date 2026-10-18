@@ -1,4 +1,9 @@
-import type { PuzzleCapability, PuzzleDefinition, PuzzleInputDefinition } from './types';
+import type {
+  PuzzleCapability,
+  PuzzleDefinition,
+  PuzzleInputDefinition,
+  PuzzleReference,
+} from './types';
 import { validatePuzzleTranslations } from './localization';
 
 export const puzzleRuntimeIds = [
@@ -137,6 +142,7 @@ export function parsePuzzleFile(value: unknown, source = 'puzzle JSON'): PuzzleC
       'resultLabel',
       'hints',
       'explanation',
+      'references',
       'capabilities',
     ],
     source,
@@ -171,6 +177,10 @@ export function parsePuzzleFile(value: unknown, source = 'puzzle JSON'): PuzzleC
 
   const hints = parseStringArray(record, 'hints', source);
   if (hints.length === 0) fail(source, 'A puzzle must provide at least one hint.');
+  const references = requireArray(record, 'references', source).map((reference, index) =>
+    parseReference(reference, `${source} reference ${index + 1}`),
+  );
+  if (references.length === 0) fail(source, 'A puzzle must provide at least one reference.');
 
   const definition: PuzzleDefinition = {
     id,
@@ -185,6 +195,7 @@ export function parsePuzzleFile(value: unknown, source = 'puzzle JSON'): PuzzleC
     resultLabel: requireString(record, 'resultLabel', source),
     hints,
     explanation: requireString(record, 'explanation', source),
+    references,
     capabilities: parsedCapabilities,
   };
 
@@ -194,6 +205,22 @@ export function parsePuzzleFile(value: unknown, source = 'puzzle JSON'): PuzzleC
   const runtimeId = runtime as PuzzleRuntimeId;
   validateRuntimeContract(runtimeId, definition, source);
   return { runtime: runtimeId, definition };
+}
+
+function parseReference(value: unknown, source: string): PuzzleReference {
+  const record = requireRecord(value, source);
+  rejectUnknownKeys(record, ['label', 'url'], source);
+  const url = requireString(record, 'url', source);
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(url);
+  } catch {
+    fail(source, 'Reference URL must be an absolute URL.');
+  }
+  if (parsedUrl.protocol !== 'https:' || parsedUrl.hostname !== 'www.unicode.org') {
+    fail(source, 'Reference URL must use HTTPS on www.unicode.org.');
+  }
+  return { label: requireString(record, 'label', source), url };
 }
 
 function parseInput(value: unknown, source: string): PuzzleInputDefinition {

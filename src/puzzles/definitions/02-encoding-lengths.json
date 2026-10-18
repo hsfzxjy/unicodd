@@ -25,5 +25,11 @@
     "Try 🧩 or another single emoji without a variation selector."
   ],
   "explanation": "A supplementary scalar is still one Unicode scalar and often one grapheme, but UTF-16 stores it as a surrogate pair while UTF-8 uses four bytes.",
+  "references": [
+    {
+      "label": "Unicode 17.0 · The Unicode Standard",
+      "url": "https://www.unicode.org/versions/Unicode17.0.0/"
+    }
+  ],
   "capabilities": ["grapheme-segmentation"]
 }

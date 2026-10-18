@@ -7,6 +7,11 @@ export interface PuzzleInputDefinition {
   initialValue: string;
 }
 
+export interface PuzzleReference {
+  label: string;
+  url: string;
+}
+
 export interface PuzzleDefinition {
   id: string;
   number: number;
@@ -20,6 +25,7 @@ export interface PuzzleDefinition {
   resultLabel: string;
   hints: readonly string[];
   explanation: string;
+  references: readonly PuzzleReference[];
   capabilities: readonly PuzzleCapability[];
   historicalUnicodeProfile?: string;
 }

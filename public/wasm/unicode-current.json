@@ -31,6 +31,6 @@
   },
   "limitations": [
     "Normalization, default full case folding, extended grapheme segmentation, and assigned character names are exposed.",
-    "Historical Unicode engines are not yet available."
+    "Historical comparison currently covers Unicode 15.1 normalization only."
   ]
 }

@@ -1,0 +1,7 @@
+{
+  "defaultProfile": "unicode-17",
+  "profiles": {
+    "unicode-15.1": "unicode-15-1.json",
+    "unicode-17": "unicode-current.json"
+  }
+}

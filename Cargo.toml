@@ -1,5 +1,6 @@
 [workspace]
 members = ["crates/unicodd-ops-core", "tools/unicode-indexer"]
+exclude = ["crates/unicode-15"]
 resolver = "3"
 
 [profile.release]

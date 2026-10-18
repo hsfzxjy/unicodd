@@ -10,6 +10,16 @@
 
 The file is retained verbatim and is used only to verify the normalization engine.
 
+## Unicode 15.1 normalization conformance data
+
+- File: `tests/data/NormalizationTest-15.1.0.txt`
+- Source: <https://www.unicode.org/Public/15.1.0/ucd/NormalizationTest.txt>
+- Version: Unicode 15.1.0
+- Retrieved: 2026-10-18
+- Terms: <https://www.unicode.org/terms_of_use.html>
+
+The file is retained verbatim and verifies the separately pinned ICU4X 1.5 historical engine.
+
 ## Unicode grapheme-break conformance data
 
 - File: `tests/data/GraphemeBreakTest-17.0.0.txt`

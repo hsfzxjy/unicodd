@@ -1,17 +1,58 @@
 import { UnicodeWasmAdapter } from './adapter';
-import { UNICODE_ABI_VERSION, type UnicodeEngineManifest } from './types';
+import {
+  UNICODE_ABI_VERSION,
+  type UnicodeEngineManifest,
+  type UnicodeEngineRegistry,
+} from './types';
 
-const manifestUrl = '/wasm/unicode-current.json';
+const registryUrl = '/wasm/engines.json';
+let registryPromise: Promise<UnicodeEngineRegistry> | null = null;
+const enginePromises = new Map<string, Promise<LoadedUnicodeEngine>>();
 
 export interface LoadedUnicodeEngine {
   adapter: UnicodeWasmAdapter;
   manifest: UnicodeEngineManifest;
 }
 
-export async function loadUnicodeEngine(): Promise<LoadedUnicodeEngine> {
+export async function loadUnicodeEngine(profileId?: string): Promise<LoadedUnicodeEngine> {
+  const registry = await loadRegistry();
+  const selectedProfile = profileId ?? registry.defaultProfile;
+  const cached = enginePromises.get(selectedProfile);
+  if (cached) return cached;
+
+  const engine = loadProfile(registry, selectedProfile);
+  enginePromises.set(selectedProfile, engine);
+  try {
+    return await engine;
+  } catch (reason) {
+    enginePromises.delete(selectedProfile);
+    throw reason;
+  }
+}
+
+async function loadRegistry(): Promise<UnicodeEngineRegistry> {
+  registryPromise ??= fetch(registryUrl).then(async (response) => {
+    if (!response.ok) {
+      throw new Error(`Could not load Unicode engine registry (${response.status}).`);
+    }
+    return (await response.json()) as UnicodeEngineRegistry;
+  });
+  return registryPromise;
+}
+
+async function loadProfile(
+  registry: UnicodeEngineRegistry,
+  profileId: string,
+): Promise<LoadedUnicodeEngine> {
+  const manifestFile = registry.profiles[profileId];
+  if (!manifestFile) throw new Error(`Unknown Unicode engine profile “${profileId}”.`);
+  const absoluteRegistryUrl = new URL(registryUrl, window.location.href);
+  const manifestUrl = new URL(manifestFile, absoluteRegistryUrl);
   const manifestResponse = await fetch(manifestUrl);
   if (!manifestResponse.ok) {
-    throw new Error(`Could not load Unicode engine manifest (${manifestResponse.status}).`);
+    throw new Error(
+      `Could not load Unicode engine manifest for ${profileId} (${manifestResponse.status}).`,
+    );
   }
   const manifest = (await manifestResponse.json()) as UnicodeEngineManifest;
   if (manifest.abiVersion !== UNICODE_ABI_VERSION) {
@@ -20,7 +61,7 @@ export async function loadUnicodeEngine(): Promise<LoadedUnicodeEngine> {
     );
   }
 
-  const binaryUrl = new URL(manifest.binary, new URL(manifestUrl, window.location.href));
+  const binaryUrl = new URL(manifest.binary, manifestUrl);
   const response = await fetch(binaryUrl);
   if (!response.ok) throw new Error(`Could not load Unicode engine (${response.status}).`);
 

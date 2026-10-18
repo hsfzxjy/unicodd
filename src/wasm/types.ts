@@ -12,6 +12,11 @@ export interface UnicodeEngineManifest {
   limitations: string[];
 }
 
+export interface UnicodeEngineRegistry {
+  defaultProfile: string;
+  profiles: Record<string, string>;
+}
+
 export interface UnicodeWasmExports extends WebAssembly.Exports {
   memory: WebAssembly.Memory;
   unicodd_abi_version: () => number;

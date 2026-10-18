@@ -11,7 +11,7 @@ import { useUnicodeEngine } from './composables/useUnicodeEngine';
 import { buildGraphemeRanges, scalarBoundaries, targetForSelection } from './explorer/graphemes';
 import type { ExplorationRelation } from './explorer/history';
 import type { EditorAction, GraphemeRange, TextSelection } from './explorer/types';
-import { supportedLocales, useI18n, type AppLocale } from './i18n';
+import { errorStatusSuffix, supportedLocales, useI18n, type AppLocale } from './i18n';
 import { requiresDiscoveryIndex } from './puzzles/capabilities';
 import { createPuzzleCollection, puzzleCollection } from './puzzles/collection';
 import { preparePuzzleInput, serializeUtf16Units } from './puzzles/input';
@@ -118,15 +118,26 @@ const puzzleSources = computed(() =>
     ? {}
     : selectedPuzzle.value.createSources(preparedInputMap.value),
 );
-const puzzleError = computed(
-  () =>
-    preparedInputs.value.find(({ error }) => error)?.error ??
-    engine.error.value ??
-    (selectedPuzzle.value.definition.historicalUnicodeProfile
-      ? engine.historicalError.value
-      : null) ??
-    (selectedPuzzleNeedsDiscovery.value ? discovery.error.value : null),
-);
+const puzzleError = computed(() => {
+  const inputError = preparedInputs.value.find(({ error }) => error)?.error;
+  if (inputError) return inputError;
+  if (engine.error.value) {
+    return t('graph.engineError', {
+      status: errorStatusSuffix(engine.error.value, locale.value),
+    });
+  }
+  if (selectedPuzzle.value.definition.historicalUnicodeProfile && engine.historicalError.value) {
+    return t('graph.historicalError', {
+      status: errorStatusSuffix(engine.historicalError.value, locale.value),
+    });
+  }
+  if (selectedPuzzleNeedsDiscovery.value && discovery.error.value) {
+    return t('graph.discoveryError', {
+      status: errorStatusSuffix(discovery.error.value, locale.value),
+    });
+  }
+  return null;
+});
 
 watch(
   () => selectedPuzzle.value.definition.historicalUnicodeProfile,

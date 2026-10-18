@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { DiscoveryStatus } from '../composables/useUnicodeDiscovery';
 import type { CharacterRelationship, RelationshipGroup } from '../explorer/discoveryTypes';
-import { useI18n } from '../i18n';
+import { errorStatusSuffix, useI18n } from '../i18n';
 import { displaySequence, formatCodePoint } from '../unicode';
 
 defineProps<{
@@ -96,7 +96,9 @@ function relationshipDetail(relationship: CharacterRelationship): string {
       {{ t('relations.loading') }}
     </p>
     <div v-else-if="status === 'error'" class="relationship-load-error" role="alert">
-      <p class="error-message">{{ error ?? t('relations.error') }}</p>
+      <p class="error-message">
+        {{ t('relations.error', { status: errorStatusSuffix(error, locale) }) }}
+      </p>
       <button type="button" @click="emit('retry')">{{ t('relations.retry') }}</button>
     </div>
     <div v-else class="relationship-groups">

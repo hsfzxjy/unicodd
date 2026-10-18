@@ -127,6 +127,34 @@ test('shows, reorders, deletes, and inserts puzzle input values as blocks', asyn
   await expect(unitsCard.locator('.puzzle-rendered output')).toHaveText('Not valid scalar text');
 });
 
+test('reorders selected code-point blocks with touch-sized controls', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('./');
+  await dismissGuide(page);
+
+  const input = page.locator('#puzzle-left');
+  const card = input.locator('xpath=ancestor::article');
+  await input.fill('e\u0301🧩');
+  await card.getByRole('button', { name: /U\+0301, item 2/ }).click();
+
+  const moveLeft = card.getByRole('button', { name: 'Move U+0301 left' });
+  const moveLeftBox = await moveLeft.boundingBox();
+  expect(moveLeftBox?.width).toBeGreaterThanOrEqual(32);
+  expect(moveLeftBox?.height).toBeGreaterThanOrEqual(32);
+  await moveLeft.click();
+  await expect(input).toHaveValue('\u0301e🧩');
+
+  await card.getByRole('button', { name: 'Move U+0301 right' }).click();
+  await expect(input).toHaveValue('e\u0301🧩');
+
+  const deleteButton = card.getByRole('button', { name: 'Delete U+0301' });
+  const deleteBox = await deleteButton.boundingBox();
+  expect(deleteBox?.width).toBeGreaterThanOrEqual(24);
+  expect(deleteBox?.height).toBeGreaterThanOrEqual(24);
+  await deleteButton.click();
+  await expect(input).toHaveValue('e🧩');
+});
+
 test('solves the first puzzle and exposes graph values without color alone', async ({ page }) => {
   await page.goto('./?puzzle=not-a-real-puzzle');
   await dismissGuide(page);
@@ -211,6 +239,52 @@ test('reflows at a desktop-equivalent 200% viewport', async ({ page }) => {
   }));
   expect(dimensions.scrollHeight).toBeLessThanOrEqual(dimensions.clientHeight);
   expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth);
+
+  await page.getByLabel('Language').selectOption('zh-CN');
+  await expect(page.getByRole('heading', { name: '观察规范化边界' })).toBeVisible();
+  const chineseDimensions = await page.evaluate(() => ({
+    clientHeight: document.body.clientHeight,
+    scrollHeight: document.body.scrollHeight,
+    clientWidth: document.body.clientWidth,
+    scrollWidth: document.body.scrollWidth,
+  }));
+  expect(chineseDimensions.scrollHeight).toBeLessThanOrEqual(chineseDimensions.clientHeight);
+  expect(chineseDimensions.scrollWidth).toBeLessThanOrEqual(chineseDimensions.clientWidth);
+});
+
+test('keeps long Chinese puzzle content reachable in the mobile workspace', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('./');
+  await page.getByLabel('Language').selectOption('zh-CN');
+  await page.getByRole('button', { name: '关闭玩法说明' }).click();
+
+  await page.locator('#puzzle-left').fill('e\u0301🧩e\u0323\u0301a\u0308');
+  await page.getByRole('button', { name: '显示提示' }).click();
+  await expect(page.getByText('从探索器中的 é 开始，检查它的规范分解。')).toBeVisible();
+
+  const graphNode = page.locator('.operation-node').first();
+  await graphNode.focus();
+  await page.keyboard.press('Enter');
+  const explanation = page.locator('.operation-explanation');
+  await expect(explanation).toBeVisible();
+  await expect(explanation).toContainText('运算说明');
+
+  const dimensions = await page.evaluate(() => ({
+    clientHeight: document.body.clientHeight,
+    scrollHeight: document.body.scrollHeight,
+    clientWidth: document.body.clientWidth,
+    scrollWidth: document.body.scrollWidth,
+  }));
+  expect(dimensions.scrollHeight).toBeLessThanOrEqual(dimensions.clientHeight);
+  expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth);
+
+  await page.getByRole('button', { name: '关闭运算说明' }).click();
+  await page.getByRole('button', { name: '字符实验室' }).click();
+  const dialogBox = await page.getByRole('dialog').boundingBox();
+  expect(dialogBox?.x).toBeGreaterThanOrEqual(0);
+  expect((dialogBox?.x ?? 0) + (dialogBox?.width ?? 0)).toBeLessThanOrEqual(390);
+  expect(dialogBox?.y).toBeGreaterThanOrEqual(0);
+  expect((dialogBox?.y ?? 0) + (dialogBox?.height ?? 0)).toBeLessThanOrEqual(844);
 });
 
 test('has no automatically detectable accessibility violations in either workspace', async ({
@@ -224,6 +298,14 @@ test('has no automatically detectable accessibility violations in either workspa
 
   await dismissGuide(page);
   await page.getByRole('button', { name: 'Character lab' }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+
+  await page.getByRole('button', { name: 'Close lab' }).click();
+  await page.getByLabel('Language').selectOption('zh-CN');
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+
+  await page.getByRole('button', { name: '字符实验室' }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });

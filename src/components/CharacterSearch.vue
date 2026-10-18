@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import type { SearchStatus } from '../composables/useUnicodeDiscovery';
 import type { CharacterSearchResult } from '../explorer/discoveryTypes';
-import { useI18n } from '../i18n';
+import { errorStatusSuffix, useI18n } from '../i18n';
 import { displaySequence, formatCodePoint } from '../unicode';
 
 defineProps<{
@@ -18,7 +18,7 @@ const emit = defineEmits<{
 }>();
 
 const query = ref('');
-const { t } = useI18n();
+const { locale, t } = useI18n();
 
 function submit(): void {
   emit('search', query.value);
@@ -53,7 +53,7 @@ function formatScalars(target: Uint32Array): string {
       </button>
     </form>
     <p v-if="status === 'error'" class="error-message" role="alert">
-      {{ error ?? t('search.error') }}
+      {{ t('search.error', { status: errorStatusSuffix(error, locale) }) }}
     </p>
     <div v-else-if="status === 'ready' && results.length" class="search-results" aria-live="polite">
       <article

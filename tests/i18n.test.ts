@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { executeGraph } from '../src/engine/execute';
-import { translate } from '../src/i18n';
+import { errorStatusSuffix, translate } from '../src/i18n';
 import { createPuzzleCollection } from '../src/puzzles/collection';
 import { preparePuzzleInput } from '../src/puzzles/input';
 import type { PuzzleOperations } from '../src/puzzles/types';
@@ -20,6 +20,16 @@ describe('internationalization', () => {
     expect(translate('puzzle.numberTheme', { number: 3, theme: 'Graphemes' }, 'en')).toBe(
       'Puzzle 3 · Graphemes',
     );
+  });
+
+  it('formats recoverable loader status details without leaking source-language copy', () => {
+    const error = 'Could not load Unicode discovery data (503).';
+
+    expect(errorStatusSuffix(error, 'en')).toBe(' (status 503)');
+    expect(errorStatusSuffix(error, 'zh-CN')).toBe('（状态 503）');
+    expect(
+      translate('graph.discoveryError', { status: errorStatusSuffix(error, 'zh-CN') }, 'zh-CN'),
+    ).toBe('无法加载 Unicode 发现数据（状态 503）。');
   });
 
   it('provides complete Chinese puzzle definitions without changing stable structure', () => {

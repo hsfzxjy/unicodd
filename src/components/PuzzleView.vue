@@ -248,11 +248,38 @@ function selectPuzzle(event: Event): void {
               >
                 <code>{{ formatBlock(input, value) }}</code>
               </button>
+              <div
+                v-if="insertionOffset(input) === index + 1"
+                class="sequence-move-controls"
+                role="group"
+                :aria-label="t('puzzle.moveGroup', { value: formatBlock(input, value) })"
+                @dragstart.stop.prevent
+              >
+                <button
+                  type="button"
+                  class="sequence-move"
+                  :disabled="index === 0"
+                  :aria-label="t('puzzle.moveLeft', { value: formatBlock(input, value) })"
+                  @click.stop="moveValue(input, index, index - 1)"
+                >
+                  ←
+                </button>
+                <button
+                  type="button"
+                  class="sequence-move"
+                  :disabled="index === inputValues(input).length - 1"
+                  :aria-label="t('puzzle.moveRight', { value: formatBlock(input, value) })"
+                  @click.stop="moveValue(input, index, index + 1)"
+                >
+                  →
+                </button>
+              </div>
               <button
                 type="button"
                 class="sequence-delete"
                 :aria-label="t('puzzle.delete', { value: formatBlock(input, value) })"
                 :title="t('puzzle.deleteValue')"
+                @dragstart.stop.prevent
                 @click="removeValue(input, index)"
               >
                 ×

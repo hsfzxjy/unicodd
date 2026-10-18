@@ -104,3 +104,7 @@ Use the previous/next buttons or the puzzle list to move through the collection.
 stable `?puzzle=<id>` query parameter and work with browser back/forward navigation. “How to play”
 summarizes the construct → inspect → apply → observe loop; the character lab never changes a puzzle
 input until an explicit action is chosen.
+
+Puzzle inputs expose their scalar values or UTF-16 code units as blocks. Select a block to reveal
+move-left and move-right controls; drag-and-drop and Alt+Arrow remain available for pointer and
+keyboard use. Deletion and insertion from the character lab are always explicit.

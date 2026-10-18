@@ -26,6 +26,12 @@ export function translate(
   return template.replace(/\{([A-Za-z]+)\}/g, (_, name: string) => String(params[name] ?? ''));
 }
 
+export function errorStatusSuffix(error: string | null, targetLocale: AppLocale): string {
+  const status = error?.match(/\((\d{3})\)/)?.[1];
+  if (!status) return '';
+  return targetLocale === 'zh-CN' ? `（状态 ${status}）` : ` (status ${status})`;
+}
+
 export function setLocale(nextLocale: AppLocale): void {
   locale.value = nextLocale;
   if (typeof document !== 'undefined') document.documentElement.lang = nextLocale;

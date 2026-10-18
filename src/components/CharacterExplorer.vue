@@ -9,7 +9,7 @@ import type {
 } from '../explorer/discoveryTypes';
 import type { ExplorationRelation, ExplorerHistory } from '../explorer/history';
 import type { EditorAction } from '../explorer/types';
-import { useI18n } from '../i18n';
+import { errorStatusSuffix, useI18n } from '../i18n';
 import {
   displaySequence,
   formatHex,
@@ -97,7 +97,7 @@ function exploreScalar(scalar: number, relation: ExplorationRelation): void {
       class="empty-state explorer-empty error-message"
       role="alert"
     >
-      {{ error ?? t('explorer.loadError') }}
+      {{ t('explorer.loadError', { status: errorStatusSuffix(error, locale) }) }}
     </div>
     <div v-else-if="!target.length" class="empty-state explorer-empty">
       {{ t('explorer.empty') }}

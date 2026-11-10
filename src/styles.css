@@ -224,6 +224,10 @@ textarea {
   white-space: nowrap;
 }
 .prompt-host {
+  color: var(--muted);
+  font-weight: 650;
+}
+.prompt-host.remote {
   color: var(--accent);
 }
 .workspace {
@@ -367,12 +371,26 @@ h1.terminal-scenario {
   margin-top: 13px;
 }
 .command-echo {
-  color: var(--accent);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 6px;
+  border-inline-start: 2px solid var(--control);
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 650;
   white-space: pre-wrap;
   margin-bottom: 3px;
 }
-.command-echo > span {
-  color: var(--muted);
+.command-echo.remote {
+  border-inline-start-color: var(--accent);
+}
+.command-echo .prompt-host {
+  flex: none;
+  max-width: 42%;
+}
+.command-echo bdi {
+  min-width: 0;
 }
 .terminal-line + .terminal-line {
   margin-top: 4px;
@@ -527,10 +545,14 @@ h1.terminal-scenario {
   background: var(--surface);
 }
 .shortcuts {
-  margin-bottom: 7px;
+  gap: 4px;
+  margin-bottom: 5px;
 }
-.shortcuts button {
-  min-height: 32px;
+.shortcuts button,
+.suggestions button {
+  min-height: 26px;
+  padding: 2px 7px;
+  font-size: 12px;
 }
 .prompt {
   display: flex;
@@ -552,11 +574,18 @@ h1.terminal-scenario {
 .suggestions {
   position: absolute;
   z-index: 1;
-  inset: auto 8px calc(100% + 1px);
-  padding: 6px;
+  inset: auto auto calc(100% + 1px) 8px;
+  width: max-content;
+  max-width: calc(100% - 16px);
+  gap: 4px;
+  padding: 4px;
   border: 1px solid var(--control);
   background: var(--surface);
   font-family: var(--mono);
+}
+.suggestions button {
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 .startup {
   padding: 16px;
@@ -623,12 +652,15 @@ h1.terminal-scenario {
   button,
   select,
   input,
-  .shortcuts button,
   .frame-title button,
   .inspection button:not(.terminal-link),
   .inspection-form dt,
   .terminal-link {
     min-height: 44px;
+  }
+  .shortcuts button,
+  .suggestions button {
+    min-height: 34px;
   }
   .terminal-link {
     min-width: 44px;

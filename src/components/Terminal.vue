@@ -2,7 +2,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import TerminalFile from './TerminalFile.vue'
 import TerminalInspection from './TerminalInspection.vue'
-import { commandHelp, parseCommand } from '../lib/commands'
+import { commandHelp, matchSuggestions, parseCommand } from '../lib/commands'
 import type { Action, Link, Output } from '../lib/runtime'
 import { unpairedSurrogate } from '../lib/unicode'
 
@@ -10,12 +10,14 @@ export interface Entry {
   id: number
   echo?: string
   prompt?: string
+  connected?: boolean
   output: Output[]
 }
 
 const props = defineProps<{
   transcript: Entry[]
   prompt: string
+  connected: boolean
   shortcuts: Link[]
   suggestions: string[]
   busy: boolean
@@ -38,13 +40,8 @@ const history: string[] = []
 let index = 0
 let scratch = ''
 const matches = computed(() =>
-  hasFocus.value && !composing.value && showSuggestions.value && command.value.trimStart()
-    ? props.suggestions
-        .filter(
-          (item) =>
-            item.startsWith(command.value.trimStart()) && item !== command.value.trimStart(),
-        )
-        .slice(0, 5)
+  hasFocus.value && !composing.value && showSuggestions.value
+    ? matchSuggestions(command.value, props.suggestions).slice(0, 5)
     : [],
 )
 
@@ -191,8 +188,15 @@ defineExpose({ focusAction, promptInspection, revealInspection, scrollToEnd })
       @scroll="trackScroll"
     >
       <article v-for="entry in transcript" :key="entry.id" class="terminal-entry">
-        <p v-if="entry.echo !== undefined" class="command-echo">
-          <span aria-hidden="true">{{ entry.prompt }} › </span><bdi>{{ entry.echo }}</bdi>
+        <p
+          v-if="entry.echo !== undefined"
+          class="command-echo"
+          :class="{ remote: entry.connected }"
+        >
+          <span class="prompt-host" :class="{ remote: entry.connected }"
+            >{{ entry.connected ? '@' : '' }}{{ entry.prompt }} ›</span
+          >
+          <bdi>{{ entry.echo }}</bdi>
         </p>
         <template v-for="(row, index) in entry.output" :key="index">
           <div v-if="row.kind === 'listing'" class="terminal-list">
@@ -269,7 +273,9 @@ defineExpose({ focusAction, promptInspection, revealInspection, scrollToEnd })
       </div>
       <div ref="commandGroup" @focusin="hasFocus = true" @focusout="focusout">
         <form class="prompt" @submit.prevent="submit">
-          <span class="prompt-host" aria-hidden="true">{{ prompt }} ›</span>
+          <span class="prompt-host" :class="{ remote: connected }" aria-hidden="true"
+            >{{ connected ? '@' : '' }}{{ prompt }} ›</span
+          >
           <input
             ref="input"
             v-model="command"

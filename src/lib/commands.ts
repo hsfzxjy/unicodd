@@ -13,7 +13,7 @@ export const commandHelp = [
   ['clear', 'Clear terminal scrollback.'],
 ] as const
 
-export function parseCommand(source: string): Action | undefined {
+function tokenize(source: string) {
   const args: string[] = []
   let token = ''
   let quote = ''
@@ -40,8 +40,13 @@ export function parseCommand(source: string): Action | undefined {
       started = true
     }
   }
-  if (quote) return { type: 'invalid', message: 'Close the quoted argument.' }
   if (started) args.push(token)
+  return { args, quote }
+}
+
+export function parseCommand(source: string): Action | undefined {
+  const { args, quote } = tokenize(source)
+  if (quote) return { type: 'invalid', message: 'Close the quoted argument.' }
   if (!args.length) return
   const [command, argument] = args
   const help = commandHelp.find(([usage]) => usage.split(' ')[0] === command)
@@ -69,6 +74,31 @@ export function parseCommand(source: string): Action | undefined {
     case 'clear':
       return { type: command }
   }
+}
+
+export function matchSuggestions(source: string, candidates: string[]): string[] {
+  const query = source.trimStart()
+  if (!query) return []
+  const fileQuery = /^(cat|ls)[ \t]+(.*)$/u.exec(query)
+  if (!fileQuery) return candidates.filter((item) => item.startsWith(query) && item !== query)
+
+  const [, verb, input] = fileQuery
+  const { args, quote: openQuote } = tokenize(input)
+  const prefix = args[0] ?? ''
+  if (args.length > 1 || (prefix && !openQuote && /[ \t]$/u.test(input))) return []
+
+  return candidates.flatMap((item) => {
+    if (!item.startsWith(verb + ' ')) return []
+    const action = parseCommand(item)
+    if ((action?.type !== 'cat' && action?.type !== 'ls') || !action.path) return []
+    const path = prefix.startsWith('./')
+      ? '.' + action.path
+      : prefix.startsWith('/')
+        ? action.path
+        : action.path.slice(1)
+    if (!path.startsWith(prefix) || (path === prefix && !openQuote)) return []
+    return [`${verb} ${quote(path)}`]
+  })
 }
 
 function quote(argument: string): string {

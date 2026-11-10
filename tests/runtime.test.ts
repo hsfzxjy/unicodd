@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import { createRuntime } from '../src/lib/runtime'
-import { parseCommand, actionCommand } from '../src/lib/commands'
+import { parseCommand, actionCommand, matchSuggestions } from '../src/lib/commands'
 import { engine, fixtures, production } from './scenario-content'
 
 const relay = async () => production.scenario((await production.manifest())[0])
@@ -8,6 +8,17 @@ const connect = { type: 'connect', host: 'relay-07' } as const
 const incident = { type: 'cat', path: '/queue/8c2f.msg' } as const
 const login = (alias: string) => ({ type: 'login', alias }) as const
 const fullwidth = 'ＭＡＩＮＴ'
+
+it('completes paths in the requested style and quotes spaces when needed', () => {
+  const candidates = ['cat "/exhibit/sample card"', 'ls /exhibit']
+  expect(matchSuggestions('cat ex', candidates)).toEqual(['cat "exhibit/sample card"'])
+  expect(matchSuggestions('cat "./exhibit/sample ', candidates)).toEqual([
+    'cat "./exhibit/sample card"',
+  ])
+  expect(matchSuggestions('cat "/ex', candidates)).toEqual(['cat "/exhibit/sample card"'])
+  expect(matchSuggestions('cat exhibit extra', candidates)).toEqual([])
+  expect(matchSuggestions('ls ex', candidates)).toEqual(['ls exhibit'])
+})
 
 it('checks permissions, elevates through WASM, and completes only on authorized read', async () => {
   const runtime = createRuntime(await relay(), engine)

@@ -209,6 +209,7 @@ async function dispatch(action: Action, command?: string) {
         id: sequence++,
         echo: echo === undefined ? undefined : echoText(echo),
         prompt: from,
+        connected: Boolean(before.host),
         output: response.output ?? [],
       },
     ]
@@ -325,6 +326,7 @@ async function dispatch(action: Action, command?: string) {
         ref="terminal"
         :transcript="transcript"
         :prompt="prompt"
+        :connected="Boolean(session.host)"
         :shortcuts="shortcuts"
         :suggestions="suggestions"
         :busy="busy"

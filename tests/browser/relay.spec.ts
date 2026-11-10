@@ -176,6 +176,40 @@ test('supports history, completion, usage feedback, and IME-safe submission', as
   await expect(inspection(page, 'U+65E5')).toBeVisible()
 })
 
+test('completes relative paths and marks local and remote command echoes', async ({
+  page,
+}, info) => {
+  await openRelay(page)
+  await run(page, 'connect relay-07')
+  const local = terminal(page).locator('.command-echo').first()
+  await expect(local).toContainText('local ›')
+  await expect(local).not.toHaveClass(/remote/)
+  const field = cmd(page)
+  await field.fill('cat notes/k')
+  const suggestion = page.getByRole('button', { name: 'cat notes/keypad.txt', exact: true })
+  await expect(suggestion).toBeVisible()
+  await page.screenshot({ path: info.outputPath('relative-completion.png') })
+  await field.press('Tab')
+  await expect(field).toHaveValue('cat notes/keypad.txt')
+  await field.press('Enter')
+  await expect(terminal(page)).toContainText('Field terminal')
+  const remote = terminal(page).locator('.command-echo.remote').last()
+  await expect(remote.locator('.prompt-host')).toHaveText('@relay-07 ›')
+  await expect(remote.locator('bdi')).toHaveText('cat notes/keypad.txt')
+  await field.fill('ls ./no')
+  await page.getByRole('button', { name: 'ls ./notes', exact: true }).click()
+  await expect(field).toHaveValue('ls ./notes')
+  await field.press('Enter')
+  await expect(link(page, 'migration.txt')).toBeVisible()
+  await field.fill('cat /REA')
+  await field.press('Tab')
+  await expect(field).toHaveValue('cat /README')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await field.fill('cat ')
+  await expect(page.getByRole('button', { name: 'cat README', exact: true })).toBeVisible()
+  await page.screenshot({ path: info.outputPath('mobile-relative-completion.png') })
+})
+
 test('loads a second authored scenario through the same terminal and handles quoted paths', async ({
   page,
 }) => {

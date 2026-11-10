@@ -143,7 +143,9 @@ export function createRuntime(scenario: Scenario, engine: Engine, completed = fa
     if (!state.host) return error('Connect to a host first.')
     const raw = action.path ?? '/'
     if (!raw) return error('Enter a resource path.')
-    const absolute = raw.startsWith('/') ? raw : '/' + raw
+    const absolute = raw.startsWith('/')
+      ? raw
+      : '/' + (raw === '.' ? '' : raw.replace(/^\.\//u, ''))
     const path =
       action.type === 'ls' && absolute.length > 2 ? absolute.replace(/\/$/u, '') : absolute
     const resource = state.host.resources.find((item) => item.path === path)

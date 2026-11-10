@@ -67,10 +67,13 @@ test('navigates normalization results, persists favorites, replaces, inserts, co
   await fixture(page)
   const input = page.getByRole('textbox', { name: 'Text input' })
   await input.fill('e\u0301🧪\u200b')
+  await expect(page.getByText('4 code points', { exact: true })).toBeVisible()
+  await expect(page.locator('.payload').getByText('UTF-16', { exact: false })).toHaveCount(0)
   await page.getByRole('button', { name: 'Code points', exact: true }).click()
   await expect(page.getByRole('button', { name: /U\+0301/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /U\+200B, ZWSP/ })).toBeVisible()
   await page.getByRole('button', { name: /U\+1F9EA/ }).click()
+  await expect(page.getByText('Selected code point 3', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: /U\+1F9EA/ })).toHaveAttribute(
     'aria-pressed',
     'true',
@@ -81,6 +84,7 @@ test('navigates normalization results, persists favorites, replaces, inserts, co
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('🧪')
   await page.getByRole('button', { name: 'Open Workbench' }).click()
   const dialog = page.getByRole('dialog')
+  await expect(dialog.getByText('UTF-16', { exact: false })).toHaveCount(0)
   const lookup = dialog.getByRole('textbox', { name: 'Character or hex code point' })
   await expect(lookup).toHaveValue('U+1F9EA')
   await lookup.fill('U+D800')
@@ -98,6 +102,9 @@ test('navigates normalization results, persists favorites, replaces, inserts, co
   await expect(input).toBeFocused()
   await page.getByRole('button', { name: /U\+200B, ZWSP/ }).click()
   await page.getByRole('button', { name: 'Caret after' }).click()
+  await expect(page.locator('.payload').getByRole('status')).toContainText(
+    'Caret after code point 4',
+  )
   await page.getByRole('button', { name: 'Open Workbench' }).click()
   await lookup.fill('1F680')
   await dialog.getByRole('button', { name: 'Look up' }).click()
@@ -157,7 +164,7 @@ test('preserves composition and raw line endings and exposes repairable surrogat
     field.dispatchEvent(new InputEvent('input', { bubbles: true }))
   })
   await submit.click()
-  await expect(page.getByRole('alert')).toContainText('Unpaired surrogate at UTF-16 offset 2.')
+  await expect(page.getByRole('alert')).toContainText('Open Code points to find and remove it.')
   await page.getByRole('button', { name: /U\+D800, Surrogate/ }).click()
   await page.getByRole('button', { name: 'Delete', exact: true }).click()
   await expect(page.getByRole('alert')).toHaveCount(0)

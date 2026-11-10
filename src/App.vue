@@ -269,7 +269,10 @@ function closeBench() {
               · <bdi>{{ submitError.path }}</bdi></template
             ></code
           >
-          <p>{{ submitError.message }}</p>
+          <p v-if="submitError.code === 'invalid_input' && submitError.offset !== undefined">
+            This payload contains an unpaired surrogate. Open Code points to find and remove it.
+          </p>
+          <p v-else>{{ submitError.message }}</p>
         </div>
         <ul class="check-list">
           <li v-for="(check, index) in target.program.checks" :key="check.id" class="check-row">

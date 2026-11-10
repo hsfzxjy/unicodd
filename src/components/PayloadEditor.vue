@@ -32,6 +32,15 @@ let before: Span | undefined
 let projection: { raw: string; start: number; end: number } | undefined
 const selected = computed(() => props.modelValue.slice(selection.value.start, selection.value.end))
 const firstPoint = computed(() => inspectRange(selected.value, 0, 1)[0])
+const pointContext = computed(() => {
+  if (!expanded.value) return ''
+  const start = pointIndex(props.modelValue, selection.value.start)
+  if (!selected.value) return start ? `Caret after code point ${start}` : 'Caret at start'
+  const end = pointIndex(props.modelValue, selection.value.end)
+  return end === start + 1
+    ? `Selected code point ${end}`
+    : `Selected code points ${start + 1}–${end}`
+})
 const count = computed(() => {
   let total = 0
   for (const _ of props.modelValue) total++
@@ -192,10 +201,7 @@ defineExpose({ apply, focusAt, context: () => ({ ...selection.value }) })
   <div class="payload">
     <div class="field-head">
       <label :for="id">{{ label }}</label>
-      <span class="meta"
-        >{{ count }} code {{ count === 1 ? 'point' : 'points' }} · {{ modelValue.length }} UTF-16
-        units</span
-      >
+      <span class="meta">{{ count }} code {{ count === 1 ? 'point' : 'points' }}</span>
     </div>
     <textarea
       :id="id"
@@ -284,11 +290,7 @@ defineExpose({ apply, focusAt, context: () => ({ ...selection.value }) })
         </button>
       </div>
       <div class="point-context meta" role="status">
-        {{
-          selected
-            ? `Selected UTF-16 ${selection.start}–${selection.end}`
-            : `Caret at UTF-16 ${selection.start}`
-        }}
+        {{ pointContext }}
         <span v-if="feedback"> · {{ feedback }}</span>
       </div>
     </div>

@@ -222,10 +222,7 @@ defineExpose({ open })
     </div>
     <footer v-if="context" class="bench-footer">
       <p class="meta">
-        <bdi>{{ context.label }}</bdi> · UTF-16 {{ context.span.start
-        }}<template v-if="context.span.start !== context.span.end"
-          >–{{ context.span.end }}</template
-        >
+        <bdi>{{ context.label }}</bdi>
       </p>
       <div class="toolbar">
         <button type="button" class="primary" :disabled="!point" @click="apply('insert')">

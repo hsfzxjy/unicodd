@@ -5,18 +5,21 @@ import {
   type Guard,
   type Host,
   type Identity,
-  type Login,
+  type PuzzleBinding,
+  type PuzzleCommand,
+  type ProgressEffect,
   type MailMessage,
   type Resource,
   type Scenario,
 } from './scenario.ts'
-import { unpairedSurrogate } from './unicode.ts'
+import { invalidNotation, unpairedSurrogate } from './unicode.ts'
 
 export interface ScenarioEntry {
   id: string
   label: string
   scenario: string
   available: boolean
+  initiallyDiscovered: boolean
 }
 
 const identifier = /^[a-zA-Z0-9_-]{1,64}$/
@@ -87,9 +90,9 @@ class Field {
     return value
   }
 
-  ref(values: readonly string[], kind: string): string {
+  ref<T extends string>(values: readonly T[], kind: string): T {
     const value = this.text()
-    return values.includes(value) ? value : this.fail(`Unknown ${kind} "${value}".`)
+    return values.includes(value as T) ? (value as T) : this.fail(`Unknown ${kind} "${value}".`)
   }
 
   asset(json = false): string {
@@ -168,18 +171,19 @@ export function createContentLoader(
     return invalid(file, error.path ?? '', `${error.code} · ${error.message}`)
   }
 
-  return {
+  const loader = {
     async manifest(): Promise<ScenarioEntry[]> {
       const get = (await json('manifest.json')).object('version', 'scenarios')
       get('version').version()
       const seen = new Set<string>()
       return get('scenarios').list((field) => {
-        const entry = field.object('id', 'label', 'scenario', 'available')
+        const entry = field.object('id', 'label', 'scenario', 'available', 'initiallyDiscovered')
         return {
           id: entry('id').unique(seen),
           label: entry('label').text(),
           scenario: entry('scenario').asset(true),
           available: entry('available').optional((item) => item.bool()) ?? true,
+          initiallyDiscovered: entry('initiallyDiscovered').optional((item) => item.bool()) ?? true,
         }
       })
     },
@@ -234,7 +238,14 @@ export function createContentLoader(
 
       function effects(field: Field): Effect[] {
         return field.list((item) => {
-          const type = item.object('type', 'identity', 'flag', 'text', 'message')('type').value
+          const type = item.object(
+            'type',
+            'identity',
+            'flag',
+            'text',
+            'message',
+            'resource',
+          )('type').value
           switch (type) {
             case 'session':
               return { type, identity: identity(item.object('type', 'identity')('identity')) }
@@ -242,6 +253,8 @@ export function createContentLoader(
               return { type, flag: item.object('type', 'flag')('flag').ref(flags, 'flag') }
             case 'message':
               return { type, text: item.object('type', 'text')('text').text() }
+            case 'resourceLink':
+              return { type, resource: item.object('type', 'resource')('resource').id() }
             case 'deliverMail':
               return {
                 type,
@@ -261,7 +274,7 @@ export function createContentLoader(
         return value as Program
       }
 
-      async function login(field: Field): Promise<Login> {
+      async function binding(field: Field, legacy: boolean): Promise<PuzzleBinding> {
         const get = field.object(
           'label',
           'puzzle',
@@ -271,7 +284,11 @@ export function createContentLoader(
           'success',
           'failure',
           'rejected',
+          ...(legacy ? [] : ['command', 'actionLabel', 'submitLabel']),
         )
+        const command: PuzzleCommand = legacy
+          ? 'login'
+          : get('command').ref(['login', 'route', 'reconcile'] as const, 'puzzle command')
         const label = get('label').text()
         const initial = get('initial').optional((item) => item.text(true)) ?? ''
         const path = folder + get('puzzle').asset(true)
@@ -279,10 +296,13 @@ export function createContentLoader(
         const program = await programs.get(path)!
         const input = get('input').ref(program.inputs, 'puzzle input')
         if (program.inputs.length !== 1)
-          get('puzzle').fail('Login puzzles must declare exactly one input.')
+          get('puzzle').fail('Puzzle bindings must declare exactly one input.')
         const baseline = await engine.evaluate(program, { [input]: initial })
         if (!baseline.ok) engineFailure(path, baseline.error)
         return {
+          command,
+          actionLabel: legacy ? 'Login' : get('actionLabel').text(),
+          submitLabel: legacy ? 'Submit login' : get('submitLabel').text(),
           label,
           input,
           initial,
@@ -311,7 +331,19 @@ export function createContentLoader(
       const fileIds: string[] = []
 
       async function host(field: Field): Promise<Host> {
-        const get = field.object('id', 'name', 'guest', 'welcome', 'discover', 'resources', 'login')
+        const get = field.object(
+          'id',
+          'name',
+          'guest',
+          'welcome',
+          'discover',
+          'resources',
+          'login',
+          'operation',
+          'status',
+        )
+        if (get('login').value !== undefined && get('operation').value !== undefined)
+          get('operation').fail('Define one puzzle binding per host.')
         const id = get('id').unique(hostIds)
         const paths = new Map<string, string>()
         const resources = await Promise.all(
@@ -325,6 +357,7 @@ export function createContentLoader(
               'discover',
               'denied',
               'inspectLines',
+              'inspectNotation',
               'onRead',
             )
             const id = resource('id').unique(resourceIds)
@@ -351,6 +384,9 @@ export function createContentLoader(
             }
             const onRead = resource('onRead').optional(effects) ?? []
             if (type === 'mail') {
+              fileIds.push(id)
+              if (resource('inspectNotation').value !== undefined)
+                resource('inspectNotation').fail('Scalar notation applies to plain-text files.')
               if (resource('inspectLines').value !== undefined)
                 resource('inspectLines').fail('Character lines apply to plain-text files.')
               const messages = await mailMessages(folder + resource('content').asset(true))
@@ -384,7 +420,16 @@ export function createContentLoader(
                   return line
                 })
               }) ?? []
-            return { ...base, type: 'file', text: body, inspectLines, onRead }
+            const inspectNotation =
+              resource('inspectNotation').optional((item) => item.bool()) ?? false
+            if (inspectNotation) {
+              const invalid = invalidNotation(body)
+              if (invalid)
+                resource('inspectNotation').fail(
+                  `Invalid scalar notation "${invalid}" in ${content}.`,
+                )
+            }
+            return { ...base, type: 'file', text: body, inspectLines, inspectNotation, onRead }
           }),
         )
         for (const resource of resources) {
@@ -392,6 +437,32 @@ export function createContentLoader(
           if (parent !== '/' && paths.get(parent) !== 'directory')
             get('resources').fail(`${resource.path} requires a directory at ${parent}.`)
         }
+        const operation =
+          (await get('login').optional((item) => binding(item, true))) ??
+          (await get('operation').optional((item) => binding(item, false)))
+        for (const effect of [
+          ...(operation?.success ?? []),
+          ...resources.flatMap((resource) =>
+            resource.type === 'directory' ? [] : resource.onRead,
+          ),
+        ]) {
+          if (effect.type === 'resourceLink' && !resources.some(({ id }) => id === effect.resource))
+            get('resources').fail(`Unknown linked resource "${effect.resource}" on host "${id}".`)
+        }
+        const status =
+          get('status').optional((item) =>
+            item.list((field) => {
+              const row = field.object('label', 'value', 'after')
+              return {
+                label: row('label').text(),
+                value: row('value').text(),
+                after: row('after').optional((item) => {
+                  const after = item.object('flag', 'value')
+                  return { flag: after('flag').ref(flags, 'flag'), value: after('value').text() }
+                }),
+              }
+            }),
+          ) ?? []
         return {
           id,
           name: get('name').text(),
@@ -399,7 +470,8 @@ export function createContentLoader(
           welcome: get('welcome').text(),
           discover: get('discover').optional((item) => item.ref(flags, 'flag')),
           resources,
-          login: await get('login').optional(login),
+          operation,
+          status,
         }
       }
 
@@ -407,9 +479,31 @@ export function createContentLoader(
       if (!hosts.length) get('hosts').fail('Expected at least one host.')
       if (hosts.every((host) => host.discover))
         get('hosts').fail('At least one host must be initially discoverable.')
-      const objective = get('objective').object('text', 'read', 'message')
+      const objective = get('objective').object('text', 'read', 'message', 'onComplete')
+      const onComplete =
+        objective('onComplete').optional((field) =>
+          field.list((item): ProgressEffect => {
+            const type = item.object('type', 'message', 'scenario')('type')
+            switch (type.value) {
+              case 'discover':
+                return {
+                  type: 'discover',
+                  scenario: item.object('type', 'scenario')('scenario').id(),
+                }
+              case 'deliverMail':
+                return {
+                  type: 'deliverMail',
+                  message: item.object('type', 'message')('message').ref(inboxIds, 'inbox message'),
+                }
+              default:
+                return type.fail('Unsupported completion effect.')
+            }
+          }),
+        ) ?? []
       return {
         id: entry.id,
+        available: entry.available,
+        initiallyDiscovered: entry.initiallyDiscovered,
         title: get('title').text(),
         introduction: get('introduction').text(),
         roles,
@@ -427,8 +521,43 @@ export function createContentLoader(
           text: objective('text').text(),
           read: objective('read').ref(fileIds, 'file resource'),
           message: objective('message').text(),
+          onComplete,
         },
       }
     },
+
+    async campaign(entries: ScenarioEntry[]): Promise<Scenario[]> {
+      const scenarios = await Promise.all(entries.map(loader.scenario))
+      const reachable = new Set(
+        scenarios.filter((item) => item.available && item.initiallyDiscovered),
+      )
+      const destinations = new Map(scenarios.map((scenario) => [scenario.id, scenario]))
+      const messages = new Set<string>()
+      for (const [index, scenario] of scenarios.entries()) {
+        const file = entries[index].scenario
+        for (const { id } of scenario.inbox?.messages ?? []) {
+          if (messages.has(id)) invalid(file, 'inbox', `Duplicate campaign message "${id}".`)
+          messages.add(id)
+        }
+        for (const effect of scenario.objective.onComplete) {
+          if (effect.type !== 'discover') continue
+          const target = destinations.get(effect.scenario)
+          if (!target?.available || target === scenario)
+            invalid(
+              file,
+              'objective.onComplete',
+              `Invalid discovery destination "${effect.scenario}".`,
+            )
+        }
+      }
+      for (const scenario of reachable)
+        for (const effect of scenario.objective.onComplete)
+          if (effect.type === 'discover') reachable.add(destinations.get(effect.scenario)!)
+      for (const scenario of scenarios)
+        if (scenario.available && !reachable.has(scenario))
+          invalid('manifest.json', 'scenarios', `Unreachable scenario "${scenario.id}".`)
+      return scenarios
+    },
   }
+  return loader
 }

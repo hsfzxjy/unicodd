@@ -5,6 +5,12 @@
       "id": "001-the-relay",
       "label": "The Relay",
       "scenario": "scenarios/001-the-relay/scenario.json"
+    },
+    {
+      "id": "002-dead-letter",
+      "label": "Dead Letter",
+      "scenario": "scenarios/002-dead-letter/scenario.json",
+      "initiallyDiscovered": false
     }
   ]
 }

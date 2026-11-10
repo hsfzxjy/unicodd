@@ -135,7 +135,7 @@ function complete(value: string) {
   input.value?.focus()
 }
 
-function focusAction(type: 'login' | 'ls') {
+function focusAction(type: Action['type']) {
   quickActions.value
     ?.querySelector<HTMLButtonElement>(`[data-action="${type}"]`)
     ?.focus({ preventScroll: true })
@@ -234,6 +234,7 @@ defineExpose({ focusAction, insertCommand, promptInspection, revealOutput, scrol
               :path="row.path"
               :text="row.text"
               :inspect-lines="row.inspectLines"
+              :inspect-notation="row.inspectNotation"
               @action="emit('action', $event)"
             />
             <TerminalMail
@@ -260,7 +261,12 @@ defineExpose({ focusAction, insertCommand, promptInspection, revealOutput, scrol
             />
             <div v-else-if="row.kind === 'help'" class="command-help">
               <dl>
-                <template v-for="[usage, detail] in commandHelp" :key="usage">
+                <template
+                  v-for="[usage, detail] in commandHelp.filter(([usage]) =>
+                    row.commands.includes(usage.split(' ')[0]),
+                  )"
+                  :key="usage"
+                >
                   <dt>{{ usage }}</dt>
                   <dd>{{ detail }}</dd>
                 </template>

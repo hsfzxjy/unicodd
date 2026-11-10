@@ -1,0 +1,6 @@
+DELIVERY NOTICE 2917
+
+Destination registration: 0002917
+Legacy delivery alias: Mira
+Disposition at intake: QUARANTINED
+Body retained for manual delivery.

@@ -1,0 +1,18 @@
+{
+  "messages": [
+    {
+      "id": "hold-order",
+      "from": "Rowan / Messaging",
+      "to": "Mara / Security",
+      "subject": "Re: Temporary delivery hold",
+      "body": "The hold caught the addresses we expected. One concern: quarantine checks the address as submitted. The resolver cleans it up later.\n\nI asked about swapping the order. Integration wants another compatibility pass before we touch the queue. I've left a comment in the meantime."
+    },
+    {
+      "id": "open-ticket",
+      "from": "Mara / Security",
+      "to": "Rowan / Messaging",
+      "subject": "Re: Temporary delivery hold",
+      "body": "Please open a ticket. If this comes back to us on a weekend, the person on call won't know where to look for the comment."
+    }
+  ]
+}

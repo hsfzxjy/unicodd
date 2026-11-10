@@ -1,0 +1,7 @@
+CONTACT IMPORT / SAMPLE 14
+
+Displayed name: ops
+Raw code points: U+006F U+0070 U+200B U+0073
+Resolver output: ops
+
+Accepted during migration testing.

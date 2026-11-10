@@ -20,6 +20,7 @@ enum Operation<'a> {
     Concat,
     Normalize(Form),
     CodePointLength,
+    RemoveCodePoint,
     Contains,
     StartsWith,
     EndsWith,
@@ -40,6 +41,7 @@ impl Operation<'_> {
             }
             Self::Concat => (&[Text, Text], Text),
             Self::Normalize(_) => (&[Text], Text),
+            Self::RemoveCodePoint => (&[Text, Integer], Text),
             Self::CodePointLength => (&[Text], Integer),
             Self::Not => (&[Boolean], Boolean),
             Self::And | Self::Or | Self::BooleanEqual => (&[Boolean, Boolean], Boolean),
@@ -89,6 +91,7 @@ fn operation(node: &Node) -> Result<Operation<'_>, EngineError> {
             node.form
                 .ok_or_else(|| invalid("Missing normalization form."))?,
         ),
+        "remove_code_point" => Operation::RemoveCodePoint,
         "codePointLength" => Operation::CodePointLength,
         "contains" => Operation::Contains,
         "startsWith" => Operation::StartsWith,
@@ -332,6 +335,19 @@ fn run(
             Ok(Value::Text(text))
         }
         (Normalize(form), [Some(Value::Text(text))]) => Ok(Value::Text(normalize(text, form)?)),
+        (RemoveCodePoint, [Some(Value::Text(text)), Some(Value::Integer(value))]) => {
+            let scalar = u32::try_from(*value)
+                .ok()
+                .and_then(char::from_u32)
+                .ok_or_else(|| {
+                    EngineError::new(ErrorCode::InvalidInput, "Expected a Unicode scalar value.")
+                })?;
+            Ok(Value::Text(
+                text.chars()
+                    .filter(|character| *character != scalar)
+                    .collect(),
+            ))
+        }
         (CodePointLength, [Some(Value::Text(text))]) => {
             Ok(Value::Integer(text.chars().count() as u64))
         }

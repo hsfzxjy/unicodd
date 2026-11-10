@@ -10,6 +10,10 @@ export const commandHelp = [
   ['cat <path>', 'Read a file.'],
   ['whoami', 'Show the current identity.'],
   ['login [alias]', 'Open the alias editor or submit an alias.'],
+  ['route [recipient]', 'Open the recipient editor or route a message.'],
+  ['reconcile [candidate]', 'Open the identifier editor or query a collision.'],
+  ['campaign', 'List discovered destinations.'],
+  ['scenario <id>', 'Enter a discovered scenario.'],
   ['logout', 'Return to guest access.'],
   ['inspect <character>', 'Show Unicode details for a scalar or code point.'],
   ['clear', 'Clear terminal scrollback.'],
@@ -79,6 +83,13 @@ export function parseCommand(source: string): Action | undefined {
       return { type: 'mail', id: argument }
     case 'login':
       return { type: 'login', alias: argument }
+    case 'route':
+    case 'reconcile':
+      return { type: command, payload: argument }
+    case 'scenario':
+      return { type: 'scenario', id: argument }
+    case 'campaign':
+      return { type: 'campaign' }
     case 'inspect':
       return { type: 'inspect', character: argument }
     case 'hosts':
@@ -141,10 +152,16 @@ export function actionCommand(action: Action): string | undefined {
       return action.id === undefined ? 'mail' : `mail ${quote(action.id)}`
     case 'login':
       return action.alias === undefined ? 'login' : `login ${quote(action.alias)}`
+    case 'route':
+    case 'reconcile':
+      return action.payload === undefined ? action.type : `${action.type} ${quote(action.payload)}`
+    case 'scenario':
+      return `scenario ${quote(action.id)}`
     case 'inspect':
       return action.character === undefined ? undefined : `inspect ${quote(action.character)}`
     case 'invalid':
     case 'reset':
+    case 'resetCampaign':
     case 'closeEditor':
     case 'copy':
     case 'insertCommand':

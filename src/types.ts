@@ -11,6 +11,7 @@ type Operator =
   | 'concat'
   | 'normalize'
   | 'codePointLength'
+  | 'remove_code_point'
   | 'contains'
   | 'startsWith'
   | 'endsWith'

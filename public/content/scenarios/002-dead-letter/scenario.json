@@ -1,0 +1,151 @@
+{
+  "version": 1,
+  "title": "Dead Letter",
+  "introduction": "Delivery notice 2917 was handed to postbox-03.",
+  "roles": ["guest"],
+  "flags": ["released"],
+  "local": {
+    "user": "operator",
+    "role": "guest"
+  },
+  "initialHost": "postbox-03",
+  "hosts": [
+    {
+      "id": "postbox-03",
+      "name": "Legacy mail gateway",
+      "guest": {
+        "user": "guest",
+        "role": "guest"
+      },
+      "welcome": "Manual routing is available for the quarantined notice.",
+      "status": [
+        {
+          "label": "Message",
+          "value": "2917"
+        },
+        {
+          "label": "Queue",
+          "value": "Quarantined",
+          "after": {
+            "flag": "released",
+            "value": "Released"
+          }
+        }
+      ],
+      "resources": [
+        {
+          "id": "readme",
+          "path": "/README",
+          "type": "file",
+          "content": "files/README.txt"
+        },
+        {
+          "id": "mail",
+          "path": "/mail",
+          "type": "directory"
+        },
+        {
+          "id": "hold",
+          "path": "/mail/delivery-hold",
+          "type": "mail",
+          "content": "mail/delivery-hold.json"
+        },
+        {
+          "id": "import",
+          "path": "/mail/contact-import",
+          "type": "mail",
+          "content": "mail/contact-import.json"
+        },
+        {
+          "id": "review",
+          "path": "/mail/queue-review",
+          "type": "mail",
+          "content": "mail/queue-review.json"
+        },
+        {
+          "id": "samples",
+          "path": "/samples",
+          "type": "directory"
+        },
+        {
+          "id": "sample",
+          "path": "/samples/legacy-address.txt",
+          "type": "file",
+          "content": "files/legacy-address.txt",
+          "inspectNotation": true
+        },
+        {
+          "id": "spool",
+          "path": "/spool",
+          "type": "directory"
+        },
+        {
+          "id": "metadata",
+          "path": "/spool/2917.msg",
+          "type": "file",
+          "content": "files/2917-queue.txt"
+        },
+        {
+          "id": "delivered",
+          "path": "/delivered",
+          "type": "directory"
+        },
+        {
+          "id": "body",
+          "path": "/delivered/2917.msg",
+          "type": "mail",
+          "content": "mail/2917.json",
+          "access": {
+            "flag": "released"
+          },
+          "denied": "Message 2917 is still quarantined."
+        }
+      ],
+      "operation": {
+        "command": "route",
+        "label": "Recipient",
+        "actionLabel": "Route message",
+        "submitLabel": "Submit route",
+        "puzzle": "puzzle.json",
+        "input": "recipient",
+        "initial": "Mira",
+        "success": [
+          {
+            "type": "flag",
+            "flag": "released"
+          },
+          {
+            "type": "message",
+            "text": "Route accepted. Resolved recipient: Mira. Message released from quarantine."
+          },
+          {
+            "type": "resourceLink",
+            "resource": "body"
+          }
+        ],
+        "failure": "Routing rejected. Recipient could not be resolved.",
+        "rejected": [
+          {
+            "check": "delivery_hold",
+            "message": "Routing rejected. Recipient is under delivery hold."
+          }
+        ]
+      }
+    }
+  ],
+  "objective": {
+    "text": "Recover and read delivery notice 2917.",
+    "read": "body",
+    "message": "Delivery notice 2917 recovered. Objective complete.",
+    "onComplete": [
+      {
+        "type": "deliverMail",
+        "message": "spoke-to-her"
+      }
+    ]
+  },
+  "inbox": {
+    "content": "mail/inbox.json",
+    "initial": []
+  }
+}

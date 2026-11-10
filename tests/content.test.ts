@@ -3,11 +3,12 @@ import { expect, it } from 'vitest'
 import { createContentLoader } from '../src/lib/content'
 import { engine, fixtures, production, productionRoot, readProduction } from './scenario-content'
 
-it('ships only The Relay in a scenario catalog', async () => {
+it('loads the production scenario catalog in progression order', async () => {
   const entries = await production.manifest()
-  expect(entries.map(({ id, label }) => [id, label])).toEqual([['001-the-relay', 'The Relay']])
+  expect(entries.map(({ id }) => id)).toEqual(['001-the-relay', '002-dead-letter'])
+  await expect(production.campaign(entries)).resolves.toHaveLength(entries.length)
   expect(await readdir(productionRoot)).toEqual(['manifest.json', 'scenarios'])
-  expect(await readdir(new URL('scenarios/', productionRoot))).toEqual(['001-the-relay'])
+  expect(await readdir(new URL('scenarios/', productionRoot))).toEqual(entries.map(({ id }) => id))
   const scenario = await production.scenario(entries[0])
   expect(scenario.inbox?.initial).toEqual(['favor'])
   expect(scenario.hosts[0].resources.filter(({ type }) => type === 'mail')).toHaveLength(3)

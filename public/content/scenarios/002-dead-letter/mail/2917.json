@@ -1,0 +1,11 @@
+{
+  "messages": [
+    {
+      "id": "message-2917",
+      "from": "Registration 0001842",
+      "to": "Registration 0002917",
+      "subject": "I think we have the same account",
+      "body": "Hello.\n\nI don't know who you are, but I've been receiving your account notifications. Yesterday my recovery address changed. Then it changed back. Support says I must have done it myself.\n\nThey keep closing my reports because another report already exists. If you can read this, please reply. I don't want your account. I just want mine.\n\nDelivery metadata\nOriginal registration: 0001842\nDestination registration: 0002917\nDirectory reference: index-09\nMerge event: 8C2F"
+    }
+  ]
+}

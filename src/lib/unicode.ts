@@ -57,6 +57,16 @@ export function scalarCategory(scalar: string): string | undefined {
   return categories.find(([pattern]) => pattern.test(scalar))?.[1]
 }
 
+export function notationTokens(text: string) {
+  return text.matchAll(/\bU\+[\p{L}\p{N}_+-]*/gu)
+}
+
+export function invalidNotation(text: string): string | undefined {
+  for (const [token] of notationTokens(text)) {
+    if (!/^U\+[0-9A-F]{4,6}$/u.test(token) || lookup(token) === undefined) return token
+  }
+}
+
 export function notation(value: number): string {
   return 'U+' + value.toString(16).toUpperCase().padStart(4, '0')
 }

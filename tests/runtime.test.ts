@@ -73,6 +73,7 @@ it('checks permissions, elevates through WASM, and completes only on authorized 
   expect((await runtime.dispatch(incident)).output?.map((item) => item.kind)).toEqual([
     'file',
     'objective',
+    'mailNotice',
   ])
   expect(runtime.state.completed).toBe(true)
   expect((await runtime.dispatch(incident)).output?.map((item) => item.kind)).toEqual(['file'])
@@ -86,7 +87,7 @@ it('checks permissions, elevates through WASM, and completes only on authorized 
   expect(await runtime.dispatch({ type: 'clear' })).toEqual({ clear: true })
   expect(runtime.state.completed).toBe(true)
   await runtime.dispatch({ type: 'reset' })
-  expect(runtime.state).toEqual(local)
+  expect(runtime.state).toEqual({ ...local, deliveredMail: ['favor', 'missing-notice'] })
 })
 
 it('uses guards and effects for a differently structured fixture', async () => {

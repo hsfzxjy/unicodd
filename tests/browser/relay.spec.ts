@@ -109,7 +109,7 @@ test('plays the entire Relay through graphical actions and restores only objecti
   await page.getByRole('button', { name: 'Reset session' }).click()
   await expect(panel).toContainText('Open')
   await page.reload()
-  await expect(panel).toContainText('Open')
+  await expect(panel).toContainText('Complete')
 })
 
 test('reaches equivalent states through typed actions in a different exploration order', async ({
@@ -273,6 +273,7 @@ test('loads a second authored scenario through the same terminal and handles quo
   await routeFixtures(page, true)
   await page.goto('/')
   const selector = page.getByRole('combobox', { name: 'Scenario' })
+  await run(page, 'mail favor')
   await selector.selectOption('demo')
   await expect(contextPanel(page)).toContainText('shelf')
   const notice = terminal(page).getByRole('button', { name: 'New mail, open inbox' })

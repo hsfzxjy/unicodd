@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "inputs": ["recipient"],
+  "nodes": [
+    {
+      "id": "raw",
+      "op": "input",
+      "input": "recipient"
+    },
+    {
+      "id": "canonical",
+      "op": "literal",
+      "value": {
+        "type": "text",
+        "value": "Mira"
+      }
+    },
+    {
+      "id": "separator",
+      "op": "literal",
+      "value": {
+        "type": "integer",
+        "value": 8203
+      }
+    },
+    {
+      "id": "held",
+      "op": "contains",
+      "args": ["raw", "canonical"]
+    },
+    {
+      "id": "clean",
+      "op": "remove_code_point",
+      "args": ["raw", "separator"]
+    },
+    {
+      "id": "resolved",
+      "op": "textEqual",
+      "args": ["clean", "canonical"]
+    }
+  ],
+  "checks": [
+    {
+      "id": "delivery_hold",
+      "node": "held",
+      "expected": false
+    },
+    {
+      "id": "recipient_resolution",
+      "node": "resolved",
+      "expected": true
+    }
+  ]
+}

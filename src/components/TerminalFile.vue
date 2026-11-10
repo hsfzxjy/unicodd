@@ -1,10 +1,25 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { describe } from '../lib/unicode'
+import { describe, notationTokens } from '../lib/unicode'
 import type { Action } from '../lib/runtime'
 
-const props = defineProps<{ text: string; path: string; inspectLines: number[] }>()
+const props = defineProps<{
+  text: string
+  path: string
+  inspectLines: number[]
+  inspectNotation: boolean
+}>()
 const emit = defineEmits<{ action: [Action] }>()
+const tokens = computed(() => {
+  const parts: { text: string; inspect?: boolean }[] = []
+  let start = 0
+  for (const match of notationTokens(props.text)) {
+    parts.push({ text: props.text.slice(start, match.index) }, { text: match[0], inspect: true })
+    start = match.index + match[0].length
+  }
+  parts.push({ text: props.text.slice(start) })
+  return parts
+})
 const lines = computed(() =>
   props.inspectLines.length
     ? props.text
@@ -25,7 +40,18 @@ const lines = computed(() =>
     <p class="file-path">
       <bdi>{{ path }}</bdi>
     </p>
-    <pre v-if="!inspectLines.length" data-resource-text dir="auto">{{ text }}</pre>
+    <pre
+      v-if="inspectNotation"
+      data-resource-text
+      dir="auto"
+    ><template v-for="(token, index) in tokens" :key="index"><button
+      v-if="token.inspect"
+      type="button"
+      class="terminal-link notation-link"
+      :aria-label="'Inspect ' + token.text"
+      @click="emit('action', { type: 'inspect', character: token.text })"
+    >{{ token.text }}</button><template v-else>{{ token.text }}</template></template></pre>
+    <pre v-else-if="!inspectLines.length" data-resource-text dir="auto">{{ text }}</pre>
     <template v-else>
       <p
         v-for="(line, index) in lines"

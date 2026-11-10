@@ -79,7 +79,9 @@
         "label": "Account alias",
         "puzzle": "puzzle.json",
         "input": "alias",
-        "access": { "roles": ["guest"] },
+        "access": {
+          "roles": ["guest"]
+        },
         "success": [
           {
             "type": "session",
@@ -110,7 +112,17 @@
   "objective": {
     "text": "Retrieve incident 8C2F from the protected queue.",
     "read": "incident",
-    "message": "Incident 8C2F retrieved. Objective complete."
+    "message": "Incident 8C2F retrieved. Objective complete.",
+    "onComplete": [
+      {
+        "type": "deliverMail",
+        "message": "missing-notice"
+      },
+      {
+        "type": "discover",
+        "scenario": "002-dead-letter"
+      }
+    ]
   },
   "inbox": {
     "content": "mail/inbox.json",

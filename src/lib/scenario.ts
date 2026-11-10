@@ -10,11 +10,17 @@ export interface Guard {
   flag?: string
 }
 
+export type PuzzleCommand = 'login' | 'route' | 'reconcile'
+
+export type ProgressEffect =
+  { type: 'discover'; scenario: string } | { type: 'deliverMail'; message: string }
+
 export type Effect =
   | { type: 'session'; identity: Identity }
   | { type: 'flag'; flag: string }
   | { type: 'message'; text: string }
   | { type: 'deliverMail'; message: string }
+  | { type: 'resourceLink'; resource: string }
 
 export interface MailMessage {
   id: string
@@ -37,12 +43,15 @@ export type Resource = ResourceBase &
   (
     | { type: 'directory' }
     | ({ onRead: Effect[] } & (
-        | { type: 'file'; text: string; inspectLines: number[] }
+        | { type: 'file'; text: string; inspectLines: number[]; inspectNotation: boolean }
         | { type: 'mail'; messages: MailMessage[] }
       ))
   )
 
-export interface Login {
+export interface PuzzleBinding {
+  command: PuzzleCommand
+  actionLabel: string
+  submitLabel: string
   label: string
   input: string
   initial: string
@@ -60,12 +69,15 @@ export interface Host {
   welcome: string
   discover?: string
   resources: Resource[]
-  login?: Login
+  operation?: PuzzleBinding
+  status: { label: string; value: string; after?: { flag: string; value: string } }[]
 }
 
 export interface Scenario {
   id: string
   title: string
+  available: boolean
+  initiallyDiscovered: boolean
   introduction: string
   roles: string[]
   flags: string[]
@@ -73,7 +85,7 @@ export interface Scenario {
   initialHost?: string
   hosts: Host[]
   inbox?: { messages: MailMessage[]; initial: string[] }
-  objective: { text: string; read: string; message: string }
+  objective: { text: string; read: string; message: string; onComplete: ProgressEffect[] }
 }
 
 export function parentPath(path: string): string {

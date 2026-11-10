@@ -1,0 +1,11 @@
+{
+  "messages": [
+    {
+      "id": "cleanup",
+      "from": "Eli / Client Integration",
+      "to": "Nia / Messaging",
+      "subject": "Recipient import cleanup",
+      "body": "We found why some imported addresses wouldn't resolve. The old mobile client sometimes inserts an invisible separator when copying names from its contacts. The delivery resolver now removes that separator before lookup.\n\nI kept the migration samples in case the client team ever asks what the resolver is doing for them. Sample 14 is the shortest reproduction."
+    }
+  ]
+}

@@ -275,3 +275,38 @@ fn bounds_graph_size_intermediate_expansion_and_trace() {
     assert!(result.solved && result.trace_truncated);
     assert_eq!(result.trace.unwrap().len(), 4);
 }
+
+#[test]
+fn counts_the_three_text_encodings_without_normalizing() {
+    let program = program(
+        json!([
+            {"id":"value","op":"input","input":"text"},
+            {"id":"scalars","op":"codePointLength","args":["value"]},
+            {"id":"units","op":"utf16_length","args":["value"]},
+            {"id":"bytes","op":"utf8_length","args":["value"]}
+        ]),
+        json!([]),
+    );
+    let mut program = program;
+    program.inputs.push("text".into());
+    for (text, expected) in [
+        ("", [0, 0, 0]),
+        ("e\u{301}", [2, 2, 3]),
+        ("\u{1D40C}AINT", [5, 6, 8]),
+        ("\u{1D40C}ＡINT", [5, 6, 10]),
+    ] {
+        let values: Vec<_> = evaluate(
+            &program,
+            &BTreeMap::from([("text".into(), text.into())]),
+            true,
+        )
+        .unwrap()
+        .trace
+        .unwrap()
+        .into_iter()
+        .skip(1)
+        .map(|entry| entry.result)
+        .collect();
+        assert_eq!(values, expected.map(Value::Integer));
+    }
+}

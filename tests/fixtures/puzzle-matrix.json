@@ -1,0 +1,1523 @@
+[
+  {
+    "scenario": "001-the-relay",
+    "command": "login",
+    "name": "Literal reserved name",
+    "inputs": {
+      "alias": "MAINT"
+    },
+    "trace": {
+      "canonical": "MAINT",
+      "compatibility": "MAINT",
+      "scalars": 5,
+      "units": 5,
+      "bytes": 5
+    },
+    "conditions": {
+      "canonical_reserved": {
+        "actual": true,
+        "expected": false
+      },
+      "decoded_count": {
+        "actual": true,
+        "expected": true
+      },
+      "legacy_units": {
+        "actual": false,
+        "expected": true
+      },
+      "transport_capacity": {
+        "actual": true,
+        "expected": true
+      },
+      "resolved_identity": {
+        "actual": true,
+        "expected": true
+      }
+    },
+    "solved": false,
+    "feedback": "Login rejected. Reserved account name.",
+    "principle": "Literal ASCII fails the canonical guard before later checks."
+  },
+  {
+    "scenario": "001-the-relay",
+    "command": "login",
+    "name": "Fullwidth keypad alias",
+    "inputs": {
+      "alias": "ＭＡＩＮＴ"
+    },
+    "trace": {
+      "canonical": "ＭＡＩＮＴ",
+      "compatibility": "MAINT",
+      "scalars": 5,
+      "units": 5,
+      "bytes": 15
+    },
+    "conditions": {
+      "canonical_reserved": {
+        "actual": false,
+        "expected": false
+      },
+      "decoded_count": {
+        "actual": true,
+        "expected": true
+      },
+      "legacy_units": {
+        "actual": false,
+        "expected": true
+      },
+      "transport_capacity": {
+        "actual": false,
+        "expected": true
+      },
+      "resolved_identity": {
+        "actual": true,
+        "expected": true
+      }
+    },
+    "solved": false,
+    "feedback": "Login rejected. Legacy UTF-16 field length differs from the captured frame.",
+    "principle": "Compatibility resolution alone misses both frame length and capacity."
+  },
+  {
+    "scenario": "001-the-relay",
+    "command": "login",
+    "name": "Mixed styled and fullwidth",
+    "inputs": {
+      "alias": "𝐌ＡINT"
+    },
+    "trace": {
+      "canonical": "𝐌ＡINT",
+      "compatibility": "MAINT",
+      "scalars": 5,
+      "units": 6,
+      "bytes": 10
+    },
+    "conditions": {
+      "canonical_reserved": {
+        "actual": false,
+        "expected": false
+      },
+      "decoded_count": {
+        "actual": true,
+        "expected": true
+      },
+      "legacy_units": {
+        "actual": true,
+        "expected": true
+      },
+      "transport_capacity": {
+        "actual": false,
+        "expected": true
+      },
+      "resolved_identity": {
+        "actual": true,
+        "expected": true
+      }
+    },
+    "solved": false,
+    "feedback": "Login rejected. Payload exceeds the eight-byte transport field.",
+    "principle": "Passing both character counts still leaves a byte limit."
+  },
+  {
+    "scenario": "001-the-relay",
+    "command": "login",
+    "name": "Styled M at capacity",
+    "inputs": {
+      "alias": "𝐌AINT"
+    },
+    "trace": {
+      "canonical": "𝐌AINT",
+      "compatibility": "MAINT",
+      "scalars": 5,
+      "units": 6,
+      "bytes": 8
+    },
+    "conditions": {
+      "canonical_reserved": {
+        "actual": false,
+        "expected": false
+      },
+      "decoded_count": {
+        "actual": true,
+        "expected": true
+      },
+      "legacy_units": {
+        "actual": true,
+        "expected": true
+      },
+      "transport_capacity": {
+        "actual": true,
+        "expected": true
+      },
+      "resolved_identity": {
+        "actual": true,
+        "expected": true
+      }
+    },
+    "solved": true,
+    "feedback": "Authentication accepted. Resolved identity: MAINT. Session elevated.",
+    "principle": "One supplementary scalar adds one UTF-16 unit and three extra UTF-8 bytes."
+  },
+  {
+    "scenario": "001-the-relay",
+    "command": "login",
+    "name": "Alternate styled A",
+    "inputs": {
+      "alias": "M𝐀INT"
+    },
+    "trace": {
+      "canonical": "M𝐀INT",
+      "compatibility": "MAINT",
+      "scalars": 5,
+      "units": 6,
+      "bytes": 8
+    },
+    "conditions": {
+      "canonical_reserved": {
+        "actual": false,
+        "expected": false
+      },
+      "decoded_count": {
+        "actual": true,
+        "expected": true
+      },
+      "legacy_units": {
+        "actual": true,
+        "expected": true
+      },
+      "transport_capacity": {
+        "actual": true,
+        "expected": true
+      },
+      "resolved_identity": {
+        "actual": true,
+        "expected": true
+      }
+    },
+    "solved": true,
+    "feedback": "Authentication accepted. Resolved identity: MAINT. Session elevated.",
+    "principle": "The valid styled position is not fixed."
+  },
+  {
+    "scenario": "001-the-relay",
+    "command": "login",
+    "name": "Too few decoded characters",
+    "inputs": {
+      "alias": "𝐌AIN"
+    },
+    "trace": {
+      "canonical": "𝐌AIN",
+      "compatibility": "MAIN",
+      "scalars": 4,
+      "units": 5,
+      "bytes": 7
+    },
+    "conditions": {
+      "canonical_reserved": {
+        "actual": false,
+        "expected": false
+      },
+      "decoded_count": {
+        "actual": false,
+        "expected": true
+      },
+      "legacy_units": {
+        "actual": false,
+        "expected": true
+      },
+      "transport_capacity": {
+        "actual": true,
+        "expected": true
+      },
+      "resolved_identity": {
+        "actual": false,
+        "expected": true
+      }
+    },
+    "solved": false,
+    "feedback": "Login rejected. Decoded character count differs from the captured frame.",
+    "principle": "The decoder counts scalars before the frame reader checks units."
+  },
+  {
+    "scenario": "001-the-relay",
+    "command": "login",
+    "name": "Correct frame, wrong identity",
+    "inputs": {
+      "alias": "𝐌AINX"
+    },
+    "trace": {
+      "canonical": "𝐌AINX",
+      "compatibility": "MAINX",
+      "scalars": 5,
+      "units": 6,
+      "bytes": 8
+    },
+    "conditions": {
+      "canonical_reserved": {
+        "actual": false,
+        "expected": false
+      },
+      "decoded_count": {
+        "actual": true,
+        "expected": true
+      },
+      "legacy_units": {
+        "actual": true,
+        "expected": true
+      },
+      "transport_capacity": {
+        "actual": true,
+        "expected": true
+      },
+      "resolved_identity": {
+        "actual": false,
+        "expected": true
+      }
+    },
+    "solved": false,
+    "feedback": "Login rejected. Account not found.",
+    "principle": "A correctly sized frame still needs a compatible account name."
+  },
+  {
+    "scenario": "001-the-relay",
+    "command": "login",
+    "name": "Combining mark counted separately",
+    "inputs": {
+      "alias": "MAÍNT"
+    },
+    "trace": {
+      "canonical": "MAÍNT",
+      "compatibility": "MAÍNT",
+      "scalars": 6,
+      "units": 6,
+      "bytes": 7
+    },
+    "conditions": {
+      "canonical_reserved": {
+        "actual": false,
+        "expected": false
+      },
+      "decoded_count": {
+        "actual": false,
+        "expected": true
+      },
+      "legacy_units": {
+        "actual": true,
+        "expected": true
+      },
+      "transport_capacity": {
+        "actual": true,
+        "expected": true
+      },
+      "resolved_identity": {
+        "actual": false,
+        "expected": true
+      }
+    },
+    "solved": false,
+    "feedback": "Login rejected. Decoded character count differs from the captured frame.",
+    "principle": "A visually combined mark counts as a separate scalar."
+  },
+  {
+    "scenario": "002-dead-letter",
+    "command": "route",
+    "name": "Literal in both fields",
+    "inputs": {
+      "header": "Mira",
+      "envelope": "Mira"
+    },
+    "trace": {
+      "clean": "Mira",
+      "header_size": 4,
+      "envelope_nfc": "Mira",
+      "envelope_nfkc": "Mira",
+      "envelope_size": 4
+    },
+    "conditions": {
+      "delivery_hold": {
+        "actual": true,
+        "expected": false
+      },
+      "header_resolves": {
+        "actual": true,
+        "expected": true
+      },
+      "header_bytes": {
+        "actual": false,
+        "expected": true
+      },
+      "envelope_reserved": {
+        "actual": true,
+        "expected": false
+      },
+      "envelope_capacity": {
+        "actual": true,
+        "expected": true
+      },
+      "envelope_resolves": {
+        "actual": true,
+        "expected": true
+      },
+      "agreement": {
+        "actual": true,
+        "expected": true
+      }
+    },
+    "solved": false,
+    "feedback": "Header quarantine: recipient is under delivery hold.\nEnvelope gateway: canonical recipient is restricted on manual routes.",
+    "principle": "Both guards independently reject the canonical alias."
+  },
+  {
+    "scenario": "002-dead-letter",
+    "command": "route",
+    "name": "Leading separator",
+    "inputs": {
+      "header": "​Mira",
+      "envelope": "Ｍira"
+    },
+    "trace": {
+      "clean": "Mira",
+      "header_size": 7,
+      "envelope_nfc": "Ｍira",
+      "envelope_nfkc": "Mira",
+      "envelope_size": 6
+    },
+    "conditions": {
+      "delivery_hold": {
+        "actual": true,
+        "expected": false
+      },
+      "header_resolves": {
+        "actual": true,
+        "expected": true
+      },
+      "header_bytes": {
+        "actual": true,
+        "expected": true
+      },
+      "envelope_reserved": {
+        "actual": false,
+        "expected": false
+      },
+      "envelope_capacity": {
+        "actual": true,
+        "expected": true
+      },
+      "envelope_resolves": {
+        "actual": true,
+        "expected": true
+      },
+      "agreement": {
+        "actual": true,
+        "expected": true
+      }
+    },
+    "solved": false,
+    "feedback": "Header quarantine: recipient is under delivery hold.",
+    "principle": "A leading separator does not break the held substring."
+  },
+  {
+    "scenario": "002-dead-letter",
+    "command": "route",
+    "name": "Wrong invisible character",
+    "inputs": {
+      "header": "Mi‍ra",
+      "envelope": "Ｍira"
+    },
+    "trace": {
+      "clean": "Mi‍ra",
+      "header_size": 7,
+      "envelope_nfc": "Ｍira",
+      "envelope_nfkc": "Mira",
+      "envelope_size": 6
+    },
+    "conditions": {
+      "delivery_hold": {
+        "actual": false,
+        "expected": false
+      },
+      "header_resolves": {
+        "actual": false,
+        "expected": true
+      },
+      "header_bytes": {
+        "actual": true,
+        "expected": true
+      },
+      "envelope_reserved": {
+        "actual": false,
+        "expected": false
+      },
+      "envelope_capacity": {
+        "actual": true,
+        "expected": true
+      },
+      "envelope_resolves": {
+        "actual": true,
+        "expected": true
+      },
+      "agreement": {
+        "actual": false,
+        "expected": true
+      }
+    },
+    "solved": false,
+    "feedback": "Header cleanup: recipient could not be resolved.",
+    "principle": "A joiner has the right byte count but survives cleanup."
+  },
+  {
+    "scenario": "002-dead-letter",
+    "command": "route",
+    "name": "Same spelling in both fields",
+    "inputs": {
+      "header": "Mi​ra",
+      "envelope": "Mi​ra"
+    },
+    "trace": {
+      "clean": "Mira",
+      "header_size": 7,
+      "envelope_nfc": "Mi​ra",
+      "envelope_nfkc": "Mi​ra",
+      "envelope_size": 7
+    },
+    "conditions": {
+      "delivery_hold": {
+        "actual": false,
+        "expected": false
+      },
+      "header_resolves": {
+        "actual": true,
+        "expected": true
+      },
+      "header_bytes": {
+        "actual": true,
+        "expected": true
+      },
+      "envelope_reserved": {
+        "actual": false,
+        "expected": false
+      },
+      "envelope_capacity": {
+        "actual": false,
+        "expected": true
+      },
+      "envelope_resolves": {
+        "actual": false,
+        "expected": true
+      },
+      "agreement": {
+        "actual": false,
+        "expected": true
+      }
+    },
+    "solved": false,
+    "feedback": "Envelope transport: recipient exceeds six UTF-8 bytes.",
+    "principle": "The envelope does not inherit header cleanup."
+  },
+  {
+    "scenario": "002-dead-letter",
+    "command": "route",
+    "name": "Correct header, ordinary envelope",
+    "inputs": {
+      "header": "Mi​ra",
+      "envelope": "Mira"
+    },
+    "trace": {
+      "clean": "Mira",
+      "header_size": 7,
+      "envelope_nfc": "Mira",
+      "envelope_nfkc": "Mira",
+      "envelope_size": 4
+    },
+    "conditions": {
+      "delivery_hold": {
+        "actual": false,
+        "expected": false
+      },
+      "header_resolves": {
+        "actual": true,
+        "expected": true
+      },
+      "header_bytes": {
+        "actual": true,
+        "expected": true
+      },
+      "envelope_reserved": {
+        "actual": true,
+        "expected": false
+      },
+      "envelope_capacity": {
+        "actual": true,
+        "expected": true
+      },
+      "envelope_resolves": {
+        "actual": true,
+        "expected": true
+      },
+      "agreement": {
+        "actual": true,
+        "expected": true
+      }
+    },
+    "solved": false,
+    "feedback": "Envelope gateway: canonical recipient is restricted on manual routes.",
+    "principle": "A solved header does not satisfy the envelope guard."
+  },
+  {
+    "scenario": "002-dead-letter",
+    "command": "route",
+    "name": "Correct header, fullwidth envelope",
+    "inputs": {
+      "header": "Mi​ra",
+      "envelope": "Ｍｉｒａ"
+    },
+    "trace": {
+      "clean": "Mira",
+      "header_size": 7,
+      "envelope_nfc": "Ｍｉｒａ",
+      "envelope_nfkc": "Mira",
+      "envelope_size": 12
+    },
+    "conditions": {
+      "delivery_hold": {
+        "actual": false,
+        "expected": false
+      },
+      "header_resolves": {
+        "actual": true,
+        "expected": true
+      },
+      "header_bytes": {
+        "actual": true,
+        "expected": true
+      },
+      "envelope_reserved": {
+        "actual": false,
+        "expected": false
+      },
+      "envelope_capacity": {
+        "actual": false,
+        "expected": true
+      },
+      "envelope_resolves": {
+        "actual": true,
+        "expected": true
+      },
+      "agreement": {
+        "actual": true,
+        "expected": true
+      }
+    },
+    "solved": false,
+    "feedback": "Envelope transport: recipient exceeds six UTF-8 bytes.",
+    "principle": "A fully compatible name may exceed transport capacity."
+  },
+  {
+    "scenario": "002-dead-letter",
+    "command": "route",
+    "name": "Wrong header, correct envelope",
+    "inputs": {
+      "header": "Other",
+      "envelope": "Ｍira"
+    },
+    "trace": {
+      "clean": "Other",
+      "header_size": 5,
+      "envelope_nfc": "Ｍira",
+      "envelope_nfkc": "Mira",
+      "envelope_size": 6
+    },
+    "conditions": {
+      "delivery_hold": {
+        "actual": false,
+        "expected": false
+      },
+      "header_resolves": {
+        "actual": false,
+        "expected": true
+      },
+      "header_bytes": {
+        "actual": false,
+        "expected": true
+      },
+      "envelope_reserved": {
+        "actual": false,
+        "expected": false
+      },
+      "envelope_capacity": {
+        "actual": true,
+        "expected": true
+      },
+      "envelope_resolves": {
+        "actual": true,
+        "expected": true
+      },
+      "agreement": {
+        "actual": false,
+        "expected": true
+      }
+    },
+    "solved": false,
+    "feedback": "Header cleanup: recipient could not be resolved.",
+    "principle": "A solved envelope cannot release an unresolved header."
+  },
+  {
+    "scenario": "002-dead-letter",
+    "command": "route",
+    "name": "Correct header, wrong envelope lookup",
+    "inputs": {
+      "header": "Mi​ra",
+      "envelope": "Nira"
+    },
+    "trace": {
+      "clean": "Mira",
+      "header_size": 7,
+      "envelope_nfc": "Nira",
+      "envelope_nfkc": "Nira",
+      "envelope_size": 4
+    },
+    "conditions": {
+      "delivery_hold": {
+        "actual": false,
+        "expected": false
+      },
+      "header_resolves": {
+        "actual": true,
+        "expected": true
+      },
+      "header_bytes": {
+        "actual": true,
+        "expected": true
+      },
+      "envelope_reserved": {
+        "actual": false,
+        "expected": false
+      },
+      "envelope_capacity": {
+        "actual": true,
+        "expected": true
+      },
+      "envelope_resolves": {
+        "actual": false,
+        "expected": true
+      },
+      "agreement": {
+        "actual": false,
+        "expected": true
+      }
+    },
+    "solved": false,
+    "feedback": "Envelope lookup: recipient could not be resolved.",
+    "principle": "Capacity and the canonical guard are insufficient without lookup and agreement."
+  },
+  {
+    "scenario": "002-dead-letter",
+    "command": "route",
+    "name": "Two internal separators",
+    "inputs": {
+      "header": "M​i​ra",
+      "envelope": "Ｍira"
+    },
+    "trace": {
+      "clean": "Mira",
+      "header_size": 10,
+      "envelope_nfc": "Ｍira",
+      "envelope_nfkc": "Mira",
+      "envelope_size": 6
+    },
+    "conditions": {
+      "delivery_hold": {
+        "actual": false,
+        "expected": false
+      },
+      "header_resolves": {
+        "actual": true,
+        "expected": true
+      },
+      "header_bytes": {
+        "actual": false,
+        "expected": true
+      },
+      "envelope_reserved": {
+        "actual": false,
+        "expected": false
+      },
+      "envelope_capacity": {
+        "actual": true,
+        "expected": true
+      },
+      "envelope_resolves": {
+        "actual": true,
+        "expected": true
+      },
+      "agreement": {
+        "actual": true,
+        "expected": true
+      }
+    },
+    "solved": false,
+    "feedback": "Header replay: byte length differs from the captured header.",
+    "principle": "Cleanup permits both removals but replay rejects a different captured size."
+  },
+  {
+    "scenario": "002-dead-letter",
+    "command": "route",
+    "name": "Both branches valid",
+    "inputs": {
+      "header": "Mi​ra",
+      "envelope": "Ｍira"
+    },
+    "trace": {
+      "clean": "Mira",
+      "header_size": 7,
+      "envelope_nfc": "Ｍira",
+      "envelope_nfkc": "Mira",
+      "envelope_size": 6
+    },
+    "conditions": {
+      "delivery_hold": {
+        "actual": false,
+        "expected": false
+      },
+      "header_resolves": {
+        "actual": true,
+        "expected": true
+      },
+      "header_bytes": {
+        "actual": true,
+        "expected": true
+      },
+      "envelope_reserved": {
+        "actual": false,
+        "expected": false
+      },
+      "envelope_capacity": {
+        "actual": true,
+        "expected": true
+      },
+      "envelope_resolves": {
+        "actual": true,
+        "expected": true
+      },
+      "agreement": {
+        "actual": true,
+        "expected": true
+      }
+    },
+    "solved": true,
+    "feedback": "Route accepted. Resolved recipient: Mira. Message released from quarantine.",
+    "principle": "Different representations converge on the same destination."
+  },
+  {
+    "scenario": "002-dead-letter",
+    "command": "route",
+    "name": "Alternate placements",
+    "inputs": {
+      "header": "Mir​a",
+      "envelope": "Miｒa"
+    },
+    "trace": {
+      "clean": "Mira",
+      "header_size": 7,
+      "envelope_nfc": "Miｒa",
+      "envelope_nfkc": "Mira",
+      "envelope_size": 6
+    },
+    "conditions": {
+      "delivery_hold": {
+        "actual": false,
+        "expected": false
+      },
+      "header_resolves": {
+        "actual": true,
+        "expected": true
+      },
+      "header_bytes": {
+        "actual": true,
+        "expected": true
+      },
+      "envelope_reserved": {
+        "actual": false,
+        "expected": false
+      },
+      "envelope_capacity": {
+        "actual": true,
+        "expected": true
+      },
+      "envelope_resolves": {
+        "actual": true,
+        "expected": true
+      },
+      "agreement": {
+        "actual": true,
+        "expected": true
+      }
+    },
+    "solved": true,
+    "feedback": "Route accepted. Resolved recipient: Mira. Message released from quarantine.",
+    "principle": "The rules allow other internal separators and width-variant positions."
+  },
+  {
+    "scenario": "003-the-index",
+    "command": "reconcile",
+    "name": "Ordinary display name",
+    "inputs": {
+      "candidate": "Mira"
+    },
+    "trace": {
+      "folded": "mira",
+      "lookup": "mira",
+      "lookup_canonical": "mira",
+      "candidate_key": "Mira",
+      "canonical_key": "Mira",
+      "folded_canonical": "mira"
+    },
+    "conditions": {
+      "ordinary_filter": {
+        "actual": true,
+        "expected": false
+      },
+      "visual_collision": {
+        "actual": true,
+        "expected": true
+      }
+    },
+    "solved": false,
+    "feedback": "Query rejected. Protected canonical identifier.",
+    "principle": "The ordinary lookup guard precedes the collision index."
+  },
+  {
+    "scenario": "003-the-index",
+    "command": "reconcile",
+    "name": "Width variant is ordinary",
+    "inputs": {
+      "candidate": "Ｍira"
+    },
+    "trace": {
+      "folded": "ｍira",
+      "lookup": "mira",
+      "lookup_canonical": "mira",
+      "candidate_key": "Mira",
+      "canonical_key": "Mira",
+      "folded_canonical": "mira"
+    },
+    "conditions": {
+      "ordinary_filter": {
+        "actual": true,
+        "expected": false
+      },
+      "visual_collision": {
+        "actual": true,
+        "expected": true
+      }
+    },
+    "solved": false,
+    "feedback": "Query rejected. Protected canonical identifier.",
+    "principle": "Case folding plus NFKC collapses the width variant."
+  },
+  {
+    "scenario": "003-the-index",
+    "command": "reconcile",
+    "name": "Greek Mu collision",
+    "inputs": {
+      "candidate": "Μira"
+    },
+    "trace": {
+      "folded": "μira",
+      "lookup": "μira",
+      "lookup_canonical": "mira",
+      "candidate_key": "Mira",
+      "canonical_key": "Mira",
+      "folded_canonical": "mira"
+    },
+    "conditions": {
+      "ordinary_filter": {
+        "actual": false,
+        "expected": false
+      },
+      "visual_collision": {
+        "actual": true,
+        "expected": true
+      }
+    },
+    "solved": true,
+    "feedback": "Collision detected. Index bucket: 8C2F. Canonical records: 1. Source registrations: 2.\nOriginal identifiers: REDACTED. Ownership reconstruction required.",
+    "principle": "A real collision can locate the bucket without being either original."
+  },
+  {
+    "scenario": "003-the-index",
+    "command": "reconcile",
+    "name": "Cyrillic original collision",
+    "inputs": {
+      "candidate": "Mіra"
+    },
+    "trace": {
+      "folded": "mіra",
+      "lookup": "mіra",
+      "lookup_canonical": "mira",
+      "candidate_key": "Mira",
+      "canonical_key": "Mira",
+      "folded_canonical": "mira"
+    },
+    "conditions": {
+      "ordinary_filter": {
+        "actual": false,
+        "expected": false
+      },
+      "visual_collision": {
+        "actual": true,
+        "expected": true
+      }
+    },
+    "solved": true,
+    "feedback": "Collision detected. Index bucket: 8C2F. Canonical records: 1. Source registrations: 2.\nOriginal identifiers: REDACTED. Ownership reconstruction required.",
+    "principle": "The original also belongs to the many-to-one bucket."
+  },
+  {
+    "scenario": "003-the-index",
+    "command": "reconcile",
+    "name": "Cyrillic palochka collision",
+    "inputs": {
+      "candidate": "Mӏra"
+    },
+    "trace": {
+      "folded": "mӏra",
+      "lookup": "mӏra",
+      "lookup_canonical": "mira",
+      "candidate_key": "Mira",
+      "canonical_key": "Mira",
+      "folded_canonical": "mira"
+    },
+    "conditions": {
+      "ordinary_filter": {
+        "actual": false,
+        "expected": false
+      },
+      "visual_collision": {
+        "actual": true,
+        "expected": true
+      }
+    },
+    "solved": true,
+    "feedback": "Collision detected. Index bucket: 8C2F. Canonical records: 1. Source registrations: 2.\nOriginal identifiers: REDACTED. Ownership reconstruction required.",
+    "principle": "A same-script, same-length alternative still needs independent byte evidence."
+  },
+  {
+    "scenario": "003-the-index",
+    "command": "reconcile",
+    "name": "Wrong position collision attempt",
+    "inputs": {
+      "candidate": "Mirі"
+    },
+    "trace": {
+      "folded": "mirі",
+      "lookup": "mirі",
+      "lookup_canonical": "mira",
+      "candidate_key": "Miri",
+      "canonical_key": "Mira",
+      "folded_canonical": "mira"
+    },
+    "conditions": {
+      "ordinary_filter": {
+        "actual": false,
+        "expected": false
+      },
+      "visual_collision": {
+        "actual": false,
+        "expected": true
+      }
+    },
+    "solved": false,
+    "feedback": "Query rejected. No matching collision record.",
+    "principle": "A confusable substitution in a different position changes the key."
+  },
+  {
+    "scenario": "003-the-index",
+    "command": "reconcile",
+    "name": "Unrelated query",
+    "inputs": {
+      "candidate": "Z"
+    },
+    "trace": {
+      "folded": "z",
+      "lookup": "z",
+      "lookup_canonical": "mira",
+      "candidate_key": "Z",
+      "canonical_key": "Mira",
+      "folded_canonical": "mira"
+    },
+    "conditions": {
+      "ordinary_filter": {
+        "actual": false,
+        "expected": false
+      },
+      "visual_collision": {
+        "actual": false,
+        "expected": true
+      }
+    },
+    "solved": false,
+    "feedback": "Query rejected. No matching collision record.",
+    "principle": "Passing the ordinary guard alone reveals nothing."
+  },
+  {
+    "scenario": "003-the-index",
+    "command": "reconstruct",
+    "name": "Collision is not a source spelling",
+    "inputs": {
+      "id_a": "0001842",
+      "name_a": "Mira",
+      "id_b": "0002917",
+      "name_b": "Μira"
+    },
+    "trace": {
+      "bucket_key": "Mira",
+      "key_name_a": "Mira",
+      "key_name_b": "Mira",
+      "id_a_matches": true,
+      "id_b_matches": true,
+      "different_ids": true,
+      "verified_a": true,
+      "verified_b": true,
+      "same_owner": false
+    },
+    "conditions": {
+      "owners": {
+        "actual": true,
+        "expected": true
+      },
+      "distinct_names": {
+        "actual": false,
+        "expected": false
+      },
+      "key_a": {
+        "actual": true,
+        "expected": true
+      },
+      "key_b": {
+        "actual": true,
+        "expected": true
+      },
+      "exact_a": {
+        "actual": true,
+        "expected": true
+      },
+      "exact_b": {
+        "actual": false,
+        "expected": true
+      }
+    },
+    "solved": false,
+    "feedback": "Registration B: spelling differs from the verified source.",
+    "principle": "The same Greek Mu that locates the bucket fails exact source verification."
+  },
+  {
+    "scenario": "003-the-index",
+    "command": "reconstruct",
+    "name": "Wrong script at the right offset",
+    "inputs": {
+      "id_a": "0001842",
+      "name_a": "Mira",
+      "id_b": "0002917",
+      "name_b": "Mιra"
+    },
+    "trace": {
+      "bucket_key": "Mira",
+      "key_name_a": "Mira",
+      "key_name_b": "Mira",
+      "id_a_matches": true,
+      "id_b_matches": true,
+      "different_ids": true,
+      "verified_a": true,
+      "verified_b": true,
+      "same_owner": false
+    },
+    "conditions": {
+      "owners": {
+        "actual": true,
+        "expected": true
+      },
+      "distinct_names": {
+        "actual": false,
+        "expected": false
+      },
+      "key_a": {
+        "actual": true,
+        "expected": true
+      },
+      "key_b": {
+        "actual": true,
+        "expected": true
+      },
+      "exact_a": {
+        "actual": true,
+        "expected": true
+      },
+      "exact_b": {
+        "actual": false,
+        "expected": true
+      }
+    },
+    "solved": false,
+    "feedback": "Registration B: spelling differs from the verified source.",
+    "principle": "Greek iota can share the key and offset but does not match the Cyrillic source."
+  },
+  {
+    "scenario": "003-the-index",
+    "command": "reconstruct",
+    "name": "Same script and length, different lead byte",
+    "inputs": {
+      "id_a": "0001842",
+      "name_a": "Mira",
+      "id_b": "0002917",
+      "name_b": "Mӏra"
+    },
+    "trace": {
+      "bucket_key": "Mira",
+      "key_name_a": "Mira",
+      "key_name_b": "Mira",
+      "id_a_matches": true,
+      "id_b_matches": true,
+      "different_ids": true,
+      "verified_a": true,
+      "verified_b": true,
+      "same_owner": false
+    },
+    "conditions": {
+      "owners": {
+        "actual": true,
+        "expected": true
+      },
+      "distinct_names": {
+        "actual": false,
+        "expected": false
+      },
+      "key_a": {
+        "actual": true,
+        "expected": true
+      },
+      "key_b": {
+        "actual": true,
+        "expected": true
+      },
+      "exact_a": {
+        "actual": true,
+        "expected": true
+      },
+      "exact_b": {
+        "actual": false,
+        "expected": true
+      }
+    },
+    "solved": false,
+    "feedback": "Registration B: spelling differs from the verified source.",
+    "principle": "Cyrillic palochka satisfies the coarse profile but its lead byte differs."
+  },
+  {
+    "scenario": "003-the-index",
+    "command": "reconstruct",
+    "name": "Wrong differing position",
+    "inputs": {
+      "id_a": "0001842",
+      "name_a": "Mira",
+      "id_b": "0002917",
+      "name_b": "Mirі"
+    },
+    "trace": {
+      "bucket_key": "Mira",
+      "key_name_a": "Mira",
+      "key_name_b": "Miri",
+      "id_a_matches": true,
+      "id_b_matches": true,
+      "different_ids": true,
+      "verified_a": true,
+      "verified_b": true,
+      "same_owner": false
+    },
+    "conditions": {
+      "owners": {
+        "actual": true,
+        "expected": true
+      },
+      "distinct_names": {
+        "actual": false,
+        "expected": false
+      },
+      "key_a": {
+        "actual": true,
+        "expected": true
+      },
+      "key_b": {
+        "actual": false,
+        "expected": true
+      },
+      "exact_a": {
+        "actual": true,
+        "expected": true
+      },
+      "exact_b": {
+        "actual": false,
+        "expected": true
+      }
+    },
+    "solved": false,
+    "feedback": "Registration B: spelling does not belong to this collision bucket.",
+    "principle": "A Cyrillic character must occur in the correct position."
+  },
+  {
+    "scenario": "003-the-index",
+    "command": "reconstruct",
+    "name": "Swapped original names",
+    "inputs": {
+      "id_a": "0001842",
+      "name_a": "Mіra",
+      "id_b": "0002917",
+      "name_b": "Mira"
+    },
+    "trace": {
+      "bucket_key": "Mira",
+      "key_name_a": "Mira",
+      "key_name_b": "Mira",
+      "id_a_matches": true,
+      "id_b_matches": true,
+      "different_ids": true,
+      "verified_a": true,
+      "verified_b": true,
+      "same_owner": false
+    },
+    "conditions": {
+      "owners": {
+        "actual": true,
+        "expected": true
+      },
+      "distinct_names": {
+        "actual": false,
+        "expected": false
+      },
+      "key_a": {
+        "actual": true,
+        "expected": true
+      },
+      "key_b": {
+        "actual": true,
+        "expected": true
+      },
+      "exact_a": {
+        "actual": false,
+        "expected": true
+      },
+      "exact_b": {
+        "actual": false,
+        "expected": true
+      }
+    },
+    "solved": false,
+    "feedback": "Registration A: spelling differs from the verified source.",
+    "principle": "The valid spellings must match their respective records."
+  },
+  {
+    "scenario": "003-the-index",
+    "command": "reconstruct",
+    "name": "Wrong owner association",
+    "inputs": {
+      "id_a": "0002917",
+      "name_a": "Mira",
+      "id_b": "0001842",
+      "name_b": "Mіra"
+    },
+    "trace": {
+      "bucket_key": "Mira",
+      "key_name_a": "Mira",
+      "key_name_b": "Mira",
+      "id_a_matches": false,
+      "id_b_matches": false,
+      "different_ids": true,
+      "verified_a": true,
+      "verified_b": true,
+      "same_owner": false
+    },
+    "conditions": {
+      "owners": {
+        "actual": false,
+        "expected": true
+      },
+      "distinct_names": {
+        "actual": false,
+        "expected": false
+      },
+      "key_a": {
+        "actual": true,
+        "expected": true
+      },
+      "key_b": {
+        "actual": true,
+        "expected": true
+      },
+      "exact_a": {
+        "actual": true,
+        "expected": true
+      },
+      "exact_b": {
+        "actual": true,
+        "expected": true
+      }
+    },
+    "solved": false,
+    "feedback": "Ownership records could not be verified.",
+    "principle": "Even exact names do not validate swapped registration IDs. The player UI binds IDs to fixed records."
+  },
+  {
+    "scenario": "003-the-index",
+    "command": "reconstruct",
+    "name": "Duplicate owner ID",
+    "inputs": {
+      "id_a": "0001842",
+      "name_a": "Mira",
+      "id_b": "0001842",
+      "name_b": "Mіra"
+    },
+    "trace": {
+      "bucket_key": "Mira",
+      "key_name_a": "Mira",
+      "key_name_b": "Mira",
+      "id_a_matches": true,
+      "id_b_matches": false,
+      "different_ids": false,
+      "verified_a": true,
+      "verified_b": true,
+      "same_owner": false
+    },
+    "conditions": {
+      "owners": {
+        "actual": false,
+        "expected": true
+      },
+      "distinct_names": {
+        "actual": false,
+        "expected": false
+      },
+      "key_a": {
+        "actual": true,
+        "expected": true
+      },
+      "key_b": {
+        "actual": true,
+        "expected": true
+      },
+      "exact_a": {
+        "actual": true,
+        "expected": true
+      },
+      "exact_b": {
+        "actual": true,
+        "expected": true
+      }
+    },
+    "solved": false,
+    "feedback": "Ownership records could not be verified.",
+    "principle": "A binding that repeats an owner ID cannot pass."
+  },
+  {
+    "scenario": "003-the-index",
+    "command": "reconstruct",
+    "name": "Identical original names",
+    "inputs": {
+      "id_a": "0001842",
+      "name_a": "Mira",
+      "id_b": "0002917",
+      "name_b": "Mira"
+    },
+    "trace": {
+      "bucket_key": "Mira",
+      "key_name_a": "Mira",
+      "key_name_b": "Mira",
+      "id_a_matches": true,
+      "id_b_matches": true,
+      "different_ids": true,
+      "verified_a": true,
+      "verified_b": true,
+      "same_owner": false
+    },
+    "conditions": {
+      "owners": {
+        "actual": true,
+        "expected": true
+      },
+      "distinct_names": {
+        "actual": true,
+        "expected": false
+      },
+      "key_a": {
+        "actual": true,
+        "expected": true
+      },
+      "key_b": {
+        "actual": true,
+        "expected": true
+      },
+      "exact_a": {
+        "actual": true,
+        "expected": true
+      },
+      "exact_b": {
+        "actual": false,
+        "expected": true
+      }
+    },
+    "solved": false,
+    "feedback": "Reconstruction rejected. The source records have distinct spellings.",
+    "principle": "A shared key cannot replace the two distinct inputs."
+  },
+  {
+    "scenario": "003-the-index",
+    "command": "reconstruct",
+    "name": "Verified originals",
+    "inputs": {
+      "id_a": "0001842",
+      "name_a": "Mira",
+      "id_b": "0002917",
+      "name_b": "Mіra"
+    },
+    "trace": {
+      "bucket_key": "Mira",
+      "key_name_a": "Mira",
+      "key_name_b": "Mira",
+      "id_a_matches": true,
+      "id_b_matches": true,
+      "different_ids": true,
+      "verified_a": true,
+      "verified_b": true,
+      "same_owner": false
+    },
+    "conditions": {
+      "owners": {
+        "actual": true,
+        "expected": true
+      },
+      "distinct_names": {
+        "actual": false,
+        "expected": false
+      },
+      "key_a": {
+        "actual": true,
+        "expected": true
+      },
+      "key_b": {
+        "actual": true,
+        "expected": true
+      },
+      "exact_a": {
+        "actual": true,
+        "expected": true
+      },
+      "exact_b": {
+        "actual": true,
+        "expected": true
+      }
+    },
+    "solved": true,
+    "feedback": "Reconstruction verified. Source registrations: 2. Independent owners: 2. Canonical index entries: 1.",
+    "principle": "Both exact names and both verified owner associations are required."
+  }
+]

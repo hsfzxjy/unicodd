@@ -20,6 +20,8 @@ enum Operation<'a> {
     Concat,
     Normalize(Form),
     CodePointLength,
+    Utf16Length,
+    Utf8Length,
     RemoveCodePoint,
     CaseFold,
     Skeleton,
@@ -31,6 +33,7 @@ enum Operation<'a> {
     Or,
     BooleanEqual,
     IntegerEqual,
+    IntegerLessOrEqual,
 }
 
 impl Operation<'_> {
@@ -44,10 +47,10 @@ impl Operation<'_> {
             Self::Concat => (&[Text, Text], Text),
             Self::Normalize(_) | Self::CaseFold | Self::Skeleton => (&[Text], Text),
             Self::RemoveCodePoint => (&[Text, Integer], Text),
-            Self::CodePointLength => (&[Text], Integer),
+            Self::CodePointLength | Self::Utf16Length | Self::Utf8Length => (&[Text], Integer),
             Self::Not => (&[Boolean], Boolean),
             Self::And | Self::Or | Self::BooleanEqual => (&[Boolean, Boolean], Boolean),
-            Self::IntegerEqual => (&[Integer, Integer], Boolean),
+            Self::IntegerEqual | Self::IntegerLessOrEqual => (&[Integer, Integer], Boolean),
         }
     }
 }
@@ -101,6 +104,8 @@ fn operation(node: &Node) -> Result<Operation<'_>, EngineError> {
         "skeleton" => Operation::Skeleton,
         "remove_code_point" => Operation::RemoveCodePoint,
         "codePointLength" => Operation::CodePointLength,
+        "utf16_length" => Operation::Utf16Length,
+        "utf8_length" => Operation::Utf8Length,
         "contains" => Operation::Contains,
         "startsWith" => Operation::StartsWith,
         "endsWith" => Operation::EndsWith,
@@ -109,6 +114,7 @@ fn operation(node: &Node) -> Result<Operation<'_>, EngineError> {
         "or" => Operation::Or,
         "booleanEqual" => Operation::BooleanEqual,
         "integerEqual" => Operation::IntegerEqual,
+        "integerLessOrEqual" => Operation::IntegerLessOrEqual,
         _ => {
             return Err(EngineError::new(
                 ErrorCode::UnsupportedOperation,
@@ -362,6 +368,10 @@ fn run(
                     .collect(),
             ))
         }
+        (Utf16Length, [Some(Value::Text(text))]) => {
+            Ok(Value::Integer(text.encode_utf16().count() as u64))
+        }
+        (Utf8Length, [Some(Value::Text(text))]) => Ok(Value::Integer(text.len() as u64)),
         (CodePointLength, [Some(Value::Text(text))]) => {
             Ok(Value::Integer(text.chars().count() as u64))
         }
@@ -370,6 +380,9 @@ fn run(
         (Or, [Some(Value::Boolean(a)), Some(Value::Boolean(b))]) => Ok(Value::Boolean(*a || *b)),
         (BooleanEqual, [Some(Value::Boolean(a)), Some(Value::Boolean(b))]) => {
             Ok(Value::Boolean(a == b))
+        }
+        (IntegerLessOrEqual, [Some(Value::Integer(a)), Some(Value::Integer(b))]) => {
+            Ok(Value::Boolean(a <= b))
         }
         (IntegerEqual, [Some(Value::Integer(a)), Some(Value::Integer(b))]) => {
             Ok(Value::Boolean(a == b))

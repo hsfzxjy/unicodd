@@ -3,4 +3,8 @@ DELIVERY NOTICE 2917
 Destination registration: 0002917
 Legacy delivery alias: Mira
 Disposition at intake: QUARANTINED
+Header recipient field captured: 7 UTF-8 bytes
+Original header and envelope: NOT RETAINED
 Body retained for manual delivery.
+
+Replay checks the recorded header size for this notice. The envelope is rebuilt for transport.

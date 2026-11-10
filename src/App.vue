@@ -1,12 +1,22 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+import {
+  computed,
+  nextTick,
+  onMounted,
+  onUnmounted,
+  reactive,
+  ref,
+  shallowReactive,
+  shallowRef,
+  watch,
+} from 'vue'
 import PayloadEditor from './components/PayloadEditor.vue'
 import Terminal, { type Entry } from './components/Terminal.vue'
 import { createCampaign } from './lib/campaign'
-import { actionCommand } from './lib/commands'
+import { actionCommand, puzzleAction } from './lib/commands'
 import type { createContentLoader, ScenarioEntry } from './lib/content'
 import { createRuntime, type Action, type Link, type Session } from './lib/runtime'
-import type { Scenario } from './lib/scenario'
+import { puzzleArity, type PuzzleCommand, type PuzzleField, type Scenario } from './lib/scenario'
 import { copyText, decodeUnicodeEscapes } from './lib/unicode'
 import type { Engine } from './types'
 
@@ -31,14 +41,30 @@ const narrow = ref(narrowViewport.matches)
 const sessionExpanded = ref(false)
 const application = ref<HTMLElement>()
 const terminal = ref<InstanceType<typeof Terminal>>()
-const editor = ref<InstanceType<typeof PayloadEditor>>()
+const editors = shallowReactive(new Map<string, InstanceType<typeof PayloadEditor>>())
+const activeInput = ref('')
+const lastEditing = ref<PuzzleCommand>()
 const loginSubmit = ref<HTMLButtonElement>()
-const alias = ref('')
-const drafts = new Map<string, string>()
+const drafts = reactive(new Map<string, string>())
 const transcript = shallowRef<Entry[]>([])
 const prompt = computed(() => session.value?.host?.id ?? 'local')
-const operation = computed(() => session.value?.host?.operation)
-const draftKey = () => JSON.stringify([scenarioId.value, session.value?.host?.id])
+const operation = computed(() =>
+  session.value?.host?.operations.find(
+    ({ command }) => command === (session.value?.editing || lastEditing.value),
+  ),
+)
+const fixedFields = computed(
+  () => operation.value?.fields.filter(({ fixed }) => fixed !== undefined) ?? [],
+)
+const editable = computed(
+  () => operation.value?.fields.filter(({ fixed }) => fixed === undefined) ?? [],
+)
+const activeField = computed(
+  () => editable.value.find(({ input }) => input === activeInput.value) ?? editable.value[0],
+)
+const editor = computed(() => activeField.value && editors.get(activeField.value.input))
+const draftKey = (input: string) =>
+  JSON.stringify([scenarioId.value, session.value?.host?.id, operation.value?.command, input])
 let runtime: ReturnType<typeof createRuntime> | undefined
 let sequence = 0
 const canInsertPayload = computed(() => Boolean(session.value?.editing) && !composing.value)
@@ -52,18 +78,22 @@ function updateLayout() {
   narrow.value = narrowViewport.matches
 }
 function fitViewport() {
-  if (viewport?.scale === 1 && viewport.height < document.documentElement.clientHeight)
-    application.value?.style.setProperty('--app-height', `${viewport.height}px`)
+  const layoutHeight = document.documentElement.clientHeight
+  const height = viewport?.scale === 1 ? viewport.height : layoutHeight
+  application.value?.classList.toggle('short-viewport', height <= 540)
+  if (height < layoutHeight) application.value?.style.setProperty('--app-height', `${height}px`)
   else application.value?.style.removeProperty('--app-height')
 }
 onMounted(() => {
   fitViewport()
   narrowViewport.addEventListener('change', updateLayout)
-  viewport?.addEventListener('resize', fitViewport)
+  if (viewport) viewport.addEventListener('resize', fitViewport)
+  else window.addEventListener('resize', fitViewport)
 })
 onUnmounted(() => {
   narrowViewport.removeEventListener('change', updateLayout)
-  viewport?.removeEventListener('resize', fitViewport)
+  if (viewport) viewport.removeEventListener('resize', fitViewport)
+  else window.removeEventListener('resize', fitViewport)
 })
 
 const shortcuts = computed((): Link[] => {
@@ -72,9 +102,10 @@ const shortcuts = computed((): Link[] => {
   if (campaign?.hasInbox) actions.push({ label: 'Mail', action: { type: 'mail' } })
   if (session.value.host) {
     actions.push({ label: 'Files', action: { type: 'ls' } })
-    const operation = runtime?.operation
-    if (operation && !session.value.editing)
-      actions.push({ label: operation.actionLabel, action: { type: operation.command } })
+    if (!session.value.editing) {
+      for (const operation of runtime?.operations ?? [])
+        actions.push({ label: operation.actionLabel, action: puzzleAction(operation.command) })
+    }
     if (session.value.identity !== session.value.host.guest)
       actions.push({ label: 'Logout', action: { type: 'logout' } })
   }
@@ -123,28 +154,36 @@ watch([scenarioId, attempt], ([id]) => {
   runtime = createRuntime(loaded, props.engine, campaign)
   scenario.value = loaded
   session.value = runtime.state
-  alias.value = drafts.get(draftKey()) ?? operation.value?.initial ?? ''
+  activeInput.value = ''
+  lastEditing.value = undefined
   transcript.value = [{ id: sequence++, output: runtime.welcome() }]
   void nextTick(() => terminal.value?.scrollToEnd())
 })
 void loadCatalog()
 
-function setDraft(value: string) {
-  alias.value = value
-  drafts.set(draftKey(), value)
+function draft(field: PuzzleField) {
+  return drafts.get(draftKey(field.input)) ?? field.initial
+}
+
+function setEditor(input: string, instance: unknown) {
+  if (instance) editors.set(input, instance as InstanceType<typeof PayloadEditor>)
+  else editors.delete(input)
 }
 
 function submitPayload() {
   const command = operation.value?.command
   if (composing.value || !command) return
-  const decoded = decodeUnicodeEscapes(alias.value)
-  return dispatch(
-    'error' in decoded
-      ? { type: 'invalid', message: decoded.error }
-      : command === 'login'
-        ? { type: command, alias: decoded.text }
-        : { type: command, payload: decoded.text },
-  )
+  const values: string[] = []
+  for (const field of editable.value) {
+    const decoded = decodeUnicodeEscapes(draft(field))
+    if ('error' in decoded)
+      return dispatch({
+        type: 'invalid',
+        message: editable.value.length === 1 ? decoded.error : field.label + ' · ' + decoded.error,
+      })
+    values.push(decoded.text)
+  }
+  return dispatch(puzzleAction(command, values))
 }
 
 function echoText(value: string) {
@@ -156,7 +195,7 @@ async function dispatch(action: Action, command?: string) {
   if (
     !active ||
     busy.value ||
-    (composing.value && (action.type === operation.value?.command || action.type === 'editPayload'))
+    (composing.value && (Object.hasOwn(puzzleArity, action.type) || action.type === 'editPayload'))
   )
     return
   if (
@@ -210,11 +249,16 @@ async function dispatch(action: Action, command?: string) {
   session.value = active.state
   if (!active.state.editing) composing.value = false
   if (action.type === 'reset') {
-    for (const host of scenario.value?.hosts ?? [])
-      drafts.delete(JSON.stringify([scenarioId.value, host.id]))
+    const prefix = JSON.stringify([id]).slice(0, -1) + ','
+    for (const key of drafts.keys()) if (key.startsWith(prefix)) drafts.delete(key)
   }
   if (before.host !== active.state.host || action.type === 'reset') {
-    alias.value = drafts.get(draftKey()) ?? operation.value?.initial ?? ''
+    lastEditing.value = undefined
+    activeInput.value = ''
+  }
+  if (active.state.editing && lastEditing.value !== active.state.editing) {
+    lastEditing.value = active.state.editing
+    activeInput.value = ''
   }
   const echo = command ?? actionCommand(action)
   if (response.clear) {
@@ -253,9 +297,7 @@ async function dispatch(action: Action, command?: string) {
   } else if (editorFocused && before.editing && !active.state.editing) {
     await nextTick()
     if (runtime === active)
-      terminal.value?.focusAction(
-        action.type === 'closeEditor' ? (operation.value?.command ?? 'ls') : 'ls',
-      )
+      terminal.value?.focusAction(action.type === 'closeEditor' ? before.editing || 'ls' : 'ls')
   }
 }
 </script>
@@ -327,18 +369,28 @@ async function dispatch(action: Action, command?: string) {
           <form
             v-if="operation"
             v-show="session.editing"
-            :key="session.host?.id"
+            :key="session.host?.id + '/' + operation.command"
             class="alias-editor"
+            :class="{ 'multi-payload': editable.length > 1 }"
             :aria-label="
               operation.command === 'login' ? 'Login editor' : operation.label + ' editor'
             "
             @submit.prevent="submitPayload"
           >
+            <div v-if="fixedFields.length" class="fixed-fields meta">
+              <span v-for="{ input, label, fixed } in fixedFields" :key="input">
+                <bdi>{{ label }}</bdi> <bdi>{{ fixed }}</bdi>
+              </span>
+            </div>
             <PayloadEditor
-              ref="editor"
-              :label="operation.label"
-              :model-value="alias"
-              @update:model-value="setDraft"
+              v-for="field in editable"
+              :key="field.input"
+              :ref="(instance) => setEditor(field.input, instance)"
+              :label="field.label"
+              :model-value="draft(field)"
+              :active="activeField?.input === field.input"
+              @update:model-value="drafts.set(draftKey(field.input), $event)"
+              @activate="activeInput = field.input"
               @composition="composing = $event"
               @inspect="dispatch({ type: 'inspect', character: $event })"
             />

@@ -10,7 +10,15 @@ export interface Guard {
   flag?: string
 }
 
-export type PuzzleCommand = 'login' | 'route' | 'reconcile'
+export const puzzleArity = { login: 1, route: 2, reconcile: 1, reconstruct: 2 } as const
+export type PuzzleCommand = keyof typeof puzzleArity
+
+export interface PuzzleField {
+  input: string
+  label: string
+  initial: string
+  fixed?: string
+}
 
 export type ProgressEffect =
   { type: 'discover'; scenario: string } | { type: 'deliverMail'; message: string }
@@ -53,13 +61,12 @@ export interface PuzzleBinding {
   actionLabel: string
   submitLabel: string
   label: string
-  input: string
-  initial: string
+  fields: PuzzleField[]
   program: Program
   access?: Guard
   success: Effect[]
   failure: string
-  rejected: { check: string; message: string }[]
+  rejected: { check: string; message: string; stage?: string }[]
 }
 
 export interface Host {
@@ -69,7 +76,7 @@ export interface Host {
   welcome: string
   discover?: string
   resources: Resource[]
-  operation?: PuzzleBinding
+  operations: PuzzleBinding[]
   status: { label: string; value: string; after?: { flag: string; value: string } }[]
 }
 

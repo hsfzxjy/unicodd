@@ -3,7 +3,7 @@
   "inputs": ["alias"],
   "nodes": [
     {
-      "id": "raw",
+      "id": "alias",
       "op": "input",
       "input": "alias"
     },
@@ -16,26 +16,75 @@
       }
     },
     {
+      "id": "five",
+      "op": "literal",
+      "value": {
+        "type": "integer",
+        "value": 5
+      }
+    },
+    {
+      "id": "six",
+      "op": "literal",
+      "value": {
+        "type": "integer",
+        "value": 6
+      }
+    },
+    {
+      "id": "eight",
+      "op": "literal",
+      "value": {
+        "type": "integer",
+        "value": 8
+      }
+    },
+    {
       "id": "canonical",
       "op": "normalize",
-      "args": ["raw"],
+      "args": ["alias"],
       "form": "NFC"
     },
     {
       "id": "compatibility",
       "op": "normalize",
-      "args": ["raw"],
+      "args": ["alias"],
       "form": "NFKC"
     },
     {
-      "id": "raw_match",
-      "op": "textEqual",
-      "args": ["raw", "reserved"]
+      "id": "scalars",
+      "op": "codePointLength",
+      "args": ["alias"]
+    },
+    {
+      "id": "units",
+      "op": "utf16_length",
+      "args": ["alias"]
+    },
+    {
+      "id": "bytes",
+      "op": "utf8_length",
+      "args": ["alias"]
     },
     {
       "id": "canonical_match",
       "op": "textEqual",
       "args": ["canonical", "reserved"]
+    },
+    {
+      "id": "scalars_match",
+      "op": "integerEqual",
+      "args": ["scalars", "five"]
+    },
+    {
+      "id": "units_match",
+      "op": "integerEqual",
+      "args": ["units", "six"]
+    },
+    {
+      "id": "fits_transport",
+      "op": "integerLessOrEqual",
+      "args": ["bytes", "eight"]
     },
     {
       "id": "resolved",
@@ -45,14 +94,24 @@
   ],
   "checks": [
     {
-      "id": "raw_reserved",
-      "node": "raw_match",
-      "expected": false
-    },
-    {
       "id": "canonical_reserved",
       "node": "canonical_match",
       "expected": false
+    },
+    {
+      "id": "decoded_count",
+      "node": "scalars_match",
+      "expected": true
+    },
+    {
+      "id": "legacy_units",
+      "node": "units_match",
+      "expected": true
+    },
+    {
+      "id": "transport_capacity",
+      "node": "fits_transport",
+      "expected": true
     },
     {
       "id": "resolved_identity",

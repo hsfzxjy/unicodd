@@ -5,7 +5,8 @@
       "from": "Mara / Security",
       "to": "Nia / Messaging",
       "subject": "Temporary delivery hold",
-      "body": "Please suspend deliveries addressed to Mira until incident 8C2F is resolved. Two verified registrations show up under one identity.\n\nI don't want either user receiving the other's recovery messages. Please keep the notices in the queue so we can deliver them when the records are sorted out."
+      "body": "Please suspend deliveries addressed to Mira until incident 8C2F is resolved. Two verified registrations show up under one identity. I don't want either user receiving the other's recovery messages.\n\nThe 2.7.4 adapter compares the normalized header. Please keep the notices in the queue so we can deliver them when the records are sorted out.",
+      "date": "2026-08-12"
     }
   ]
 }

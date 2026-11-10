@@ -1,0 +1,12 @@
+POSTBOX-03 / ROLLOUT RECORD
+Active profile: 2.8.1-r1
+
+2026-08-12  2.7.4     Quarantine compared the normalized header.
+2026-08-19  2.8.0     Header cleanup moved to the delivery resolver to repair imported contacts.
+2026-08-20  2.8.1-r1  Rolled back the quarantine adapter to its raw-header input. Resolver cleanup remains enabled.
+                       Envelope gateway and transport unchanged.
+
+Observed current order
+  Header     raw hold check -> resolver cleanup -> captured-size validation
+  Envelope  canonical guard -> transport capacity -> compatibility lookup
+  Delivery  compare destinations from both lookups

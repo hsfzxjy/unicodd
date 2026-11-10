@@ -24,7 +24,7 @@ it('keeps campaign progression and inbox separate from replayable sessions', asy
   expect(campaign.destinations()).toEqual([relay])
   expect(await run('scenario ' + dead.id)).toMatchObject({ output: [{ kind: 'error' }] })
   await run('connect relay-07')
-  await run('login ＭＡＩＮＴ')
+  await run('login \u{1D40C}AINT')
   expect(campaign.completed(relay.id)).toBe(false)
   await run('cat /queue/8c2f.msg')
   expect(campaign.destinations()).toEqual([relay, dead])
@@ -33,7 +33,7 @@ it('keeps campaign progression and inbox separate from replayable sessions', asy
   expect(runtime.state.completed).toBe(false)
   expect(campaign.completed(relay.id)).toBe(true)
   await run('connect relay-07')
-  await run('login ＭＡＩＮＴ')
+  await run('login \u{1D40C}AINT')
   expect((await run('cat /queue/8c2f.msg')).output?.map(({ kind }) => kind)).toEqual([
     'file',
     'objective',
@@ -53,13 +53,13 @@ it('keeps campaign progression and inbox separate from replayable sessions', asy
   expect(await run('cat /spool/2917.msg')).toMatchObject({ output: [{ kind: 'file' }] })
   expect(await run('cat /delivered/2917.msg')).toMatchObject({ output: [{ kind: 'error' }] })
   expect(await run('route')).toEqual({ edit: true })
-  expect(await run('route Mira')).toMatchObject({
+  expect(await run('route Mira Mira')).toMatchObject({
     output: [{ text: expect.stringContaining('under delivery hold') }],
   })
-  expect(await run('route Other')).toMatchObject({
+  expect(await run('route Other Mira')).toMatchObject({
     output: [{ text: expect.stringContaining('could not be resolved') }],
   })
-  await run(String.raw`route Mi\u00200B\u00200Bra`)
+  await run(String.raw`route Mi\u00200Bra \u00FF2Dira`)
   expect(runtime.state.flags).toContain('released')
   expect(runtime.state.completed).toBe(false)
   await run('cat /delivered/2917.msg')
@@ -86,6 +86,12 @@ it('keeps campaign progression and inbox separate from replayable sessions', asy
   })
   const candidate = '\u039cira'
   await run('reconcile ' + candidate)
+  expect(runtime.state.flags).toEqual(['bucket_found'])
+  expect(await run(exportPath)).toMatchObject({ output: [{ kind: 'error' }] })
+  expect(await run('reconstruct Mira ' + candidate)).toMatchObject({
+    output: [{ text: 'Registration B: spelling differs from the verified source.' }],
+  })
+  await run(String.raw`reconstruct Mira M\u000456ra`)
   expect(runtime.state.flags).toContain('export_ready')
   expect(runtime.state.completed).toBe(false)
   expect(campaign.finished).toBe(false)
@@ -111,6 +117,7 @@ it('keeps campaign progression and inbox separate from replayable sessions', asy
   expect(await run(exportPath)).toMatchObject({ output: [{ kind: 'file' }] })
   await runtime.dispatch({ type: 'reset' })
   await run(String.raw`reconcile M\u000456ra`)
+  await run(String.raw`reconstruct Mira M\u000456ra`)
   expect((await run(exportPath)).output?.map(({ kind }) => kind)).toEqual(['file', 'objective'])
   const restored = createCampaign(scenarios, disk)
   expect(restored.current).toBe(index.id)

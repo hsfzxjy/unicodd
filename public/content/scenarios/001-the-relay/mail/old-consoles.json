@@ -5,7 +5,7 @@
       "from": "Eli / Terminal Operations",
       "to": "Rowan / Directory Team",
       "subject": "Old consoles again",
-      "body": "The replacement terminals arrived today.\n\nThe old operator consoles have a different character layout. Some of the keys produce letters that look ordinary on screen, but don't match the bytes from our new keyboards.\n\nPlease tell me the new account service will still recognize existing operator names.\n\nWe really cannot ask everyone to rename their accounts again.\n\n— Eli"
+      "body": "The replacement terminals arrived today. The old keycaps look ordinary but send different code points. Operators also copy account labels out of the original PDF. Its styled letters survived copy and paste.\n\nI left the keypad card and the PDF type proof under /notes. Could the new directory accept both sources? We can't ask everyone to rename their accounts again.\n\n- Eli"
     }
   ]
 }

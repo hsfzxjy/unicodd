@@ -9,6 +9,8 @@ import { createCampaign } from './campaign.ts'
 import { actionCommand, commandHelp } from './commands.ts'
 import {
   parentPath,
+  puzzleArity,
+  type PuzzleCommand,
   type Effect,
   type Guard,
   type Host,
@@ -37,7 +39,8 @@ export type Action =
   | { type: 'cat'; path: string }
   | { type: 'mail'; id?: string }
   | { type: 'login'; alias?: string }
-  | { type: 'route' | 'reconcile'; payload?: string }
+  | { type: 'reconcile'; payload?: string }
+  | { type: 'route' | 'reconstruct'; payloads?: string[] }
   | { type: 'scenario'; id: string }
   | { type: 'inspect'; character?: string }
   | { type: 'copy'; text: string }
@@ -73,7 +76,7 @@ export interface Session {
   identity: Identity
   flags: readonly string[]
   completed: boolean
-  editing: boolean
+  editing: PuzzleCommand | false
   deliveredMail: readonly string[]
   readMail: readonly string[]
 }
@@ -187,20 +190,16 @@ export function createRuntime(
     }))
   }
 
-  function availableOperation() {
-    const operation = state.host?.operation
-    return operation && allows(operation.access) ? operation : undefined
+  function availableOperations() {
+    return (state.host?.operations ?? []).filter(({ access }) => allows(access))
   }
 
   function commands() {
+    const available = new Set<string>(availableOperations().map(({ command }) => command))
     return commandHelp
       .map(([usage]) => usage.split(' ')[0])
       .filter((command) => command !== 'mail' || campaign.hasInbox)
-      .filter(
-        (command) =>
-          !['login', 'route', 'reconcile'].includes(command) ||
-          command === availableOperation()?.command,
-      )
+      .filter((command) => !Object.hasOwn(puzzleArity, command) || available.has(command))
   }
 
   function suggestions(): string[] {
@@ -371,33 +370,56 @@ export function createRuntime(
         return { output: [message(`Session returned to ${state.identity.user}.`)] }
       case 'login':
       case 'route':
+      case 'reconstruct':
       case 'reconcile': {
-        const binding = availableOperation()
-        if (!binding || binding.command !== action.type)
-          return error(`${action.type} is unavailable with the current access.`)
-        const payload = action.type === 'login' ? action.alias : action.payload
+        const binding = availableOperations().find(({ command }) => command === action.type)
+        if (!binding) return error(`${action.type} is unavailable with the current access.`)
+        const payload =
+          action.type === 'login'
+            ? action.alias
+            : action.type === 'reconcile'
+              ? action.payload
+              : action.payloads
         if (payload === undefined) {
-          state = { ...state, editing: true }
+          state = { ...state, editing: action.type }
           return { edit: true }
         }
+        const values = typeof payload === 'string' ? [payload] : payload
+        if (values.length !== puzzleArity[action.type])
+          return error('Supply all arguments for this operation.')
+        let index = 0
+        const inputs = Object.fromEntries(
+          binding.fields.map(({ input, fixed }) => [input, fixed ?? values[index++]]),
+        )
         const before = state
         pending = before
         try {
-          const result = await engine.evaluate(binding.program, { [binding.input]: payload })
+          const result = await engine.evaluate(binding.program, inputs)
           if (state !== before) return {}
           if (!result.ok) {
             const { error: issue } = result
+            const field = binding.fields.find(({ input }) => issue.path === 'inputs.' + input)
             return error(
               issue.code === 'invalid_input' && issue.offset !== undefined
-                ? 'This payload contains an unpaired surrogate. Open Code points to find and remove it.'
+                ? (field?.label ?? 'Payload') +
+                    ' contains an unpaired surrogate. Open Code points to find and remove it.'
                 : `${issue.code} · ${issue.message}`,
             )
           }
           if (!result.value.solved) {
-            const feedback = binding.rejected.find(({ check }) =>
-              result.value.checks.some(({ id, passed }) => id === check && !passed),
-            )
-            return { output: [{ kind: 'error', text: feedback?.message ?? binding.failure }] }
+            const messages = new Map<string | undefined, string>()
+            for (const { check, message, stage } of binding.rejected) {
+              if (
+                !messages.has(stage) &&
+                result.value.checks.some(({ id, passed }) => id === check && !passed)
+              )
+                messages.set(stage, message)
+            }
+            return {
+              output: [
+                { kind: 'error', text: [...messages.values()].join('\n') || binding.failure },
+              ],
+            }
           }
           const output: Output[] = []
           apply(binding.success, output, action.type === 'login' ? 'auth' : 'message')
@@ -459,8 +481,8 @@ export function createRuntime(
     get state() {
       return state
     },
-    get operation() {
-      return availableOperation()
+    get operations() {
+      return availableOperations()
     },
     welcome,
     suggestions,

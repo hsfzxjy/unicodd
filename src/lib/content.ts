@@ -1,6 +1,7 @@
 import type { Engine, EngineError, Program } from '../types.ts'
 import {
   parentPath,
+  puzzleArity,
   type Effect,
   type Guard,
   type Host,
@@ -284,28 +285,61 @@ export function createContentLoader(
           'success',
           'failure',
           'rejected',
-          ...(legacy ? [] : ['command', 'actionLabel', 'submitLabel']),
+          ...(legacy ? [] : ['command', 'actionLabel', 'submitLabel', 'fields']),
         )
         const command: PuzzleCommand = legacy
           ? 'login'
-          : get('command').ref(['login', 'route', 'reconcile'] as const, 'puzzle command')
+          : get('command').ref(Object.keys(puzzleArity) as PuzzleCommand[], 'puzzle command')
         const label = get('label').text()
         const initial = get('initial').optional((item) => item.text(true)) ?? ''
         const path = folder + get('puzzle').asset(true)
         if (!programs.has(path)) programs.set(path, loadProgram(path))
         const program = await programs.get(path)!
-        const input = get('input').ref(program.inputs, 'puzzle input')
-        if (program.inputs.length !== 1)
-          get('puzzle').fail('Puzzle bindings must declare exactly one input.')
-        const baseline = await engine.evaluate(program, { [input]: initial })
+        const seen = new Set<string>()
+        const fields = get('fields').optional((list) =>
+          list.list((field) => {
+            const get = field.object('input', 'label', 'initial', 'fixed')
+            const input = get('input').unique(
+              seen,
+              get('input').ref(program.inputs, 'puzzle input'),
+            )
+            const fixed = get('fixed').optional((item) => item.text())
+            if (fixed !== undefined && get('initial').value !== undefined)
+              get('initial').fail('Fixed fields cannot have a draft.')
+            return {
+              input,
+              label: get('label').text(),
+              fixed,
+              initial: get('initial').optional((item) => item.text(true)) ?? '',
+            }
+          }),
+        )
+        if (fields && (get('input').value !== undefined || get('initial').value !== undefined))
+          field.fail('Use fields or the single-input shorthand.')
+        const bound = fields ?? [
+          {
+            input: get('input').ref(program.inputs, 'puzzle input'),
+            label,
+            initial,
+            fixed: undefined,
+          },
+        ]
+        if (
+          bound.length !== program.inputs.length ||
+          bound.filter((field) => field.fixed === undefined).length !== puzzleArity[command]
+        )
+          field.fail('Bind every puzzle input and match the command argument count.')
+        const baseline = await engine.evaluate(
+          program,
+          Object.fromEntries(bound.map((field) => [field.input, field.fixed ?? field.initial])),
+        )
         if (!baseline.ok) engineFailure(path, baseline.error)
         return {
           command,
           actionLabel: legacy ? 'Login' : get('actionLabel').text(),
           submitLabel: legacy ? 'Submit login' : get('submitLabel').text(),
           label,
-          input,
-          initial,
+          fields: bound,
           program,
           access: get('access').optional(guard),
           success: effects(get('success')),
@@ -313,13 +347,14 @@ export function createContentLoader(
           rejected:
             get('rejected').optional((field) =>
               field.list((item) => {
-                const get = item.object('check', 'message')
+                const get = item.object('check', 'message', 'stage')
                 return {
                   check: get('check').ref(
                     program.checks.map(({ id }) => id),
                     'puzzle check',
                   ),
                   message: get('message').text(),
+                  stage: get('stage').optional((item) => item.id()),
                 }
               }),
             ) ?? [],
@@ -340,10 +375,14 @@ export function createContentLoader(
           'resources',
           'login',
           'operation',
+          'operations',
           'status',
         )
-        if (get('login').value !== undefined && get('operation').value !== undefined)
-          get('operation').fail('Define one puzzle binding per host.')
+        if (
+          ['login', 'operation', 'operations'].filter((key) => get(key).value !== undefined)
+            .length > 1
+        )
+          field.fail('Use one binding declaration format per host.')
         const id = get('id').unique(hostIds)
         const paths = new Map<string, string>()
         const resources = await Promise.all(
@@ -441,11 +480,18 @@ export function createContentLoader(
           if (parent !== '/' && paths.get(parent) !== 'directory')
             get('resources').fail(`${resource.path} requires a directory at ${parent}.`)
         }
-        const operation =
+        const single =
           (await get('login').optional((item) => binding(item, true))) ??
           (await get('operation').optional((item) => binding(item, false)))
+        const operations = single
+          ? [single]
+          : await Promise.all(
+              get('operations').optional((list) => list.list((item) => binding(item, false))) ?? [],
+            )
+        if (new Set(operations.map(({ command }) => command)).size !== operations.length)
+          get('operations').fail('Duplicate puzzle command.')
         for (const effect of [
-          ...(operation?.success ?? []),
+          ...operations.flatMap((item) => item.success),
           ...resources.flatMap((resource) =>
             resource.type === 'directory' ? [] : resource.onRead,
           ),
@@ -474,7 +520,7 @@ export function createContentLoader(
           welcome: get('welcome').text(),
           discover: get('discover').optional((item) => item.ref(flags, 'flag')),
           resources,
-          operation,
+          operations,
           status,
         }
       }

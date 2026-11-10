@@ -1,0 +1,6 @@
+TRANSPORT / ADDRESS CARD
+Legacy terminals accepted width variants when an operator copied a label from the printed route sheet.
+
+Ｍｉｒａ
+
+Reference glyphs from the envelope regression corpus.

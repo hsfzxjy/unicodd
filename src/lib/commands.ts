@@ -1,4 +1,5 @@
 import type { Action } from './runtime.ts'
+import { puzzleArity, type PuzzleCommand } from './scenario.ts'
 import { readUnicodeEscape } from './unicode.ts'
 
 export const commandHelp = [
@@ -10,8 +11,9 @@ export const commandHelp = [
   ['cat <path>', 'Read a file.'],
   ['whoami', 'Show the current identity.'],
   ['login [alias]', 'Open the alias editor or submit an alias.'],
-  ['route [recipient]', 'Open the recipient editor or route a message.'],
+  ['route [header envelope]', 'Open the recipient editor or submit both recipients.'],
   ['reconcile [candidate]', 'Open the identifier editor or query a collision.'],
+  ['reconstruct [name-a name-b]', 'Open the record editor or submit both original names.'],
   ['campaign', 'List discovered destinations.'],
   ['scenario <id>', 'Enter a discovered scenario.'],
   ['logout', 'Return to guest access.'],
@@ -68,6 +70,12 @@ export function parseCommand(source: string): Action | undefined {
   const help = commandHelp.find(([usage]) => usage.split(' ')[0] === command)
   if (!help)
     return { type: 'invalid', message: `Unknown command "${command}". Type help for commands.` }
+  if (Object.hasOwn(puzzleArity, command)) {
+    const verb = command as PuzzleCommand
+    if (args.length !== 1 && args.length !== puzzleArity[verb] + 1)
+      return { type: 'invalid', message: `Usage: ${help[0]}` }
+    return puzzleAction(verb, args.length > 1 ? args.slice(1) : undefined)
+  }
   const minimum = help[0].includes('<') ? 2 : 1
   const maximum = help[0].includes(' ') ? 2 : 1
   if (args.length < minimum || args.length > maximum)
@@ -81,11 +89,6 @@ export function parseCommand(source: string): Action | undefined {
       return { type: 'cat', path: argument }
     case 'mail':
       return { type: 'mail', id: argument }
-    case 'login':
-      return { type: 'login', alias: argument }
-    case 'route':
-    case 'reconcile':
-      return { type: command, payload: argument }
     case 'scenario':
       return { type: 'scenario', id: argument }
     case 'campaign':
@@ -98,6 +101,17 @@ export function parseCommand(source: string): Action | undefined {
     case 'logout':
     case 'clear':
       return { type: command }
+  }
+}
+
+export function puzzleAction(command: PuzzleCommand, values?: string[]): Action {
+  switch (command) {
+    case 'login':
+      return { type: command, alias: values?.[0] }
+    case 'reconcile':
+      return { type: command, payload: values?.[0] }
+    default:
+      return { type: command, payloads: values }
   }
 }
 
@@ -153,6 +167,8 @@ export function actionCommand(action: Action): string | undefined {
     case 'login':
       return action.alias === undefined ? 'login' : `login ${quote(action.alias)}`
     case 'route':
+    case 'reconstruct':
+      return [action.type, ...(action.payloads?.map(quote) ?? [])].join(' ')
     case 'reconcile':
       return action.payload === undefined ? action.type : `${action.type} ${quote(action.payload)}`
     case 'scenario':

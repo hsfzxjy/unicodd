@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { routeFixtures } from './content-routes'
 
-const fullwidth = 'ＭＡＩＮＴ'
+const compatible = '\u{1D40C}AINT'
 const terminal = (page: Page) => page.getByRole('log', { name: 'Terminal transcript' })
 const quick = (page: Page, name: string) =>
   page.getByRole('group', { name: 'Quick actions' }).getByRole('button', { name, exact: true })
@@ -63,7 +63,7 @@ test('plays the entire Relay through graphical actions and restores only objecti
     '03-maintenance-policy',
   ])
   await link(page, '01-old-consoles').click()
-  await expect(mail(page, '/mail/01-old-consoles')).toContainText('different character layout')
+  await expect(mail(page, '/mail/01-old-consoles')).toContainText('different code points')
   await link(page, '02-login-compatibility').click()
   await expect(mail(page, '/mail/02-login-compatibility').getByRole('article')).toHaveCount(2)
   await expect(mail(page, '/mail/02-login-compatibility')).toContainText('next maintenance window')
@@ -72,23 +72,25 @@ test('plays the entire Relay through graphical actions and restores only objecti
   await page.getByRole('button', { name: 'Submit login' }).click()
   await expect(terminal(page)).toContainText('Reserved account name')
   await expect(alias(page)).toHaveValue('MAINT')
-  await alias(page).fill('ＡＩＮＴ')
+  await alias(page).fill('AINT')
   await alias(page).press('Home')
   await quick(page, 'Files').click()
   await link(page, 'notes/').click()
-  await link(page, 'keypad.txt').click()
+  await link(page, 'maintenance-frame.txt').click()
+  await expect(terminal(page)).toContainText('6 UTF-16 units')
+  await link(page, 'print-samples.txt').click()
   await terminal(page)
-    .getByRole('button', { name: /Inspect U\+FF2D/ })
+    .getByRole('button', { name: /Inspect U\+1D40C/ })
     .click()
-  const details = inspection(page, 'U+FF2D')
+  const details = inspection(page, 'U+1D40C')
   await expect(details).toContainText('Uppercase letter')
   await expect(details.getByRole('button', { name: /NFKC: Inspect U\+004D/ })).toBeVisible()
   await details.getByRole('button', { name: 'Copy', exact: true }).click()
   await expect(terminal(page)).toContainText('Copied.')
-  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('Ｍ')
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('\u{1D40C}')
   await details.getByRole('button', { name: 'Insert', exact: true }).click()
-  await expect(alias(page)).toHaveValue(fullwidth)
-  expect(await alias(page).evaluate((field: HTMLTextAreaElement) => field.selectionStart)).toBe(1)
+  await expect(alias(page)).toHaveValue(compatible)
+  expect(await alias(page).evaluate((field: HTMLTextAreaElement) => field.selectionStart)).toBe(2)
   await page.getByRole('button', { name: 'Submit login' }).click()
   await expect(terminal(page)).toContainText('Authentication accepted')
   await expect(panel).toContainText('maintenance')
@@ -147,16 +149,16 @@ test('reaches equivalent states through typed actions in a different exploration
   await expect(alias(page)).toBeVisible()
   await alias(page).fill('unsent')
   await run(page, 'login "unknown"')
-  await expect(terminal(page)).toContainText('Account not found')
+  await expect(terminal(page)).toContainText('Decoded character count')
   await expect(alias(page)).toHaveValue('unsent')
   await page.getByRole('button', { name: 'Hide editor' }).click()
   await expect(alias(page)).toBeHidden()
   await quick(page, 'Login').click()
   await expect(alias(page)).toHaveValue('unsent')
-  await run(page, 'inspect Ｍ')
-  await expect(inspection(page, 'U+FF2D')).toBeVisible()
+  await run(page, 'inspect \u{1D40C}')
+  await expect(inspection(page, 'U+1D40C')).toBeVisible()
   await expect(alias(page)).toHaveValue('unsent')
-  await run(page, `login "${fullwidth}"`)
+  await run(page, `login "${compatible}"`)
   await expect(contextPanel(page)).toContainText('maintenance')
   await expect(contextPanel(page)).toContainText('Open')
   await run(page, 'whoami')
@@ -243,7 +245,7 @@ test('completes relative paths and marks local and remote command echoes', async
 })
 
 test('interprets six-digit Unicode escapes in commands and the alias editor', async ({ page }) => {
-  const escapedAlias = String.raw`\u00FF2D\u00FF21\u00FF29\u00FF2E\u00FF34`
+  const escapedAlias = String.raw`\u01D40CAINT`
   await openRelay(page)
   await run(page, String.raw`inspect \u01F9EA`)
   await expect(inspection(page, 'U+1F9EA')).toBeVisible()
@@ -466,14 +468,14 @@ for (const [width, height] of [
         await page.screenshot({ path: info.outputPath('07-keyboard-space.png') })
         await page.setViewportSize({ width, height })
       }
-      await alias(page).fill('ＡＩＮＴ')
+      await alias(page).fill('AINT')
       await alias(page).press('Home')
       await act(quick(page, 'Files'))
       await act(link(page, 'notes/'))
-      await act(link(page, 'keypad.txt'))
+      await act(link(page, 'print-samples.txt'))
       await capture('08-keypad')
-      await act(terminal(page).getByRole('button', { name: /Inspect U\+FF2D/ }))
-      const details = inspection(page, 'U+FF2D')
+      await act(terminal(page).getByRole('button', { name: /Inspect U\+1D40C/ }))
+      const details = inspection(page, 'U+1D40C')
       await expect(details.getByRole('button', { name: /NFKC: Inspect U\+004D/ })).toBeVisible()
       await capture('09-inspection')
       const insert = details.getByRole('button', { name: 'Insert', exact: true })
@@ -489,17 +491,17 @@ for (const [width, height] of [
         await page.setViewportSize({ width, height })
       }
       await act(insert)
-      await expect(alias(page)).toHaveValue(fullwidth)
+      await expect(alias(page)).toHaveValue(compatible)
       await expect(
         terminal(page)
           .locator('.command-echo bdi')
-          .filter({ hasText: /^inspect Ｍ$/u }),
+          .filter({ hasText: /^inspect \u{1D40C}$/u }),
       ).toHaveCount(1)
       await alias(page).fill('MAINT')
       await act(page.getByRole('button', { name: 'Submit login' }))
       await expect(terminal(page)).toContainText('Reserved account name')
       await capture('11-rejected')
-      await alias(page).fill(fullwidth)
+      await alias(page).fill(compatible)
       await act(page.getByRole('button', { name: 'Submit login' }))
       await expect(terminal(page)).toContainText('Authentication accepted')
       if (narrow) {

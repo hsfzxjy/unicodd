@@ -1,0 +1,6 @@
+BINARY COMPARISON / 8C2F
+
+First different byte offset: 1 (zero-based)
+Registration 0002917, byte at offset 1: D1 (hex)
+
+Only the differing scalar's lead byte was retained by this diagnostic. Continuation bytes are redacted.

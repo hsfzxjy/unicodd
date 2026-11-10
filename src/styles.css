@@ -799,21 +799,65 @@ h1.terminal-scenario {
   }
 }
 
-@media (max-width: 830px) and (max-height: 540px) {
-  .shortcuts {
+@media (max-width: 830px) {
+  .short-viewport .shortcuts {
     flex-wrap: nowrap;
     overflow-x: auto;
     scrollbar-width: thin;
   }
-  .shortcuts button {
+  .short-viewport .shortcuts button {
     flex: none;
   }
-  .alias-editor {
+  .short-viewport .alias-editor {
     gap: 4px;
     padding-block: 5px;
   }
-  .alias-editor textarea {
+  .short-viewport .alias-editor textarea {
     min-height: 44px;
     height: 44px;
+  }
+}
+
+.multi-payload .payload textarea {
+  min-height: 40px;
+  height: 40px;
+}
+.multi-payload .active-payload textarea {
+  border-color: var(--accent);
+}
+.fixed-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 16px;
+}
+.inspection-encoding {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  margin: 4px 0;
+}
+.terminal-line {
+  white-space: pre-wrap;
+}
+@media (max-width: 830px) {
+  .multi-payload .payload textarea {
+    min-height: 44px;
+    height: 44px;
+  }
+}
+@media (max-width: 830px) {
+  .short-viewport .multi-payload .payload {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    align-items: center;
+    gap: 2px 8px;
+  }
+  .short-viewport .multi-payload .field-head {
+    margin-bottom: 0;
+  }
+  .short-viewport .multi-payload .payload-tools,
+  .short-viewport .multi-payload .point-view {
+    grid-column: 1 / -1;
+    margin-top: 0;
   }
 }

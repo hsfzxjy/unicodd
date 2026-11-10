@@ -1,0 +1,217 @@
+{
+  "version": 1,
+  "inputs": ["id_a", "name_a", "id_b", "name_b"],
+  "nodes": [
+    {
+      "id": "id_a",
+      "op": "input",
+      "input": "id_a"
+    },
+    {
+      "id": "name_a",
+      "op": "input",
+      "input": "name_a"
+    },
+    {
+      "id": "id_b",
+      "op": "input",
+      "input": "id_b"
+    },
+    {
+      "id": "name_b",
+      "op": "input",
+      "input": "name_b"
+    },
+    {
+      "id": "stored_id_a",
+      "op": "literal",
+      "value": {
+        "type": "text",
+        "value": "0001842"
+      }
+    },
+    {
+      "id": "stored_id_b",
+      "op": "literal",
+      "value": {
+        "type": "text",
+        "value": "0002917"
+      }
+    },
+    {
+      "id": "stored_name_a",
+      "op": "literal",
+      "value": {
+        "type": "text",
+        "value": "Mira"
+      }
+    },
+    {
+      "id": "stored_name_b",
+      "op": "literal",
+      "value": {
+        "type": "text",
+        "value": "Mіra"
+      }
+    },
+    {
+      "id": "verified_a",
+      "op": "literal",
+      "value": {
+        "type": "boolean",
+        "value": true
+      }
+    },
+    {
+      "id": "verified_b",
+      "op": "literal",
+      "value": {
+        "type": "boolean",
+        "value": true
+      }
+    },
+    {
+      "id": "same_ids",
+      "op": "textEqual",
+      "args": ["id_a", "id_b"]
+    },
+    {
+      "id": "different_ids",
+      "op": "not",
+      "args": ["same_ids"]
+    },
+    {
+      "id": "id_a_matches",
+      "op": "textEqual",
+      "args": ["id_a", "stored_id_a"]
+    },
+    {
+      "id": "id_b_matches",
+      "op": "textEqual",
+      "args": ["id_b", "stored_id_b"]
+    },
+    {
+      "id": "owner_a",
+      "op": "and",
+      "args": ["id_a_matches", "verified_a"]
+    },
+    {
+      "id": "owner_b",
+      "op": "and",
+      "args": ["id_b_matches", "verified_b"]
+    },
+    {
+      "id": "owners_verified",
+      "op": "and",
+      "args": ["owner_a", "owner_b"]
+    },
+    {
+      "id": "independent_owners",
+      "op": "and",
+      "args": ["owners_verified", "different_ids"]
+    },
+    {
+      "id": "same_names",
+      "op": "textEqual",
+      "args": ["name_a", "name_b"]
+    },
+    {
+      "id": "bucket_key",
+      "op": "skeleton",
+      "args": ["stored_name_a"]
+    },
+    {
+      "id": "key_name_a",
+      "op": "skeleton",
+      "args": ["name_a"]
+    },
+    {
+      "id": "key_name_b",
+      "op": "skeleton",
+      "args": ["name_b"]
+    },
+    {
+      "id": "belongs_a",
+      "op": "textEqual",
+      "args": ["key_name_a", "bucket_key"]
+    },
+    {
+      "id": "belongs_b",
+      "op": "textEqual",
+      "args": ["key_name_b", "bucket_key"]
+    },
+    {
+      "id": "matches_a",
+      "op": "textEqual",
+      "args": ["name_a", "stored_name_a"]
+    },
+    {
+      "id": "matches_b",
+      "op": "textEqual",
+      "args": ["name_b", "stored_name_b"]
+    },
+    {
+      "id": "verified_owner_a",
+      "op": "literal",
+      "value": {
+        "type": "text",
+        "value": "owner-1842"
+      }
+    },
+    {
+      "id": "verified_owner_b",
+      "op": "literal",
+      "value": {
+        "type": "text",
+        "value": "owner-2917"
+      }
+    },
+    {
+      "id": "same_owner",
+      "op": "textEqual",
+      "args": ["verified_owner_a", "verified_owner_b"]
+    },
+    {
+      "id": "distinct_owners",
+      "op": "not",
+      "args": ["same_owner"]
+    },
+    {
+      "id": "distinct_verified_owners",
+      "op": "and",
+      "args": ["independent_owners", "distinct_owners"]
+    }
+  ],
+  "checks": [
+    {
+      "id": "owners",
+      "node": "distinct_verified_owners",
+      "expected": true
+    },
+    {
+      "id": "distinct_names",
+      "node": "same_names",
+      "expected": false
+    },
+    {
+      "id": "key_a",
+      "node": "belongs_a",
+      "expected": true
+    },
+    {
+      "id": "key_b",
+      "node": "belongs_b",
+      "expected": true
+    },
+    {
+      "id": "exact_a",
+      "node": "matches_a",
+      "expected": true
+    },
+    {
+      "id": "exact_b",
+      "node": "matches_b",
+      "expected": true
+    }
+  ]
+}

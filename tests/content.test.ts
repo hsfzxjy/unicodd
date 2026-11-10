@@ -214,3 +214,27 @@ it('rejects invalid scalar references, resource links, and operation names', asy
     /Unknown puzzle command/,
   )
 })
+
+it('validates multi-field bindings and distinct commands', async () => {
+  const [, dead, index] = await production.manifest()
+  const route = JSON.parse((await readProduction(dead.scenario)).toString())
+  const fields = route.hosts[0].operation.fields
+  fields[1].input = fields[0].input
+  await expect(override(dead.scenario, route).scenario(dead)).rejects.toThrow(
+    /Duplicate value "header"/,
+  )
+  fields[1].input = 'envelope'
+  fields[1].fixed = 'Mira'
+  await expect(override(dead.scenario, route).scenario(dead)).rejects.toThrow(
+    /Fixed fields cannot have a draft/,
+  )
+  delete fields[1].initial
+  await expect(override(dead.scenario, route).scenario(dead)).rejects.toThrow(
+    /command argument count/,
+  )
+  const audit = JSON.parse((await readProduction(index.scenario)).toString())
+  audit.hosts[0].operations.push(audit.hosts[0].operations[0])
+  await expect(override(index.scenario, audit).scenario(index)).rejects.toThrow(
+    /Duplicate puzzle command/,
+  )
+})

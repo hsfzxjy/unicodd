@@ -5,7 +5,8 @@
       "from": "Eli / Client Integration",
       "to": "Nia / Messaging",
       "subject": "Recipient import cleanup",
-      "body": "We found why some imported addresses wouldn't resolve. The old mobile client sometimes inserts an invisible separator when copying names from its contacts. The delivery resolver now removes that separator before lookup.\n\nI kept the migration samples in case the client team ever asks what the resolver is doing for them. Sample 14 is the shortest reproduction."
+      "body": "The old mobile client sometimes inserts an invisible separator when copying names. Release 2.8.0 strips that one separator in the header resolver. Joiners are meaningful in names and stay in the text.\n\nSample 14 under /samples is the shortest reproduction. This change applies to the header resolver only.",
+      "date": "2026-08-19"
     }
   ]
 }

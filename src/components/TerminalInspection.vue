@@ -19,6 +19,15 @@ function insert(text: string) {
   )
 }
 
+const hex = (value: number) => value.toString(16).toUpperCase().padStart(2, '0')
+const utf8 = computed(() =>
+  Array.from(new TextEncoder().encode(props.row.point.scalar), hex).join(' '),
+)
+const utf16 = computed(() =>
+  Array.from({ length: props.row.point.scalar.length }, (_, index) =>
+    hex(props.row.point.scalar.charCodeAt(index)).padStart(4, '0'),
+  ).join(' '),
+)
 const confusables = computed(() =>
   props.row.details.ok
     ? props.row.details.value.confusables.map(({ scalar, script }) => ({
@@ -94,6 +103,14 @@ const normalization = computed(() => {
     <p v-if="row.details.ok" class="inspection-metadata meta">
       <bdi v-if="row.details.value.name">{{ row.details.value.name }}</bdi>
       <span>{{ row.details.value.script.replaceAll('_', ' ') }} script</span>
+    </p>
+    <p class="inspection-encoding meta">
+      <span
+        >UTF-8 <code>{{ utf8 }}</code></span
+      >
+      <span
+        >UTF-16 <code>{{ utf16 }}</code></span
+      >
     </p>
     <dl class="inspection-normalization" aria-label="Normalization">
       <div

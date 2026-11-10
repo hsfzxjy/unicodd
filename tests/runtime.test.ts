@@ -7,7 +7,7 @@ const relay = async () => production.scenario((await production.manifest())[0])
 const connect = { type: 'connect', host: 'relay-07' } as const
 const incident = { type: 'cat', path: '/queue/8c2f.msg' } as const
 const login = (alias: string) => ({ type: 'login', alias }) as const
-const fullwidth = 'ＭＡＩＮＴ'
+const compatible = '\u{1D40C}AINT'
 
 it('decodes command escapes without reinterpreting the resulting characters as syntax', () => {
   expect(parseCommand(String.raw`inspect \u01F9EA`)).toEqual({ type: 'inspect', character: '🧪' })
@@ -57,7 +57,7 @@ it('checks permissions, elevates through WASM, and completes only on authorized 
   expect(runtime.state).toBe(guest)
   for (const [alias, failure] of [
     ['MAINT', 'Reserved account name'],
-    ['MINT', 'Account not found'],
+    ['\u{1D40C}AINX', 'Account not found'],
     ['\ud800', 'unpaired surrogate'],
   ]) {
     expect((await runtime.dispatch(login(alias))).output).toEqual([
@@ -65,7 +65,7 @@ it('checks permissions, elevates through WASM, and completes only on authorized 
     ])
     expect(runtime.state).toBe(guest)
   }
-  expect(await runtime.dispatch(login(fullwidth))).toMatchObject({ output: [{ kind: 'auth' }] })
+  expect(await runtime.dispatch(login(compatible))).toMatchObject({ output: [{ kind: 'auth' }] })
   expect(runtime.state).toMatchObject({
     identity: { user: 'MAINT', role: 'maintenance' },
     completed: false,
@@ -79,7 +79,7 @@ it('checks permissions, elevates through WASM, and completes only on authorized 
   expect((await runtime.dispatch(incident)).output?.map((item) => item.kind)).toEqual(['file'])
   await runtime.dispatch({ type: 'logout' })
   expect(runtime.state.identity).toEqual(guest.identity)
-  await runtime.dispatch(login('ＭAINT'))
+  await runtime.dispatch(login('M\u{1D400}INT'))
   expect(runtime.state.identity.role).toBe('maintenance')
   await runtime.dispatch(connect)
   expect(runtime.state.identity).toEqual(guest.identity)
@@ -156,8 +156,8 @@ it('serializes authentication and discards work invalidated by a reset', async (
     },
   })
   await runtime.dispatch(connect)
-  const pending = runtime.dispatch(login(fullwidth))
-  expect((await runtime.dispatch(login(fullwidth))).output?.[0].kind).toBe('error')
+  const pending = runtime.dispatch(login(compatible))
+  expect((await runtime.dispatch(login(compatible))).output?.[0].kind).toBe('error')
   expect((await runtime.dispatch(incident)).output?.[0].kind).toBe('error')
   await runtime.dispatch({ type: 'reset' })
   release()

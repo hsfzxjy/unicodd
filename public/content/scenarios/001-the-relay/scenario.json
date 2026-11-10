@@ -37,6 +37,19 @@
           "inspectLines": [3, 4]
         },
         {
+          "id": "frame",
+          "path": "/notes/maintenance-frame.txt",
+          "type": "file",
+          "content": "files/maintenance-frame.txt"
+        },
+        {
+          "id": "type_samples",
+          "path": "/notes/print-samples.txt",
+          "type": "file",
+          "content": "files/print-samples.txt",
+          "inspectLines": [4, 5]
+        },
+        {
           "id": "queue",
           "path": "/queue",
           "type": "directory"
@@ -98,12 +111,24 @@
         "failure": "Login rejected. Account not found.",
         "rejected": [
           {
-            "check": "raw_reserved",
+            "check": "canonical_reserved",
             "message": "Login rejected. Reserved account name."
           },
           {
-            "check": "canonical_reserved",
-            "message": "Login rejected. Reserved account name."
+            "check": "decoded_count",
+            "message": "Login rejected. Decoded character count differs from the captured frame."
+          },
+          {
+            "check": "legacy_units",
+            "message": "Login rejected. Legacy UTF-16 field length differs from the captured frame."
+          },
+          {
+            "check": "transport_capacity",
+            "message": "Login rejected. Payload exceeds the eight-byte transport field."
+          },
+          {
+            "check": "resolved_identity",
+            "message": "Login rejected. Account not found."
           }
         ]
       }

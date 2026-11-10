@@ -1,14 +1,19 @@
 {
   "version": 1,
-  "inputs": ["recipient"],
+  "inputs": ["header", "envelope"],
   "nodes": [
     {
-      "id": "raw",
+      "id": "header",
       "op": "input",
-      "input": "recipient"
+      "input": "header"
     },
     {
-      "id": "canonical",
+      "id": "envelope",
+      "op": "input",
+      "input": "envelope"
+    },
+    {
+      "id": "recipient",
       "op": "literal",
       "value": {
         "type": "text",
@@ -24,19 +29,82 @@
       }
     },
     {
+      "id": "seven",
+      "op": "literal",
+      "value": {
+        "type": "integer",
+        "value": 7
+      }
+    },
+    {
+      "id": "six",
+      "op": "literal",
+      "value": {
+        "type": "integer",
+        "value": 6
+      }
+    },
+    {
       "id": "held",
       "op": "contains",
-      "args": ["raw", "canonical"]
+      "args": ["header", "recipient"]
     },
     {
       "id": "clean",
       "op": "remove_code_point",
-      "args": ["raw", "separator"]
+      "args": ["header", "separator"]
     },
     {
-      "id": "resolved",
+      "id": "header_lookup",
       "op": "textEqual",
-      "args": ["clean", "canonical"]
+      "args": ["clean", "recipient"]
+    },
+    {
+      "id": "header_size",
+      "op": "utf8_length",
+      "args": ["header"]
+    },
+    {
+      "id": "header_fits",
+      "op": "integerEqual",
+      "args": ["header_size", "seven"]
+    },
+    {
+      "id": "envelope_nfc",
+      "op": "normalize",
+      "args": ["envelope"],
+      "form": "NFC"
+    },
+    {
+      "id": "envelope_nfkc",
+      "op": "normalize",
+      "args": ["envelope"],
+      "form": "NFKC"
+    },
+    {
+      "id": "envelope_size",
+      "op": "utf8_length",
+      "args": ["envelope"]
+    },
+    {
+      "id": "reserved",
+      "op": "textEqual",
+      "args": ["envelope_nfc", "recipient"]
+    },
+    {
+      "id": "envelope_fits",
+      "op": "integerLessOrEqual",
+      "args": ["envelope_size", "six"]
+    },
+    {
+      "id": "envelope_lookup",
+      "op": "textEqual",
+      "args": ["envelope_nfkc", "recipient"]
+    },
+    {
+      "id": "same_recipient",
+      "op": "textEqual",
+      "args": ["clean", "envelope_nfkc"]
     }
   ],
   "checks": [
@@ -46,8 +114,33 @@
       "expected": false
     },
     {
-      "id": "recipient_resolution",
-      "node": "resolved",
+      "id": "header_resolves",
+      "node": "header_lookup",
+      "expected": true
+    },
+    {
+      "id": "header_bytes",
+      "node": "header_fits",
+      "expected": true
+    },
+    {
+      "id": "envelope_reserved",
+      "node": "reserved",
+      "expected": false
+    },
+    {
+      "id": "envelope_capacity",
+      "node": "envelope_fits",
+      "expected": true
+    },
+    {
+      "id": "envelope_resolves",
+      "node": "envelope_lookup",
+      "expected": true
+    },
+    {
+      "id": "agreement",
+      "node": "same_recipient",
       "expected": true
     }
   ]

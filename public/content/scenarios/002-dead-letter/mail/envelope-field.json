@@ -1,0 +1,12 @@
+{
+  "messages": [
+    {
+      "id": "envelope-field",
+      "from": "Rowan / Transport",
+      "to": "Nia / Messaging",
+      "subject": "Envelope field on a manual route",
+      "date": "2026-08-21",
+      "body": "The envelope is addressed separately from the header. It still uses the compatibility lookup so older route sheets can be copied. Manual routing rejects the canonical alias at the gateway.\n\nThe recipient slot is six UTF-8 bytes, including any width variants. I left an old address card under /samples. Before handing the body off, the relay compares the two resolved destinations."
+    }
+  ]
+}

@@ -13,11 +13,12 @@ import {
   type Span,
 } from '../lib/unicode'
 
-const props = defineProps<{ label: string; modelValue: string }>()
+const props = defineProps<{ label: string; modelValue: string; active: boolean }>()
 const emit = defineEmits<{
   'update:modelValue': [string]
   inspect: [string]
   composition: [boolean]
+  activate: []
 }>()
 const id = useId()
 const control = ref<HTMLTextAreaElement>()
@@ -197,7 +198,7 @@ defineExpose({ apply, focusAt, context: () => ({ ...selection.value }) })
 </script>
 
 <template>
-  <div class="payload">
+  <div class="payload" :class="{ 'active-payload': active }">
     <div class="field-head">
       <label :for="id">{{ label }}</label>
       <span class="meta">{{ count }} code {{ count === 1 ? 'point' : 'points' }}</span>
@@ -211,6 +212,7 @@ defineExpose({ apply, focusAt, context: () => ({ ...selection.value }) })
       autocomplete="off"
       autocorrect="off"
       rows="3"
+      @focus="emit('activate')"
       @select="readSelection()"
       @keyup="readSelection()"
       @pointerdown="projection = undefined"
@@ -224,7 +226,7 @@ defineExpose({ apply, focusAt, context: () => ({ ...selection.value }) })
       @copy="copySelection"
       @cut="copySelection"
     />
-    <div class="toolbar payload-tools">
+    <div v-show="active" class="toolbar payload-tools">
       <button
         type="button"
         class="disclosure"
@@ -242,7 +244,7 @@ defineExpose({ apply, focusAt, context: () => ({ ...selection.value }) })
         Inspect
       </button>
     </div>
-    <div v-show="expanded" :id="id + '-points'" class="point-view">
+    <div v-show="active && expanded" :id="id + '-points'" class="point-view">
       <div v-if="pages > 1" class="toolbar pagination">
         <button type="button" :disabled="page === 0" @click="page--">Previous</button>
         <span class="meta" role="status">Page {{ page + 1 }} of {{ pages }}</span>

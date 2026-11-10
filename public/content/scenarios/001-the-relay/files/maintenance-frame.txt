@@ -1,0 +1,10 @@
+RELAY-07 / MAINTENANCE FRAME CAPTURE
+Last successful pre-cutover queue login
+
+Decoded characters: 5
+Legacy field length: 6 UTF-16 units
+Transport capacity: 8 UTF-8 bytes
+Resolved identity: MAINT
+
+Original payload: NOT RETAINED
+The decoded count excludes framing. Transport capacity is the size of the alias field before padding.

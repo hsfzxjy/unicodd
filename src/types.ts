@@ -11,6 +11,8 @@ type Operator =
   | 'concat'
   | 'normalize'
   | 'codePointLength'
+  | 'utf16_length'
+  | 'utf8_length'
   | 'remove_code_point'
   | 'caseFold'
   | 'skeleton'
@@ -22,6 +24,7 @@ type Operator =
   | 'or'
   | 'booleanEqual'
   | 'integerEqual'
+  | 'integerLessOrEqual'
 
 type Node = { id: string } & (
   | { op: 'input'; input: string }

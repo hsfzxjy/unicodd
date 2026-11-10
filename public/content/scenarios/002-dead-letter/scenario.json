@@ -63,6 +63,12 @@
           "content": "mail/queue-review.json"
         },
         {
+          "id": "envelope_protocol",
+          "path": "/mail/04-envelope-field",
+          "type": "mail",
+          "content": "mail/envelope-field.json"
+        },
+        {
           "id": "samples",
           "path": "/samples",
           "type": "directory"
@@ -75,6 +81,13 @@
           "inspectNotation": true
         },
         {
+          "id": "address_card",
+          "path": "/samples/address-card.txt",
+          "type": "file",
+          "content": "files/address-card.txt",
+          "inspectLines": [4]
+        },
+        {
           "id": "spool",
           "path": "/spool",
           "type": "directory"
@@ -84,6 +97,12 @@
           "path": "/spool/2917.msg",
           "type": "file",
           "content": "files/2917-queue.txt"
+        },
+        {
+          "id": "deployments",
+          "path": "/spool/router-history.txt",
+          "type": "file",
+          "content": "files/router-history.txt"
         },
         {
           "id": "delivered",
@@ -107,8 +126,6 @@
         "actionLabel": "Route message",
         "submitLabel": "Submit route",
         "puzzle": "puzzle.json",
-        "input": "recipient",
-        "initial": "Mira",
         "success": [
           {
             "type": "flag",
@@ -123,11 +140,49 @@
             "resource": "body"
           }
         ],
-        "failure": "Routing rejected. Recipient could not be resolved.",
+        "failure": "Routing rejected. Resolved header and envelope recipients differ.",
         "rejected": [
           {
             "check": "delivery_hold",
-            "message": "Routing rejected. Recipient is under delivery hold."
+            "message": "Header quarantine: recipient is under delivery hold.",
+            "stage": "header"
+          },
+          {
+            "check": "header_resolves",
+            "message": "Header cleanup: recipient could not be resolved.",
+            "stage": "header"
+          },
+          {
+            "check": "header_bytes",
+            "message": "Header replay: byte length differs from the captured header.",
+            "stage": "header"
+          },
+          {
+            "check": "envelope_reserved",
+            "message": "Envelope gateway: canonical recipient is restricted on manual routes.",
+            "stage": "envelope"
+          },
+          {
+            "check": "envelope_capacity",
+            "message": "Envelope transport: recipient exceeds six UTF-8 bytes.",
+            "stage": "envelope"
+          },
+          {
+            "check": "envelope_resolves",
+            "message": "Envelope lookup: recipient could not be resolved.",
+            "stage": "envelope"
+          }
+        ],
+        "fields": [
+          {
+            "input": "header",
+            "label": "Header recipient",
+            "initial": "Mira"
+          },
+          {
+            "input": "envelope",
+            "label": "Envelope recipient",
+            "initial": "Mira"
           }
         ]
       }

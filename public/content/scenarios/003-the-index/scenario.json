@@ -3,7 +3,7 @@
   "title": "The Index",
   "introduction": "The delivery record identifies index-09 as the source of merge event 8C2F.",
   "roles": ["auditor"],
-  "flags": ["export_ready"],
+  "flags": ["bucket_found", "export_ready"],
   "local": {
     "user": "operator",
     "role": "auditor"
@@ -22,6 +22,14 @@
         {
           "label": "Incident",
           "value": "8C2F"
+        },
+        {
+          "label": "Bucket",
+          "value": "Undiscovered",
+          "after": {
+            "flag": "bucket_found",
+            "value": "Located"
+          }
         },
         {
           "label": "Export",
@@ -81,6 +89,18 @@
           "content": "files/identifier-review.txt"
         },
         {
+          "id": "encoding_log",
+          "path": "/audit/encoding.log",
+          "type": "file",
+          "content": "files/encoding.log"
+        },
+        {
+          "id": "difference",
+          "path": "/audit/byte-difference.txt",
+          "type": "file",
+          "content": "files/byte-difference.txt"
+        },
+        {
           "id": "tools",
           "path": "/tools",
           "type": "directory"
@@ -90,6 +110,15 @@
           "path": "/tools/reconcile.txt",
           "type": "file",
           "content": "files/reconcile.txt"
+        },
+        {
+          "id": "bucket",
+          "path": "/tools/bucket-8c2f.txt",
+          "type": "file",
+          "content": "files/bucket-8c2f.txt",
+          "discover": {
+            "flag": "bucket_found"
+          }
         },
         {
           "id": "exports",
@@ -105,42 +134,116 @@
           "access": {
             "flag": "export_ready"
           },
-          "denied": "Original identifiers are restricted. An authorized collision query can release the export."
+          "denied": "Original identifiers are restricted. Verify the source registrations before requesting the export."
         }
       ],
-      "operation": {
-        "command": "reconcile",
-        "label": "Candidate identifier",
-        "actionLabel": "Reconcile identifier",
-        "submitLabel": "Submit query",
-        "puzzle": "puzzle.json",
-        "input": "candidate",
-        "initial": "Mira",
-        "access": {
-          "roles": ["auditor"]
+      "operations": [
+        {
+          "command": "reconcile",
+          "label": "Candidate identifier",
+          "actionLabel": "Reconcile identifier",
+          "submitLabel": "Submit query",
+          "puzzle": "puzzle.json",
+          "input": "candidate",
+          "initial": "Mira",
+          "access": {
+            "roles": ["auditor"]
+          },
+          "success": [
+            {
+              "type": "flag",
+              "flag": "bucket_found"
+            },
+            {
+              "type": "message",
+              "text": "Collision detected. Index bucket: 8C2F. Canonical records: 1. Source registrations: 2.\nOriginal identifiers: REDACTED. Ownership reconstruction required."
+            },
+            {
+              "type": "resourceLink",
+              "resource": "bucket"
+            }
+          ],
+          "failure": "Query rejected. No matching collision record.",
+          "rejected": [
+            {
+              "check": "ordinary_filter",
+              "message": "Query rejected. Protected canonical identifier."
+            }
+          ]
         },
-        "success": [
-          {
-            "type": "flag",
-            "flag": "export_ready"
+        {
+          "command": "reconstruct",
+          "label": "Ownership reconstruction",
+          "actionLabel": "Reconstruct owners",
+          "submitLabel": "Verify originals",
+          "puzzle": "reconstruction.json",
+          "access": {
+            "roles": ["auditor"],
+            "flag": "bucket_found"
           },
-          {
-            "type": "message",
-            "text": "Collision found. Index entry: 8C2F. Source registrations: 2."
-          },
-          {
-            "type": "resourceLink",
-            "resource": "originals"
-          }
-        ],
-        "failure": "Query rejected. No matching collision record.",
-        "rejected": [
-          {
-            "check": "ordinary_filter",
-            "message": "Query rejected. Protected canonical identifier."
-          }
-        ]
-      }
+          "fields": [
+            {
+              "input": "id_a",
+              "label": "Record A",
+              "fixed": "0001842"
+            },
+            {
+              "input": "name_a",
+              "label": "Original name A"
+            },
+            {
+              "input": "id_b",
+              "label": "Record B",
+              "fixed": "0002917"
+            },
+            {
+              "input": "name_b",
+              "label": "Original name B"
+            }
+          ],
+          "success": [
+            {
+              "type": "flag",
+              "flag": "export_ready"
+            },
+            {
+              "type": "message",
+              "text": "Reconstruction verified. Source registrations: 2. Independent owners: 2. Canonical index entries: 1."
+            },
+            {
+              "type": "resourceLink",
+              "resource": "originals"
+            }
+          ],
+          "failure": "Reconstruction rejected.",
+          "rejected": [
+            {
+              "check": "owners",
+              "message": "Ownership records could not be verified."
+            },
+            {
+              "check": "distinct_names",
+              "message": "Reconstruction rejected. The source records have distinct spellings."
+            },
+            {
+              "check": "key_a",
+              "message": "Registration A: spelling does not belong to this collision bucket."
+            },
+            {
+              "check": "key_b",
+              "message": "Registration B: spelling does not belong to this collision bucket."
+            },
+            {
+              "check": "exact_a",
+              "message": "Registration A: spelling differs from the verified source."
+            },
+            {
+              "check": "exact_b",
+              "message": "Registration B: spelling differs from the verified source."
+            }
+          ]
+        }
+      ]
     }
   ],
   "objective": {

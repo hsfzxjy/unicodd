@@ -5,11 +5,20 @@ import { inspect } from '../lib/unicode'
 
 const props = defineProps<{
   row: Inspection
-  canInsert: boolean
+  canInsertPayload: boolean
   canReplace: boolean
   busy: boolean
 }>()
 const emit = defineEmits<{ action: [Action] }>()
+function insert(text: string) {
+  emit(
+    'action',
+    props.canInsertPayload
+      ? { type: 'editPayload', mode: 'insert', text }
+      : { type: 'insertCommand', text },
+  )
+}
+
 const normalization = computed(() => {
   const seen = new Set([props.row.point.scalar])
   return props.row.normalization.map(({ form, result }) => {
@@ -44,15 +53,15 @@ const normalization = computed(() => {
           Copy
         </button>
         <button
-          v-if="canInsert"
           type="button"
           :aria-disabled="busy || undefined"
-          @click="emit('action', { type: 'editPayload', mode: 'insert', text: row.point.scalar })"
+          :title="canInsertPayload ? 'Insert into active payload' : 'Insert into command prompt'"
+          @click="insert(row.point.scalar)"
         >
           Insert
         </button>
         <button
-          v-if="canInsert"
+          v-if="canInsertPayload"
           type="button"
           :aria-disabled="busy || !canReplace"
           :tabindex="canReplace ? undefined : -1"
@@ -92,11 +101,11 @@ const normalization = computed(() => {
               <span v-if="!points.length" class="meta">Empty</span>
             </span>
             <button
-              v-if="canInsert && offerInsert && text !== undefined"
+              v-if="offerInsert && text !== undefined"
               type="button"
               :aria-disabled="busy || undefined"
               :aria-label="'Insert ' + form"
-              @click="emit('action', { type: 'editPayload', mode: 'insert', text })"
+              @click="insert(text)"
             >
               Insert
             </button>

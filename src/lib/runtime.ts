@@ -21,6 +21,7 @@ export type Action =
   | { type: 'login'; alias?: string }
   | { type: 'inspect'; character?: string }
   | { type: 'copy'; text: string }
+  | { type: 'insertCommand'; text: string }
   | { type: 'editPayload'; mode: 'insert' | 'replace'; text: string }
   | { type: 'invalid'; message: string }
 
@@ -60,7 +61,7 @@ export interface Response {
   output?: Output[]
   clear?: boolean
   inspectPrompt?: boolean
-  transfer?: Extract<Action, { type: 'copy' | 'editPayload' }>
+  transfer?: Extract<Action, { type: 'copy' | 'editPayload' | 'insertCommand' }>
   edit?: boolean
 }
 
@@ -317,6 +318,7 @@ export function createRuntime(scenario: Scenario, engine: Engine, completed = fa
         }
       }
       case 'copy':
+      case 'insertCommand':
       case 'editPayload':
         if (unpairedSurrogate(action.text) !== undefined)
           return error('Expected valid Unicode text.')

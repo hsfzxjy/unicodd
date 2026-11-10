@@ -35,10 +35,10 @@ const draftKey = () => JSON.stringify([scenarioId.value, session.value?.host?.id
 const storageKey = (id: string) => 'unicodd.objective.' + id
 let runtime: ReturnType<typeof createRuntime> | undefined
 let sequence = 0
-const canInsert = computed(() => Boolean(session.value?.editing) && !composing.value)
+const canInsertPayload = computed(() => Boolean(session.value?.editing) && !composing.value)
 const canReplace = computed(() => {
   const span = editor.value?.context()
-  return canInsert.value && Boolean(span && span.end > span.start)
+  return canInsertPayload.value && Boolean(span && span.end > span.start)
 })
 
 const viewport = window.visualViewport
@@ -182,6 +182,8 @@ async function dispatch(action: Action, command?: string) {
       } catch {
         response.output = [{ kind: 'error', text: 'Clipboard unavailable.' }]
       }
+    } else if (response.transfer?.type === 'insertCommand') {
+      terminal.value?.insertCommand(response.transfer.text)
     } else if (response.transfer?.type === 'editPayload') {
       const { mode, text } = response.transfer
       const span = editor.value?.context()
@@ -342,7 +344,7 @@ async function dispatch(action: Action, command?: string) {
         :shortcuts="shortcuts"
         :suggestions="suggestions"
         :busy="busy"
-        :can-insert="canInsert"
+        :can-insert-payload="canInsertPayload"
         :can-replace="canReplace"
         @action="dispatch"
       >

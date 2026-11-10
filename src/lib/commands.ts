@@ -122,6 +122,13 @@ function quote(argument: string): string {
     : argument
 }
 
+export function commandInsertion(text: string): string {
+  return text.replace(
+    /["'\\\p{White_Space}\p{Cc}]/gu,
+    (scalar) => '\\u' + scalar.codePointAt(0)!.toString(16).toUpperCase().padStart(6, '0'),
+  )
+}
+
 export function actionCommand(action: Action): string | undefined {
   switch (action.type) {
     case 'connect':
@@ -140,6 +147,7 @@ export function actionCommand(action: Action): string | undefined {
     case 'reset':
     case 'closeEditor':
     case 'copy':
+    case 'insertCommand':
     case 'editPayload':
       return
     default:

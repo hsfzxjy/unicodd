@@ -3,7 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from 'v
 import TerminalFile from './TerminalFile.vue'
 import TerminalInspection from './TerminalInspection.vue'
 import TerminalMail from './TerminalMail.vue'
-import { commandHelp, matchSuggestions, parseCommand } from '../lib/commands'
+import { commandHelp, commandInsertion, matchSuggestions, parseCommand } from '../lib/commands'
 import type { Action, Link, Output } from '../lib/runtime'
 import { unpairedSurrogate } from '../lib/unicode'
 
@@ -22,7 +22,7 @@ const props = defineProps<{
   shortcuts: Link[]
   suggestions: string[]
   busy: boolean
-  canInsert: boolean
+  canInsertPayload: boolean
   canReplace: boolean
 }>()
 const emit = defineEmits<{ action: [Action, string?] }>()
@@ -149,6 +149,16 @@ function promptInspection() {
   })
 }
 
+function insertCommand(text: string) {
+  const field = input.value
+  if (!field || composing.value) return
+  const start = field.selectionStart ?? field.value.length
+  field.setRangeText(commandInsertion(text), start, field.selectionEnd ?? start, 'end')
+  command.value = field.value
+  showSuggestions.value = true
+  field.focus()
+}
+
 function revealOutput(kind: 'inspection' | 'mail', focus: boolean) {
   const box = scroll.value
   const selector = kind === 'inspection' ? '.inspection' : '.terminal-mail'
@@ -166,7 +176,7 @@ function revealOutput(kind: 'inspection' | 'mail', focus: boolean) {
   }
 }
 
-defineExpose({ focusAction, promptInspection, revealOutput, scrollToEnd })
+defineExpose({ focusAction, insertCommand, promptInspection, revealOutput, scrollToEnd })
 </script>
 
 <template>
@@ -243,7 +253,7 @@ defineExpose({ focusAction, promptInspection, revealOutput, scrollToEnd })
             <TerminalInspection
               v-else-if="row.kind === 'inspection'"
               :row="row"
-              :can-insert="canInsert"
+              :can-insert-payload="canInsertPayload"
               :can-replace="canReplace"
               :busy="busy"
               @action="emit('action', $event)"

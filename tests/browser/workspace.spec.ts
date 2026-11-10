@@ -55,7 +55,30 @@ test('inspects a selected scalar and reuses earlier results at the active select
   await expect(input).toHaveValue('e\u0301é\u200be\u0301🧪')
   expect(await input.evaluate((field: HTMLTextAreaElement) => field.selectionStart)).toBe(8)
   await editor.getByRole('button', { name: 'Hide editor' }).click()
-  await expect(emoji.getByRole('button', { name: 'Insert', exact: true })).toHaveCount(0)
+  await emoji.getByRole('button', { name: 'Insert', exact: true }).click()
+  await expect(command).toHaveValue('🧪')
+  await expect(command).toBeFocused()
+})
+
+test('inserts an inspected character into the command selection without submitting', async ({
+  page,
+}) => {
+  await page.goto('/')
+  const command = page.getByRole('textbox', { name: 'Terminal command' })
+  const log = page.getByRole('log')
+  await command.fill('inspect U+0020')
+  await command.press('Enter')
+  const result = log.getByRole('region', { name: 'Unicode U+0020' })
+  await expect(result).toBeVisible()
+  await command.fill('inspect x')
+  await command.press('End')
+  await command.press('Shift+ArrowLeft')
+  await result.getByRole('button', { name: 'Insert', exact: true }).click()
+  await expect(command).toHaveValue('inspect \\u000020')
+  await expect(command).toBeFocused()
+  await expect(result).toHaveCount(1)
+  await command.press('Enter')
+  await expect(result).toHaveCount(2)
 })
 
 test('preserves composition and raw line endings and exposes repairable surrogate errors', async ({

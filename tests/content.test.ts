@@ -9,7 +9,8 @@ it('ships only The Relay in a scenario catalog', async () => {
   expect(await readdir(productionRoot)).toEqual(['manifest.json', 'scenarios'])
   expect(await readdir(new URL('scenarios/', productionRoot))).toEqual(['001-the-relay'])
   const scenario = await production.scenario(entries[0])
-  expect(scenario.hosts[0].resources).toHaveLength(6)
+  expect(scenario.inbox?.initial).toEqual(['favor'])
+  expect(scenario.hosts[0].resources.filter(({ type }) => type === 'mail')).toHaveLength(3)
 })
 
 it('loads a different authored structure with an initial host and a flag-gated second host', async () => {
@@ -67,9 +68,11 @@ it.each([
   [
     'role',
     (body) => {
-      body.hosts[0].resources[5].access.roles = ['visitor']
+      body.hosts[0].resources.find(
+        (resource: { id: string }) => resource.id === 'incident',
+      ).access.roles = ['visitor']
     },
-    /resources\[5\].*Unknown role/,
+    /resources\[\d+\].*Unknown role/,
   ],
   [
     'effect',
@@ -116,9 +119,25 @@ it.each([
   [
     'character lines',
     (body) => {
-      body.hosts[0].resources[3].inspectLines = [99]
+      body.hosts[0].resources.find(
+        (resource: { id: string }) => resource.id === 'keypad',
+      ).inspectLines = [99]
     },
     /inspectLines.*line number/,
+  ],
+  [
+    'initial mail reference',
+    (body) => {
+      body.inbox.initial = ['unknown']
+    },
+    /inbox\.initial.*Unknown inbox message/,
+  ],
+  [
+    'delivery reference',
+    (body) => {
+      body.hosts[0].login.success.push({ type: 'deliverMail', message: 'unknown' })
+    },
+    /login\.success.*Unknown inbox message/,
   ],
 ] as [string, (body: any) => void, RegExp][])(
   'rejects invalid %s',
@@ -129,6 +148,22 @@ it.each([
     await expect(override(entry.scenario, data).scenario(entry)).rejects.toThrow(issue)
   },
 )
+
+it('validates archived mail asset references and message headers', async () => {
+  const [entry] = await production.manifest()
+  const file = entry.scenario.replace('scenario.json', 'mail/login-compatibility.json')
+  const asset = JSON.parse((await readProduction(file)).toString())
+  await expect(override(file, new Error('HTTP 404')).scenario(entry)).rejects.toThrow(
+    /login-compatibility\.json.*404/,
+  )
+  for (const [messages, issue] of [
+    [[{ ...asset.messages[0], from: 'First\nSecond' }], /messages\[0\]\.from.*single-line/],
+    [[asset.messages[0], asset.messages[0]], /messages\[1\]\.id.*Duplicate/],
+    [[{ ...asset.messages[0], body: '' }], /messages\[0\]\.body.*nonempty/],
+  ] as const) {
+    await expect(override(file, { messages }).scenario(entry)).rejects.toThrow(issue)
+  }
+})
 
 it('uses WASM to reject incompatible programs and invalid authored drafts', async () => {
   const [entry] = await production.manifest()

@@ -1,0 +1,12 @@
+{
+  "messages": [
+    {
+      "id": "fixture-arrival",
+      "from": "Fixture Sender",
+      "to": "Fixture Recipient",
+      "subject": "Fixture delivery",
+      "date": "2026-01-01",
+      "body": "Fixture event body."
+    }
+  ]
+}

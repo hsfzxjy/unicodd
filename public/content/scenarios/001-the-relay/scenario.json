@@ -1,7 +1,7 @@
 {
   "version": 1,
   "title": "The Relay",
-  "introduction": "MONONYM incident 8C2F was routed to a legacy message relay. One host is available.",
+  "introduction": "Local session open.",
   "roles": ["guest", "maintenance"],
   "flags": [],
   "local": {
@@ -16,7 +16,7 @@
         "user": "guest",
         "role": "guest"
       },
-      "welcome": "Guest session opened. Browse the relay files for local documentation.",
+      "welcome": "Guest session opened.",
       "resources": [
         {
           "id": "manual",
@@ -28,12 +28,6 @@
           "id": "notes",
           "path": "/notes",
           "type": "directory"
-        },
-        {
-          "id": "migration",
-          "path": "/notes/migration.txt",
-          "type": "file",
-          "content": "files/migration.txt"
         },
         {
           "id": "keypad",
@@ -56,6 +50,29 @@
             "roles": ["maintenance"]
           },
           "denied": "Permission denied: /queue/8c2f.msg requires maintenance access."
+        },
+        {
+          "id": "mail",
+          "path": "/mail",
+          "type": "directory"
+        },
+        {
+          "id": "old-consoles",
+          "path": "/mail/old-consoles",
+          "type": "mail",
+          "content": "mail/old-consoles.json"
+        },
+        {
+          "id": "login-compatibility",
+          "path": "/mail/login-compatibility",
+          "type": "mail",
+          "content": "mail/login-compatibility.json"
+        },
+        {
+          "id": "maintenance-policy",
+          "path": "/mail/maintenance-policy",
+          "type": "mail",
+          "content": "mail/maintenance-policy.json"
         }
       ],
       "login": {
@@ -94,5 +111,9 @@
     "text": "Retrieve incident 8C2F from the protected queue.",
     "read": "incident",
     "message": "Incident 8C2F retrieved. Objective complete."
+  },
+  "inbox": {
+    "content": "mail/inbox.json",
+    "initial": ["favor"]
   }
 }

@@ -437,14 +437,36 @@ h1.terminal-scenario {
   font-size: 12px;
 }
 .terminal-file pre,
+.terminal-mail pre,
 .terminal-file > p:not(.file-path, .meta) {
   margin: 3px 0 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font: inherit;
 }
-.terminal-file pre {
+.terminal-file pre,
+.terminal-mail pre {
   max-width: 86ch;
+}
+.mail-notice {
+  font-size: 12px;
+  font-weight: 650;
+}
+.mail-headers {
+  display: grid;
+  grid-template-columns: 8ch minmax(0, 1fr);
+  margin: 4px 0 6px;
+}
+.mail-headers dt {
+  color: var(--muted);
+}
+.mail-headers dd {
+  margin: 0;
+}
+.terminal-mail article + article {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
 }
 .terminal-file .character-bank {
   display: flex;
@@ -475,7 +497,8 @@ h1.terminal-scenario {
   min-width: 0;
   margin-top: 3px;
 }
-.inspection:focus-visible {
+.inspection:focus-visible,
+.terminal-mail:focus-visible {
   outline-offset: 3px;
 }
 .inspection-summary {

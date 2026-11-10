@@ -6,6 +6,7 @@ import {
   type Guard,
   type Host,
   type Identity,
+  type MailMessage,
   type Resource,
   type Scenario,
 } from './scenario.ts'
@@ -16,6 +17,7 @@ export type Action =
   | { type: 'connect'; host: string }
   | { type: 'ls'; path?: string }
   | { type: 'cat'; path: string }
+  | { type: 'mail'; id?: string }
   | { type: 'login'; alias?: string }
   | { type: 'inspect'; character?: string }
   | { type: 'copy'; text: string }
@@ -37,8 +39,10 @@ export interface Inspection {
 
 export type Output =
   | { kind: 'message' | 'error' | 'auth' | 'objective'; text: string }
-  | { kind: 'listing'; path?: string; links: Link[] }
+  | { kind: 'listing'; path?: string; title?: string; empty?: string; links: Link[] }
   | { kind: 'file'; path: string; text: string; inspectLines: number[] }
+  | { kind: 'mail'; path?: string; messages: MailMessage[] }
+  | { kind: 'mailNotice' }
   | { kind: 'help'; connected: boolean }
   | Inspection
 
@@ -48,6 +52,8 @@ export interface Session {
   flags: readonly string[]
   completed: boolean
   editing: boolean
+  deliveredMail: readonly string[]
+  readMail: readonly string[]
 }
 
 export interface Response {
@@ -61,15 +67,25 @@ export interface Response {
 export function createRuntime(scenario: Scenario, engine: Engine, completed = false) {
   const start = (completed: boolean): Session => {
     const host = scenario.hosts.find(({ id }) => id === scenario.initialHost)
-    return { host, identity: host?.guest ?? scenario.local, flags: [], completed, editing: false }
+    return {
+      host,
+      identity: host?.guest ?? scenario.local,
+      flags: [],
+      completed,
+      editing: false,
+      deliveredMail: scenario.inbox?.initial ?? [],
+      readMail: [],
+    }
   }
   let state = start(completed)
   let pending: Session | undefined
+  const inbox = new Map(scenario.inbox?.messages.map((message) => [message.id, message]))
 
   const message = (text: string): Output => ({ kind: 'message', text })
   const error = (text: string): Response => ({ output: [{ kind: 'error', text }] })
-  const welcome = () => [
+  const welcome = (): Output[] => [
     message(scenario.introduction),
+    ...(state.deliveredMail.length ? [{ kind: 'mailNotice' } as const] : []),
     ...(state.host ? [message(state.host.welcome)] : [hosts()]),
   ]
 
@@ -90,6 +106,25 @@ export function createRuntime(scenario: Scenario, engine: Engine, completed = fa
     return { kind: 'listing', links: hostLinks() }
   }
 
+  function inboxAction(id?: string): Response {
+    if (!scenario.inbox) return error('No local inbox is configured.')
+    if (id === undefined) {
+      const links = state.deliveredMail.map((id): Link => {
+        const message = inbox.get(id)!
+        return {
+          label: message.subject,
+          detail: [id, message.from, state.readMail.includes(id) ? 'Read' : 'Unread'].join(' · '),
+          action: { type: 'mail', id },
+        }
+      })
+      return { output: [{ kind: 'listing', title: 'Inbox', empty: 'No messages.', links }] }
+    }
+    const message = inbox.get(id)
+    if (!message || !state.deliveredMail.includes(id)) return error(`No such inbox message: ${id}`)
+    if (!state.readMail.includes(id)) state = { ...state, readMail: [...state.readMail, id] }
+    return { output: [{ kind: 'mail', messages: [message] }] }
+  }
+
   function resourceChain(resource: Resource): Resource[] {
     const chain = [resource]
     for (let path = parentPath(resource.path); path !== '/'; path = parentPath(path)) {
@@ -108,12 +143,14 @@ export function createRuntime(scenario: Scenario, engine: Engine, completed = fa
   function suggestions(): string[] {
     const contextual = [
       ...hostLinks().map(({ action }) => action),
+      ...state.deliveredMail.map((id): Action => ({ type: 'mail', id })),
       ...(state.host?.resources ?? [])
         .filter((item) => resourceChain(item).every(({ discover }) => allows(discover)))
         .map(pathAction),
     ]
     const commands = commandHelp
       .map(([usage]) => usage.split(' ')[0])
+      .filter((command) => command !== 'mail' || scenario.inbox)
       .filter(
         (command) => command !== 'login' || (state.host?.login && allows(state.host.login.access)),
       )
@@ -134,8 +171,13 @@ export function createRuntime(scenario: Scenario, engine: Engine, completed = fa
         case 'message':
           output.push({ kind, text: effect.text })
           break
+        case 'deliverMail':
+          if (!next.deliveredMail.includes(effect.message))
+            next = { ...next, deliveredMail: [...next.deliveredMail, effect.message] }
+          break
       }
     }
+    if (next.deliveredMail !== state.deliveredMail) output.push({ kind: 'mailNotice' })
     state = next
   }
 
@@ -156,7 +198,7 @@ export function createRuntime(scenario: Scenario, engine: Engine, completed = fa
     if (blocked) return error(blocked.denied ?? `Permission denied: ${path}`)
 
     if (action.type === 'ls') {
-      if (resource?.type === 'file') return error(`Expected a directory: ${path}`)
+      if (resource && resource.type !== 'directory') return error(`Expected a directory: ${path}`)
       const links = state.host.resources
         .filter((item) => parentPath(item.path) === path && allows(item.discover))
         .map((item) => ({
@@ -169,9 +211,12 @@ export function createRuntime(scenario: Scenario, engine: Engine, completed = fa
       return { output: [{ kind: 'listing', path, links }] }
     }
 
-    if (resource?.type !== 'file') return error(`Expected a file: ${path}`)
-    const { text, inspectLines } = resource
-    const output: Output[] = [{ kind: 'file', path, text, inspectLines }]
+    if (!resource || resource.type === 'directory') return error(`Expected a file: ${path}`)
+    const output: Output[] = [
+      resource.type === 'mail'
+        ? { kind: 'mail', path, messages: resource.messages }
+        : { kind: 'file', path, text: resource.text, inspectLines: resource.inspectLines },
+    ]
     apply(resource.onRead, output, 'message')
     if (!state.completed && scenario.objective.read === resource.id) {
       state = { ...state, completed: true }
@@ -192,6 +237,8 @@ export function createRuntime(scenario: Scenario, engine: Engine, completed = fa
         return { output: [{ kind: 'help', connected: Boolean(state.host) }] }
       case 'hosts':
         return { output: [hosts()] }
+      case 'mail':
+        return inboxAction(action.id)
       case 'connect': {
         const host = scenario.hosts.find(({ id }) => id === action.host)
         if (!host || (host.discover && !state.flags.includes(host.discover)))

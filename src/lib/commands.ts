@@ -4,6 +4,7 @@ import { readUnicodeEscape } from './unicode.ts'
 export const commandHelp = [
   ['help', 'Show this command reference.'],
   ['hosts', 'List known hosts.'],
+  ['mail [message]', 'List local mail or read a message by ID.'],
   ['connect <host>', 'Start a guest session on a host.'],
   ['ls [path]', 'List a directory. Paths are relative to /.'],
   ['cat <path>', 'Read a file.'],
@@ -74,6 +75,8 @@ export function parseCommand(source: string): Action | undefined {
       return { type: 'ls', path: argument }
     case 'cat':
       return { type: 'cat', path: argument }
+    case 'mail':
+      return { type: 'mail', id: argument }
     case 'login':
       return { type: 'login', alias: argument }
     case 'inspect':
@@ -127,6 +130,8 @@ export function actionCommand(action: Action): string | undefined {
       return action.path === undefined ? 'ls' : `ls ${quote(action.path)}`
     case 'cat':
       return `cat ${quote(action.path)}`
+    case 'mail':
+      return action.id === undefined ? 'mail' : `mail ${quote(action.id)}`
     case 'login':
       return action.alias === undefined ? 'login' : `login ${quote(action.alias)}`
     case 'inspect':

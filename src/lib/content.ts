@@ -6,6 +6,7 @@ import {
   type Host,
   type Identity,
   type Login,
+  type MailMessage,
   type Resource,
   type Scenario,
 } from './scenario.ts'
@@ -134,6 +135,35 @@ export function createContentLoader(
     }
   }
 
+  async function mailMessages(file: string): Promise<MailMessage[]> {
+    const field = (await json(file)).object('messages')('messages')
+    const seen = new Set<string>()
+    let bodyLength = 0
+    function header(field: Field) {
+      const text = field.text()
+      if (text.length > 200 || /[\u0000-\u001f\u007f]/u.test(text))
+        field.fail('Expected a single-line mail header of at most 200 UTF-16 units.')
+      return text
+    }
+    const messages = field.list((item) => {
+      const get = item.object('id', 'from', 'to', 'subject', 'date', 'body')
+      const id = get('id').unique(seen)
+      const body = get('body').text()
+      bodyLength += body.length
+      if (bodyLength > 32_768) get('body').fail('Mail bodies exceed 32,768 UTF-16 units per asset.')
+      return {
+        id,
+        from: header(get('from')),
+        to: header(get('to')),
+        subject: header(get('subject')),
+        date: get('date').optional(header),
+        body,
+      }
+    })
+    if (!messages.length || messages.length > 32) field.fail('Expected 1 to 32 mail messages.')
+    return messages
+  }
+
   function engineFailure(file: string, error: EngineError): never {
     return invalid(file, error.path ?? '', `${error.code} · ${error.message}`)
   }
@@ -168,6 +198,7 @@ export function createContentLoader(
         'initialHost',
         'hosts',
         'objective',
+        'inbox',
       )
       get('version').version()
       const ids = (field: Field) => {
@@ -176,6 +207,17 @@ export function createContentLoader(
       }
       const roles = ids(get('roles'))
       const flags = ids(get('flags'))
+      const inbox = await get('inbox').optional(async (field) => {
+        const get = field.object('content', 'initial')
+        const messages = await mailMessages(folder + get('content').asset(true))
+        const messageIds = messages.map(({ id }) => id)
+        const seen = new Set<string>()
+        const initial = get('initial').list((item) =>
+          item.unique(seen, item.ref(messageIds, 'inbox message')),
+        )
+        return { messages, initial }
+      })
+      const inboxIds = inbox?.messages.map(({ id }) => id) ?? []
 
       function identity(field: Field): Identity {
         const get = field.object('user', 'role')
@@ -192,7 +234,7 @@ export function createContentLoader(
 
       function effects(field: Field): Effect[] {
         return field.list((item) => {
-          const type = item.object('type', 'identity', 'flag', 'text')('type').value
+          const type = item.object('type', 'identity', 'flag', 'text', 'message')('type').value
           switch (type) {
             case 'session':
               return { type, identity: identity(item.object('type', 'identity')('identity')) }
@@ -200,6 +242,11 @@ export function createContentLoader(
               return { type, flag: item.object('type', 'flag')('flag').ref(flags, 'flag') }
             case 'message':
               return { type, text: item.object('type', 'text')('text').text() }
+            case 'deliverMail':
+              return {
+                type,
+                message: item.object('type', 'message')('message').ref(inboxIds, 'inbox message'),
+              }
             default:
               return item.at('type', type).fail('Unsupported effect.')
           }
@@ -289,7 +336,7 @@ export function createContentLoader(
             )
               location.fail('Expected a canonical absolute resource path.')
             if (paths.has(path)) location.fail(`Duplicate path "${path}".`)
-            const type = resource('type').ref(['directory', 'file'], 'resource type')
+            const type = resource('type').ref(['directory', 'file', 'mail'], 'resource type')
             paths.set(path, type)
             const base = {
               id,
@@ -302,8 +349,14 @@ export function createContentLoader(
               field.object('id', 'path', 'type', 'access', 'discover', 'denied')
               return { ...base, type }
             }
-            fileIds.push(id)
             const onRead = resource('onRead').optional(effects) ?? []
+            if (type === 'mail') {
+              if (resource('inspectLines').value !== undefined)
+                resource('inspectLines').fail('Character lines apply to plain-text files.')
+              const messages = await mailMessages(folder + resource('content').asset(true))
+              return { ...base, type, messages, onRead }
+            }
+            fileIds.push(id)
             const content = folder + resource('content').asset()
             const body = await text(content)
             if (body.length > 32_768)
@@ -369,6 +422,7 @@ export function createContentLoader(
           ),
         ),
         hosts,
+        inbox,
         objective: {
           text: objective('text').text(),
           read: objective('read').ref(fileIds, 'file resource'),

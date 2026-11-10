@@ -1,0 +1,11 @@
+{
+  "messages": [
+    {
+      "id": "favor",
+      "from": "mira@outside.net",
+      "to": "operator@local",
+      "subject": "A favor",
+      "body": "I found the ticket number. 8C2F.\n\nIt passed through a relay called relay-07. The public archive has nothing, but the original message might still be there.\n\nI can't get anyone at MONONYM to acknowledge it exists.\n\nCan you retrieve it?\n\n— Mira"
+    }
+  ]
+}

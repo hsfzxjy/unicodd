@@ -1,5 +1,0 @@
-Account resolver rollout · relay-07
-
-The account resolver was replaced during the last maintenance window. The gateway's reserved-name filter remains on its original release. The two components no longer use the same identifier tables.
-
-Keep legacy terminal input enabled. Several field units still send the keypad's original character set. See /notes/keypad.txt.

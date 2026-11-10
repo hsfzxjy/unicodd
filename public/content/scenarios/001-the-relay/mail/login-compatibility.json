@@ -1,0 +1,18 @@
+{
+  "messages": [
+    {
+      "id": "resolver-note",
+      "from": "Rowan / Directory Team",
+      "to": "Mara / Security",
+      "subject": "Login compatibility",
+      "body": "The new resolver handles the legacy terminal identifiers correctly now.\n\nI am less confident about the gateway.\n\nIt still checks reserved names before the resolver gets to see them.\n\nWe should probably make both components agree on what counts as the same name.\n\n— Rowan"
+    },
+    {
+      "id": "security-reply",
+      "from": "Mara / Security",
+      "to": "Rowan / Directory Team",
+      "subject": "RE: Login compatibility",
+      "body": "Agreed.\n\nI filed a change request, but it has been moved to the next maintenance window.\n\nApparently the gateway is considered \"stable\" because nobody has reported a successful unauthorized login.\n\nLet's hope that's a good definition of stable.\n\n— Mara"
+    }
+  ]
+}

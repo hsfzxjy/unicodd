@@ -95,18 +95,46 @@ it('uses guards and effects for a differently structured fixture', async () => {
   expect(runtime.state.host?.id).toBe('shelf')
   const annex = { type: 'connect', host: 'annex' } as const
   const card = { type: 'cat', path: '/exhibit/sample card' } as const
+  const archive = { type: 'cat', path: '/exhibit/sealed' } as const
+  const inbox = { type: 'mail' } as const
+  const delivery = { type: 'mail', id: 'fixture-arrival' } as const
+  expect(runtime.welcome().some(({ kind }) => kind === 'mailNotice')).toBe(false)
+  expect((await runtime.dispatch(inbox)).output).toMatchObject([{ kind: 'listing', links: [] }])
+  expect((await runtime.dispatch(delivery)).output?.[0].kind).toBe('error')
   expect((await runtime.dispatch(annex)).output?.[0].kind).toBe('error')
   expect((await runtime.dispatch(card)).output).toEqual([
     { kind: 'error', text: expect.stringContaining('No such resource') },
   ])
   expect((await runtime.dispatch(login('🧪'))).output?.[0].kind).toBe('error')
-  await runtime.dispatch({ type: 'cat', path: 'index' })
+  const index = { type: 'cat', path: 'index' } as const
+  expect((await runtime.dispatch(index)).output?.map(({ kind }) => kind)).toEqual([
+    'file',
+    'message',
+    'mailNotice',
+  ])
+  expect((await runtime.dispatch(index)).output?.map(({ kind }) => kind)).toEqual([
+    'file',
+    'message',
+  ])
+  expect((await runtime.dispatch(inbox)).output).toMatchObject([
+    { kind: 'listing', links: [{ detail: expect.stringContaining('Unread'), action: delivery }] },
+  ])
+  const delivered = await runtime.dispatch(delivery)
+  expect(delivered.output).toMatchObject([{ kind: 'mail', messages: [{ date: '2026-01-01' }] }])
+  expect(await runtime.dispatch(delivery)).toEqual(delivered)
+  expect(runtime.state.readMail).toEqual(['fixture-arrival'])
   expect(runtime.suggestions()).toContain('connect annex')
+  expect((await runtime.dispatch(archive)).output).toEqual([
+    { kind: 'error', text: expect.stringContaining('Permission denied') },
+  ])
   expect((await runtime.dispatch(card)).output).toEqual([
     { kind: 'error', text: expect.stringContaining('Permission denied') },
   ])
   await runtime.dispatch(login('🧪'))
   expect((await runtime.dispatch(card)).output?.[0].kind).toBe('file')
+  expect((await runtime.dispatch(archive)).output).toMatchObject([
+    { kind: 'mail', path: '/exhibit/sealed', messages: [{ subject: 'Sealed correspondence' }] },
+  ])
   expect(runtime.state.completed).toBe(false)
   await runtime.dispatch(annex)
   await runtime.dispatch({ type: 'cat', path: '/document' })

@@ -14,6 +14,16 @@ export type Effect =
   | { type: 'session'; identity: Identity }
   | { type: 'flag'; flag: string }
   | { type: 'message'; text: string }
+  | { type: 'deliverMail'; message: string }
+
+export interface MailMessage {
+  id: string
+  from: string
+  to: string
+  subject: string
+  date?: string
+  body: string
+}
 
 interface ResourceBase {
   id: string
@@ -24,7 +34,13 @@ interface ResourceBase {
 }
 
 export type Resource = ResourceBase &
-  ({ type: 'directory' } | { type: 'file'; text: string; inspectLines: number[]; onRead: Effect[] })
+  (
+    | { type: 'directory' }
+    | ({ onRead: Effect[] } & (
+        | { type: 'file'; text: string; inspectLines: number[] }
+        | { type: 'mail'; messages: MailMessage[] }
+      ))
+  )
 
 export interface Login {
   label: string
@@ -56,6 +72,7 @@ export interface Scenario {
   local: Identity
   initialHost?: string
   hosts: Host[]
+  inbox?: { messages: MailMessage[]; initial: string[] }
   objective: { text: string; read: string; message: string }
 }
 

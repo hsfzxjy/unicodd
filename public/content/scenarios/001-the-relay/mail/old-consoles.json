@@ -1,0 +1,11 @@
+{
+  "messages": [
+    {
+      "id": "old-consoles",
+      "from": "Eli / Terminal Operations",
+      "to": "Rowan / Directory Team",
+      "subject": "Old consoles again",
+      "body": "The replacement terminals arrived today.\n\nThe old operator consoles have a different character layout. Some of the keys produce letters that look ordinary on screen, but don't match the bytes from our new keyboards.\n\nPlease tell me the new account service will still recognize existing operator names.\n\nWe really cannot ask everyone to rename their accounts again.\n\n— Eli"
+    }
+  ]
+}

@@ -63,6 +63,7 @@ onUnmounted(() => {
 const shortcuts = computed((): Link[] => {
   if (!session.value) return []
   const actions: Link[] = [{ label: 'Hosts', action: { type: 'hosts' } }]
+  if (scenario.value?.inbox) actions.push({ label: 'Mail', action: { type: 'mail' } })
   if (session.value.host) {
     actions.push({ label: 'Files', action: { type: 'ls' } })
     if (runtime?.canLogin && !session.value.editing)
@@ -225,9 +226,10 @@ async function dispatch(action: Action, command?: string) {
     ]
   }
   if (response.inspectPrompt) terminal.value?.promptInspection()
-  if (response.output?.some(({ kind }) => kind === 'inspection')) {
+  const readable = response.output?.find((row) => row.kind === 'inspection' || row.kind === 'mail')
+  if (readable) {
     await nextTick()
-    if (runtime === active) terminal.value?.revealInspection(command === undefined)
+    if (runtime === active) terminal.value?.revealOutput(readable.kind, command === undefined)
   }
   if (response.edit) {
     if (narrow.value) sessionExpanded.value = false

@@ -1,0 +1,11 @@
+{
+  "messages": [
+    {
+      "id": "maintenance-policy",
+      "from": "Nia / Relay Administration",
+      "to": "Relay Operators",
+      "subject": "Maintenance access policy",
+      "body": "A reminder: MAINT is not a personal account.\n\nDirect login using the literal maintenance identifier has been disabled at the gateway.\n\nThe account itself is still required by the legacy message queue, so please do not remove it from the directory.\n\nYes, I know this is awkward.\nThe relay replacement is still pending.\n\n— Nia"
+    }
+  ]
+}

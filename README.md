@@ -31,12 +31,18 @@ The game reads the manifest and UTF-8 content files at runtime. Publish the cont
 
 1. **Register the scenario.** Add an entry to `scenarios` in [manifest.json](public/content/manifest.json), in display order. The version-1 entry has a unique `id`, a selector `label`, and a `scenario` path relative to `content/`. Optional `available: false` disables selection. The first available scenario opens automatically.
 2. **Define the world.** In the version-1 scenario file, supply `title`, `introduction`, declared `roles` and `flags`, a `local` identity, `hosts`, and an `objective`. An identity has `user` and `role`. A host has an `id`, `name`, `guest` identity, `welcome` message, and `resources`. An optional `discover` flag hides the host until set. An optional `initialHost` starts the player on an initially discoverable host.
-3. **Add resources.** Give each resource a unique `id`, an absolute virtual `path`, and a `type` of `directory` or `file`. The root is implicit. Declare each other parent directory. Files have a `content` asset path relative to the scenario file. Optional `discover` and `access` guards govern visibility and use, including descendants. A guard can require membership in a list of `roles`, a set `flag`, or both. Mark specific file lines with one-based `inspectLines` to make their code points interactive. Optional `onRead` effects can set a `flag`, change the `session` identity, or emit a `message`.
+3. **Add resources.** Give each resource a unique `id`, an absolute virtual `path`, and a `type` of `directory`, `file`, or `mail`. The root is implicit. Declare each other parent directory. Files and archived mail have a `content` asset path relative to the scenario file. Optional `discover` and `access` guards govern visibility and use, including descendants. A guard can require membership in a list of `roles`, a set `flag`, or both. Mark specific plain-text file lines with one-based `inspectLines` to make their code points interactive. Optional `onRead` effects can set a `flag`, change the `session` identity, emit a `message`, or deliver inbox mail.
 4. **Bind a puzzle.** A host's optional `login` defines the editor `label`, the referenced `puzzle` file, its single `input`, optional `initial` text and `access` guard, `success` effects, and fallback `failure` text. Optional `rejected` entries map failed check IDs to messages in priority order. The puzzle file contains only the program described below.
 5. **Set the objective.** Give `objective` its visible `text`, the file resource ID under `read`, and a completion `message`. The runtime completes the objective on an authorized read of that resource.
 6. **Validate and play-test.** Run `npm run validate:content` after building WASM. It checks every registered entry, including unavailable ones, and reports the file and field for invalid content and references. Try both command and click paths in the browser.
 
 Use stable ASCII IDs and safe relative asset paths. Published resources are public static assets, including files that require access in the game. Keep real secrets out of content. Objective completion uses browser storage when available. Session identity and the transcript, including Unicode inspection history, are kept in memory.
+
+### Fictional mail
+
+Archived mail and an optional local inbox use JSON assets with an ordered `messages` array. Each entry has a unique `id`, single-line `from`, `to`, and `subject` fields, an optional `date`, and a `body` string. Players open archived threads with `cat` or by clicking a resource.
+
+Set `inbox.content` to a mail asset and `inbox.initial` to the ordered IDs delivered at scenario start. An `onRead` or login `success` effect with `type: "deliverMail"` and `message` set to an inbox message ID can deliver later mail. Players open the inbox with `mail` or the Mail action and can read a message with `mail <id>`. Delivery and read status last for the current playthrough.
 
 ### Program schema v1
 

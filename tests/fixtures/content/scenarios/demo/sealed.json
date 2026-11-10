@@ -1,0 +1,11 @@
+{
+  "messages": [
+    {
+      "id": "sealed",
+      "from": "Fixture Curator",
+      "to": "Fixture Archivist",
+      "subject": "Sealed correspondence",
+      "body": "Fixture restricted archive."
+    }
+  ]
+}

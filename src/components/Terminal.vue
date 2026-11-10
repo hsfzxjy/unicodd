@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from 'vue'
 import TerminalFile from './TerminalFile.vue'
 import TerminalInspection from './TerminalInspection.vue'
+import TerminalMail from './TerminalMail.vue'
 import { commandHelp, matchSuggestions, parseCommand } from '../lib/commands'
 import type { Action, Link, Output } from '../lib/runtime'
 import { unpairedSurrogate } from '../lib/unicode'
@@ -148,9 +149,10 @@ function promptInspection() {
   })
 }
 
-function revealInspection(focus: boolean) {
+function revealOutput(kind: 'inspection' | 'mail', focus: boolean) {
   const box = scroll.value
-  const latest = box?.lastElementChild?.querySelector<HTMLElement>('.inspection')
+  const selector = kind === 'inspection' ? '.inspection' : '.terminal-mail'
+  const latest = box?.lastElementChild?.querySelector<HTMLElement>(selector)
   if (!box || !latest) return
   if (latest.offsetHeight + 12 > box.clientHeight) {
     box.scrollTop += latest.getBoundingClientRect().top - box.getBoundingClientRect().top - 6
@@ -164,7 +166,7 @@ function revealInspection(focus: boolean) {
   }
 }
 
-defineExpose({ focusAction, promptInspection, revealInspection, scrollToEnd })
+defineExpose({ focusAction, promptInspection, revealOutput, scrollToEnd })
 </script>
 
 <template>
@@ -203,9 +205,9 @@ defineExpose({ focusAction, promptInspection, revealInspection, scrollToEnd })
           <template v-for="(row, index) in entry.output" :key="index">
             <div v-if="row.kind === 'listing'" class="terminal-list">
               <p class="listing-path">
-                <bdi>{{ row.path ?? 'Known hosts' }}</bdi>
+                <bdi>{{ row.path ?? row.title ?? 'Known hosts' }}</bdi>
               </p>
-              <p v-if="!row.links.length" class="meta">Empty directory.</p>
+              <p v-if="!row.links.length" class="meta">{{ row.empty ?? 'Empty directory.' }}</p>
               <ul v-else>
                 <li v-for="link in row.links" :key="link.label">
                   <button type="button" class="terminal-link" @click="emit('action', link.action)">
@@ -224,6 +226,20 @@ defineExpose({ focusAction, promptInspection, revealInspection, scrollToEnd })
               :inspect-lines="row.inspectLines"
               @action="emit('action', $event)"
             />
+            <TerminalMail
+              v-else-if="row.kind === 'mail'"
+              :path="row.path"
+              :messages="row.messages"
+            />
+            <button
+              v-else-if="row.kind === 'mailNotice'"
+              type="button"
+              class="terminal-link mail-notice"
+              aria-label="New mail, open inbox"
+              @click="emit('action', { type: 'mail' })"
+            >
+              NEW MAIL
+            </button>
             <TerminalInspection
               v-else-if="row.kind === 'inspection'"
               :row="row"

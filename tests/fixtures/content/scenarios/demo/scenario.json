@@ -32,6 +32,10 @@
             {
               "type": "message",
               "text": "The annex is available."
+            },
+            {
+              "type": "deliverMail",
+              "message": "fixture-arrival"
             }
           ]
         },
@@ -48,6 +52,15 @@
           "path": "/exhibit/sample card",
           "type": "file",
           "content": "sample.txt",
+          "discover": {
+            "flag": "index_seen"
+          }
+        },
+        {
+          "id": "sealed-mail",
+          "path": "/exhibit/sealed",
+          "type": "mail",
+          "content": "sealed.json",
           "discover": {
             "flag": "index_seen"
           }
@@ -100,5 +113,9 @@
     "text": "Read the annex document.",
     "read": "annex_file",
     "message": "Fixture objective completed."
+  },
+  "inbox": {
+    "content": "mail.json",
+    "initial": []
   }
 }

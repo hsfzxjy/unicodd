@@ -210,6 +210,37 @@ test('keeps the native selection through Workbench navigation and Escape', async
   ).toEqual([1, 3])
 })
 
+test('marks the caret boundary in a wrapping code-point grid', async ({ page }, info) => {
+  await page.setViewportSize({ width: 375, height: 812 })
+  await fixture(page)
+  const input = page.getByRole('textbox', { name: 'Text input' })
+  await input.fill('a🧪bcde')
+  await input.press('Home')
+  await page.getByRole('button', { name: 'Code points', exact: true }).click()
+  const grid = page.getByRole('group', { name: 'Text input code points' })
+  const points = grid.getByRole('button')
+  const marker = grid.locator('.point-caret')
+  const before = (index: number) => points.nth(index).locator('.point-caret:not(.at-end)')
+
+  await expect(before(0)).toBeVisible()
+  await input.press('ArrowRight')
+  await input.press('ArrowRight')
+  await expect(before(2)).toBeVisible()
+  await expect(marker).toHaveCount(1)
+
+  const nextRow = points.nth(4)
+  expect((await nextRow.boundingBox())!.y).toBeGreaterThan((await points.nth(3).boundingBox())!.y)
+  await points.nth(3).click()
+  await expect(marker).toHaveCount(0)
+  await page.getByRole('button', { name: 'Caret after', exact: true }).click()
+  await expect(before(4)).toBeVisible()
+  await page.screenshot({ path: info.outputPath('wrapped-caret.png') })
+
+  await input.press('End')
+  await expect(points.last().locator('.point-caret.at-end')).toBeVisible()
+  await expect(marker).toHaveCount(1)
+})
+
 for (const [width, height] of [
   [375, 812],
   [390, 844],

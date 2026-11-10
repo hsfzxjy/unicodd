@@ -31,6 +31,9 @@ let composing = false
 let before: Span | undefined
 let projection: { raw: string; start: number; end: number } | undefined
 const selected = computed(() => props.modelValue.slice(selection.value.start, selection.value.end))
+const caretOffset = computed(() =>
+  selection.value.start === selection.value.end ? selection.value.start : undefined,
+)
 const firstPoint = computed(() => inspectRange(selected.value, 0, 1)[0])
 const pointContext = computed(() => {
   if (!expanded.value) return ''
@@ -261,6 +264,15 @@ defineExpose({ apply, focusAt, context: () => ({ ...selection.value }) })
         >
           <bdi>{{ point.glyph }}</bdi
           ><code>{{ point.notation }}</code>
+          <span
+            v-if="
+              caretOffset === point.start ||
+              (index === visible.length - 1 && caretOffset === point.end)
+            "
+            class="point-caret"
+            :class="{ 'at-end': caretOffset === point.end }"
+            aria-hidden="true"
+          ></span>
         </button>
       </div>
       <p v-else class="muted">No code points in this input.</p>

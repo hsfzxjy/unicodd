@@ -21,15 +21,21 @@ test('renders the empty shell and opens the Workbench with keyboard controls', a
   await expect(button).toBeFocused()
 })
 
-test('evaluates real WASM, displays analysis, and clears stale checks after editing', async ({ page }) => {
+test('evaluates real WASM, displays analysis, and clears stale checks after editing', async ({
+  page,
+}) => {
   await fixture(page)
   const input = page.getByRole('textbox', { name: 'Text input' })
   const status = page.getByRole('status')
   await expect(status).toHaveText('Pending')
   await page.getByRole('button', { name: 'Submit', exact: true }).click()
   await expect(status).toHaveText('Failed')
-  await expect(page.getByRole('listitem').filter({ hasText: 'Zero-width space present' })).toContainText('Actual false')
-  await expect(page.getByRole('listitem').filter({ hasText: 'Zero-width space present' })).toContainText('PASS')
+  await expect(
+    page.getByRole('listitem').filter({ hasText: 'Zero-width space present' }),
+  ).toContainText('Actual false')
+  await expect(
+    page.getByRole('listitem').filter({ hasText: 'Zero-width space present' }),
+  ).toContainText('PASS')
   await page.getByText('Analysis', { exact: false }).click()
   await expect(page.getByText('Café 👩‍💻', { exact: true })).toBeVisible()
   await input.fill('Café 🧪')
@@ -48,7 +54,10 @@ test('evaluates real WASM, displays analysis, and clears stale checks after edit
   await expect(status).toHaveText('Pending')
 })
 
-test('navigates normalization results, persists favorites, replaces, inserts, copies, and deletes', async ({ page, context }) => {
+test('navigates normalization results, persists favorites, replaces, inserts, copies, and deletes', async ({
+  page,
+  context,
+}) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   await fixture(page)
   const input = page.getByRole('textbox', { name: 'Text input' })
@@ -57,7 +66,10 @@ test('navigates normalization results, persists favorites, replaces, inserts, co
   await expect(page.getByRole('button', { name: /U\+0301/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /U\+200B, ZWSP/ })).toBeVisible()
   await page.getByRole('button', { name: /U\+1F9EA/ }).click()
-  await expect(page.getByRole('button', { name: /U\+1F9EA/ })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('button', { name: /U\+1F9EA/ })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
   await page.getByRole('button', { name: 'Copy notation' }).click()
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('U+1F9EA')
   await page.getByRole('button', { name: 'Copy text' }).click()
@@ -91,11 +103,17 @@ test('navigates normalization results, persists favorites, replaces, inserts, co
   await expect(input).toHaveValue('eé\u200b🚀')
   await page.reload()
   await page.getByRole('button', { name: 'Workbench', exact: true }).click()
-  await expect(dialog.locator('section').filter({ has: page.getByRole('heading', { name: 'Favorites', exact: true }) })
-    .getByRole('button', { name: /Inspect U\+00E9/ })).toBeVisible()
+  await expect(
+    dialog
+      .locator('section')
+      .filter({ has: page.getByRole('heading', { name: 'Favorites', exact: true }) })
+      .getByRole('button', { name: /Inspect U\+00E9/ }),
+  ).toBeVisible()
 })
 
-test('preserves composition and raw line endings and exposes repairable surrogate errors', async ({ page }) => {
+test('preserves composition and raw line endings and exposes repairable surrogate errors', async ({
+  page,
+}) => {
   await fixture(page)
   const input = page.getByRole('textbox', { name: 'Text input' })
   const submit = page.getByRole('button', { name: 'Submit', exact: true })
@@ -117,7 +135,9 @@ test('preserves composition and raw line endings and exposes repairable surrogat
   await input.evaluate((field: HTMLTextAreaElement) => {
     const clipboardData = new DataTransfer()
     clipboardData.setData('text/plain', 'x\r\ny')
-    field.dispatchEvent(new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData }))
+    field.dispatchEvent(
+      new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData }),
+    )
   })
   await expect(input).toHaveValue('x\ny')
   await page.getByRole('button', { name: 'Code points', exact: true }).click()
@@ -140,11 +160,13 @@ test('preserves composition and raw line endings and exposes repairable surrogat
 })
 
 test('shows a structured error if the browser cannot load WASM', async ({ page }) => {
-  await page.route('**/*.wasm', route => route.abort())
+  await page.route('**/*.wasm', (route) => route.abort())
   await page.goto('/?fixtures')
   await expect(page.getByRole('alert')).toContainText('engine_unavailable')
   await expect(page.getByRole('button', { name: 'Submit', exact: true })).toBeDisabled()
-  await expect(page.getByRole('textbox', { name: 'Text input' })).toHaveValue('Cafe\u0301 👩\u200d💻')
+  await expect(page.getByRole('textbox', { name: 'Text input' })).toHaveValue(
+    'Cafe\u0301 👩\u200d💻',
+  )
 })
 
 test('keeps the native selection through Workbench navigation and Escape', async ({ page }) => {
@@ -165,15 +187,27 @@ test('keeps the native selection through Workbench navigation and Escape', async
   await page.keyboard.press('Escape')
   await expect(opener).toBeFocused()
   await expect(input).toHaveValue('a🧪b')
-  expect(await input.evaluate((field: HTMLTextAreaElement) => [field.selectionStart, field.selectionEnd])).toEqual([1, 3])
+  expect(
+    await input.evaluate((field: HTMLTextAreaElement) => [
+      field.selectionStart,
+      field.selectionEnd,
+    ]),
+  ).toEqual([1, 3])
 })
 
-for (const [width, height] of [[375, 812], [390, 844], [768, 1024], [1280, 800], [1440, 900]]) {
+for (const [width, height] of [
+  [375, 812],
+  [390, 844],
+  [768, 1024],
+  [1280, 800],
+  [1440, 900],
+]) {
   test.describe(`${width} × ${height}`, () => {
     test.use({ viewport: { width, height }, hasTouch: width <= 768, isMobile: width <= 600 })
 
     test('keeps the workspace and Workbench usable at this viewport', async ({ page }, info) => {
-      const screenshot = (state: string) => page.screenshot({ path: info.outputPath(state + '.png') })
+      const screenshot = (state: string) =>
+        page.screenshot({ path: info.outputPath(state + '.png') })
       const checkWidth = async () => {
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
       }
@@ -202,7 +236,8 @@ for (const [width, height] of [[375, 812], [390, 844], [768, 1024], [1280, 800],
       const rightPanel = page.locator('.payload').filter({ has: right })
       await rightPanel.getByRole('button', { name: 'Code points' }).click()
       await expect(rightPanel.getByText(/Page \d+ of \d+/)).toBeVisible()
-      if (width <= 600) expect(await rightPanel.locator('.point-grid button').count()).toBeLessThanOrEqual(16)
+      if (width <= 600)
+        expect(await rightPanel.locator('.point-grid button').count()).toBeLessThanOrEqual(16)
       await checkWidth()
       await screenshot('long-and-code-points')
 

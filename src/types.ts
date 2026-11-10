@@ -7,9 +7,18 @@ export type Value =
   | { type: 'integer'; value: number }
 
 type Operator =
-  | 'textEqual' | 'concat' | 'normalize' | 'codePointLength'
-  | 'contains' | 'startsWith' | 'endsWith'
-  | 'not' | 'and' | 'or' | 'booleanEqual' | 'integerEqual'
+  | 'textEqual'
+  | 'concat'
+  | 'normalize'
+  | 'codePointLength'
+  | 'contains'
+  | 'startsWith'
+  | 'endsWith'
+  | 'not'
+  | 'and'
+  | 'or'
+  | 'booleanEqual'
+  | 'integerEqual'
 
 type Node = { id: string } & (
   | { op: 'input'; input: string }
@@ -37,20 +46,46 @@ export interface Target {
 }
 
 export interface EngineError {
-  code: 'invalid_program' | 'invalid_input' | 'unsupported_operation' | 'type_mismatch'
-    | 'evaluation_failure' | 'resource_limit' | 'engine_unavailable'
+  code:
+    | 'invalid_program'
+    | 'invalid_input'
+    | 'unsupported_operation'
+    | 'type_mismatch'
+    | 'evaluation_failure'
+    | 'resource_limit'
+    | 'engine_unavailable'
   message: string
   path?: string
   offset?: number
 }
 
 export type Result<T> = { ok: true; value: T } | { ok: false; error: EngineError }
-export interface CheckResult { id: string; actual: boolean; expected: boolean; passed: boolean; required: boolean }
-export interface TraceRecord { id: string; op: string; dependencies: string[]; result: Value }
-export interface Evaluation { solved: boolean; checks: CheckResult[]; trace?: TraceRecord[]; traceTruncated?: boolean }
+export interface CheckResult {
+  id: string
+  actual: boolean
+  expected: boolean
+  passed: boolean
+  required: boolean
+}
+export interface TraceRecord {
+  id: string
+  op: string
+  dependencies: string[]
+  result: Value
+}
+export interface Evaluation {
+  solved: boolean
+  checks: CheckResult[]
+  trace?: TraceRecord[]
+  traceTruncated?: boolean
+}
 export interface Engine {
   info(): Promise<Result<{ version: number; unicodeVersion: string }>>
   validate(program: Program): Promise<Result<null>>
-  evaluate(program: Program, inputs: Record<string, string>, trace?: boolean): Promise<Result<Evaluation>>
+  evaluate(
+    program: Program,
+    inputs: Record<string, string>,
+    trace?: boolean,
+  ): Promise<Result<Evaluation>>
   normalize(text: string, form: Normalization): Promise<Result<string>>
 }

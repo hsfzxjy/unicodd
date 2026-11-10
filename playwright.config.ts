@@ -1,7 +1,8 @@
 import { defineConfig } from '@playwright/test'
 
 const port = Number(process.env.PLAYWRIGHT_TEST_PORT ?? 41737)
-if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid PLAYWRIGHT_TEST_PORT')
+if (!Number.isInteger(port) || port < 1 || port > 65535)
+  throw new Error('Invalid PLAYWRIGHT_TEST_PORT')
 const baseURL = `http://127.0.0.1:${port}`
 
 export default defineConfig({

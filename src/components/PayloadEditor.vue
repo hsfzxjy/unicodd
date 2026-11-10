@@ -1,6 +1,16 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from 'vue'
-import { applyNativeEdit, copyText, editorText, inspect, inspectRange, pointIndex, rawOffset, scalarSpan, type Span } from '../lib/unicode'
+import {
+  applyNativeEdit,
+  copyText,
+  editorText,
+  inspect,
+  inspectRange,
+  pointIndex,
+  rawOffset,
+  scalarSpan,
+  type Span,
+} from '../lib/unicode'
 
 const props = defineProps<{ label: string; modelValue: string }>()
 const emit = defineEmits<{
@@ -28,9 +38,9 @@ const count = computed(() => {
   return total
 })
 const pages = computed(() => Math.max(1, Math.ceil(count.value / pageSize.value)))
-const visible = computed(() => expanded.value
-  ? inspectRange(props.modelValue, page.value * pageSize.value, pageSize.value)
-  : [])
+const visible = computed(() =>
+  expanded.value ? inspectRange(props.modelValue, page.value * pageSize.value, pageSize.value) : [],
+)
 
 function syncControl() {
   const field = control.value
@@ -47,15 +57,22 @@ onMounted(() => {
   narrow.addEventListener('change', updatePageSize)
 })
 onUnmounted(() => narrow.removeEventListener('change', updatePageSize))
-watch(() => props.modelValue, () => {
-  syncControl()
-  page.value = Math.min(page.value, pages.value - 1)
-})
+watch(
+  () => props.modelValue,
+  () => {
+    syncControl()
+    page.value = Math.min(page.value, pages.value - 1)
+  },
+)
 
 function readSelection(reveal = true, raw = props.modelValue) {
   const field = control.value
   if (!field || composing) return
-  if (projection?.raw !== raw || projection.start !== field.selectionStart || projection.end !== field.selectionEnd) {
+  if (
+    projection?.raw !== raw ||
+    projection.start !== field.selectionStart ||
+    projection.end !== field.selectionEnd
+  ) {
     projection = undefined
     selection.value = scalarSpan(raw, {
       start: rawOffset(raw, field.selectionStart),
@@ -112,7 +129,10 @@ function focusAt(span: Span, focus = true) {
 
 function apply(span: Span, text: string) {
   if (composing) return
-  emit('update:modelValue', props.modelValue.slice(0, span.start) + text + props.modelValue.slice(span.end))
+  emit(
+    'update:modelValue',
+    props.modelValue.slice(0, span.start) + text + props.modelValue.slice(span.end),
+  )
   const caret = span.start + text.length
   void nextTick(() => {
     const position = scalarSpan(props.modelValue, { start: caret, end: caret })
@@ -149,7 +169,11 @@ function toggle() {
 
 function openWorkbench() {
   if (composing) return
-  emit('workbench', { ...selection.value }, firstPoint.value?.valid ? firstPoint.value.scalar : undefined)
+  emit(
+    'workbench',
+    { ...selection.value },
+    firstPoint.value?.valid ? firstPoint.value.scalar : undefined,
+  )
 }
 
 async function copy(value: string) {
@@ -168,19 +192,42 @@ defineExpose({ apply, focusAt, context: () => ({ ...selection.value }) })
   <div class="payload">
     <div class="field-head">
       <label :for="id">{{ label }}</label>
-      <span class="meta">{{ count }} code {{ count === 1 ? 'point' : 'points' }} · {{ modelValue.length }} UTF-16 units</span>
+      <span class="meta"
+        >{{ count }} code {{ count === 1 ? 'point' : 'points' }} · {{ modelValue.length }} UTF-16
+        units</span
+      >
     </div>
     <textarea
-      :id="id" ref="control" dir="auto" spellcheck="false" autocapitalize="off"
-      autocomplete="off" autocorrect="off" rows="3"
-      @focus="emit('active')" @select="readSelection()" @keyup="readSelection()"
+      :id="id"
+      ref="control"
+      dir="auto"
+      spellcheck="false"
+      autocapitalize="off"
+      autocomplete="off"
+      autocorrect="off"
+      rows="3"
+      @focus="emit('active')"
+      @select="readSelection()"
+      @keyup="readSelection()"
       @pointerdown="projection = undefined"
-      @pointerup="readSelection()" @blur="readSelection()" @beforeinput="remember" @input="nativeInput"
-      @compositionstart="startComposition" @compositionend="endComposition"
-      @paste="paste" @copy="copySelection" @cut="copySelection"
+      @pointerup="readSelection()"
+      @blur="readSelection()"
+      @beforeinput="remember"
+      @input="nativeInput"
+      @compositionstart="startComposition"
+      @compositionend="endComposition"
+      @paste="paste"
+      @copy="copySelection"
+      @cut="copySelection"
     />
     <div class="toolbar payload-tools">
-      <button type="button" class="disclosure" :aria-expanded="expanded" :aria-controls="id + '-points'" @click="toggle">
+      <button
+        type="button"
+        class="disclosure"
+        :aria-expanded="expanded"
+        :aria-controls="id + '-points'"
+        @click="toggle"
+      >
         <span aria-hidden="true">{{ expanded ? '▾' : '▸' }}</span> Code points
       </button>
       <button type="button" @click="openWorkbench">Open Workbench</button>
@@ -191,26 +238,57 @@ defineExpose({ apply, focusAt, context: () => ({ ...selection.value }) })
         <span class="meta" role="status">Page {{ page + 1 }} of {{ pages }}</span>
         <button type="button" :disabled="page + 1 === pages" @click="page++">Next</button>
       </div>
-      <div v-if="visible.length" class="point-grid" role="group" :aria-label="label + ' code points'">
+      <div
+        v-if="visible.length"
+        class="point-grid"
+        role="group"
+        :aria-label="label + ' code points'"
+      >
         <button
-          v-for="(point, index) in visible" :key="point.start" type="button" class="point"
+          v-for="(point, index) in visible"
+          :key="point.start"
+          type="button"
+          class="point"
           :aria-label="`${page * pageSize + index + 1}. ${point.notation}, ${point.glyph}`"
           :aria-pressed="point.start >= selection.start && point.end <= selection.end"
           @click="selectPoint(point)"
         >
-          <bdi>{{ point.glyph }}</bdi><code>{{ point.notation }}</code>
+          <bdi>{{ point.glyph }}</bdi
+          ><code>{{ point.notation }}</code>
         </button>
       </div>
       <p v-else class="muted">No code points in this input.</p>
       <div v-if="selected" class="toolbar point-actions">
-        <button type="button" @click="selectPoint({ start: selection.start, end: selection.start })">Caret before</button>
-        <button type="button" @click="selectPoint({ start: selection.end, end: selection.end })">Caret after</button>
+        <button
+          type="button"
+          @click="selectPoint({ start: selection.start, end: selection.start })"
+        >
+          Caret before
+        </button>
+        <button type="button" @click="selectPoint({ start: selection.end, end: selection.end })">
+          Caret after
+        </button>
         <button type="button" @click="apply(selection, '')">Delete</button>
         <button type="button" @click="copy(selected)">Copy text</button>
-        <button type="button" @click="copy(inspect(selected).map(point => point.notation).join(' '))">Copy notation</button>
+        <button
+          type="button"
+          @click="
+            copy(
+              inspect(selected)
+                .map((point) => point.notation)
+                .join(' '),
+            )
+          "
+        >
+          Copy notation
+        </button>
       </div>
       <div class="point-context meta" role="status">
-        {{ selected ? `Selected UTF-16 ${selection.start}–${selection.end}` : `Caret at UTF-16 ${selection.start}` }}
+        {{
+          selected
+            ? `Selected UTF-16 ${selection.start}–${selection.end}`
+            : `Caret at UTF-16 ${selection.start}`
+        }}
         <span v-if="feedback"> · {{ feedback }}</span>
       </div>
     </div>

@@ -8,11 +8,20 @@ const programLimit = 13 * 1024 * 1024
 const inputLimit = 2 * 1024 * 1024
 const normalizeLimit = 128 * 1024
 
-function failure(code: EngineError['code'], message: string, path?: string, offset?: number): Result<never> {
+function failure(
+  code: EngineError['code'],
+  message: string,
+  path?: string,
+  offset?: number,
+): Result<never> {
   return { ok: false, error: { code, message, path, offset } }
 }
 
-function surrogateError(text: string, code: 'invalid_program' | 'invalid_input', path: string): Result<never> | undefined {
+function surrogateError(
+  text: string,
+  code: 'invalid_program' | 'invalid_input',
+  path: string,
+): Result<never> | undefined {
   const offset = unpairedSurrogate(text)
   if (offset === undefined) return
   return failure(code, `Unpaired surrogate at UTF-16 offset ${offset}.`, path, offset)
@@ -29,7 +38,10 @@ function bytes(text: string, limit: number, path: string): Result<Uint8Array> {
 }
 
 function jsonBytes(
-  data: unknown, limit: number, path: 'program' | 'inputs', code: 'invalid_program' | 'invalid_input',
+  data: unknown,
+  limit: number,
+  path: 'program' | 'inputs',
+  code: 'invalid_program' | 'invalid_input',
 ): Result<Uint8Array> {
   let rejection: Result<never> | undefined
   let remaining = limit
@@ -43,7 +55,9 @@ function jsonBytes(
       if (rejection) throw new TypeError('Invalid transport data')
       return value
     })
-    return typeof text === 'string' ? bytes(text, limit, path) : failure(code, 'Expected a JSON object.', path)
+    return typeof text === 'string'
+      ? bytes(text, limit, path)
+      : failure(code, 'Expected a JSON object.', path)
   } catch {
     return rejection ?? failure(code, 'Could not serialize the request as JSON.', path)
   }
@@ -58,7 +72,10 @@ export function createEngine(load: () => Promise<Operations>): Engine {
       module = await (loading ??= load())
     } catch {
       loading = undefined
-      return failure('engine_unavailable', 'Could not initialize the Unicode evaluator. Reload the page to retry.')
+      return failure(
+        'engine_unavailable',
+        'Could not initialize the Unicode evaluator. Reload the page to retry.',
+      )
     }
     try {
       return JSON.parse(execute(module)) as Result<T>
@@ -68,22 +85,24 @@ export function createEngine(load: () => Promise<Operations>): Engine {
   }
 
   return {
-    info: () => call(module => module.engine_info()),
+    info: () => call((module) => module.engine_info()),
     async validate(program) {
       const data = jsonBytes(program, programLimit, 'program', 'invalid_program')
-      return data.ok ? call(module => module.validate_program(data.value)) : data
+      return data.ok ? call((module) => module.validate_program(data.value)) : data
     },
     async evaluate(program, inputs, trace = false) {
       const data = jsonBytes(program, programLimit, 'program', 'invalid_program')
       if (!data.ok) return data
       const snapshot = jsonBytes(inputs, inputLimit, 'inputs', 'invalid_input')
-      return snapshot.ok ? call(module => module.evaluate(data.value, snapshot.value, trace)) : snapshot
+      return snapshot.ok
+        ? call((module) => module.evaluate(data.value, snapshot.value, trace))
+        : snapshot
     },
     async normalize(text, form) {
       const invalid = surrogateError(text, 'invalid_input', 'text')
       if (invalid) return invalid
       const data = bytes(text, normalizeLimit, 'text')
-      return data.ok ? call(module => module.normalize_text(data.value, form)) : data
+      return data.ok ? call((module) => module.normalize_text(data.value, form)) : data
     },
   }
 }

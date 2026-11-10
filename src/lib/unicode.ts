@@ -1,4 +1,7 @@
-export interface Span { start: number; end: number }
+export interface Span {
+  start: number
+  end: number
+}
 export interface Point extends Span {
   scalar: string
   notation: string
@@ -7,8 +10,15 @@ export interface Point extends Span {
 }
 
 const names = new Map([
-  [' ', 'SPACE'], ['\t', 'TAB'], ['\r', 'CR'], ['\n', 'LF'], ['\u00a0', 'NBSP'],
-  ['\u200b', 'ZWSP'], ['\u200c', 'ZWNJ'], ['\u200d', 'ZWJ'], ['\ufeff', 'BOM'],
+  [' ', 'SPACE'],
+  ['\t', 'TAB'],
+  ['\r', 'CR'],
+  ['\n', 'LF'],
+  ['\u00a0', 'NBSP'],
+  ['\u200b', 'ZWSP'],
+  ['\u200c', 'ZWNJ'],
+  ['\u200d', 'ZWJ'],
+  ['\ufeff', 'BOM'],
 ])
 
 export function notation(value: number): string {
@@ -27,10 +37,16 @@ export function unpairedSurrogate(text: string): number | undefined {
 export function describe(scalar: string, start = 0): Point {
   const value = scalar.codePointAt(0)!
   const valid = unpairedSurrogate(scalar) === undefined
-  const glyph = !valid ? 'Surrogate' : names.get(scalar) ??
-    (/\p{Cc}/u.test(scalar) ? 'Control' :
-      /[\p{White_Space}\p{Default_Ignorable_Code_Point}\p{Cf}]/u.test(scalar) ? 'Invisible' :
-        /\p{Mark}/u.test(scalar) ? '◌' + scalar : scalar)
+  const glyph = !valid
+    ? 'Surrogate'
+    : (names.get(scalar) ??
+      (/\p{Cc}/u.test(scalar)
+        ? 'Control'
+        : /[\p{White_Space}\p{Default_Ignorable_Code_Point}\p{Cf}]/u.test(scalar)
+          ? 'Invisible'
+          : /\p{Mark}/u.test(scalar)
+            ? '◌' + scalar
+            : scalar))
   return { scalar, start, end: start + scalar.length, notation: notation(value), glyph, valid }
 }
 
@@ -62,8 +78,10 @@ export function pointIndex(text: string, offset: number): number {
 
 export function scalarSpan(text: string, { start, end }: Span): Span {
   const splitsPair = (index: number) =>
-    text.charCodeAt(index - 1) >= 0xd800 && text.charCodeAt(index - 1) <= 0xdbff &&
-    text.charCodeAt(index) >= 0xdc00 && text.charCodeAt(index) <= 0xdfff
+    text.charCodeAt(index - 1) >= 0xd800 &&
+    text.charCodeAt(index - 1) <= 0xdbff &&
+    text.charCodeAt(index) >= 0xdc00 &&
+    text.charCodeAt(index) <= 0xdfff
 
   if (start === end && splitsPair(start)) return { start: start + 1, end: end + 1 }
   return { start: start - Number(splitsPair(start)), end: end + Number(splitsPair(end)) }
@@ -88,11 +106,18 @@ export function rawOffset(raw: string, offset: number): number {
 export function applyNativeEdit(raw: string, next: string, before?: Span, caret?: number): string {
   const previous = editorText(raw)
   // Prefer the browser selection to distinguish adjacent equal characters.
-  if (before && caret !== undefined && caret >= before.start &&
+  if (
+    before &&
+    caret !== undefined &&
+    caret >= before.start &&
     next.slice(0, before.start) === previous.slice(0, before.start) &&
-    next.slice(caret) === previous.slice(before.end)) {
-    return raw.slice(0, rawOffset(raw, before.start)) + next.slice(before.start, caret)
-      + raw.slice(rawOffset(raw, before.end))
+    next.slice(caret) === previous.slice(before.end)
+  ) {
+    return (
+      raw.slice(0, rawOffset(raw, before.start)) +
+      next.slice(before.start, caret) +
+      raw.slice(rawOffset(raw, before.end))
+    )
   }
   if (next === previous) return raw
 
@@ -106,16 +131,22 @@ export function applyNativeEdit(raw: string, next: string, before?: Span, caret?
     end--
     nextEnd--
   }
-  return raw.slice(0, rawOffset(raw, start)) + next.slice(start, nextEnd) + raw.slice(rawOffset(raw, end))
+  return (
+    raw.slice(0, rawOffset(raw, start)) +
+    next.slice(start, nextEnd) +
+    raw.slice(rawOffset(raw, end))
+  )
 }
 
 export function lookup(query: string): string | undefined {
-  if (Array.from(query).length === 1) return unpairedSurrogate(query) === undefined ? query : undefined
+  if (Array.from(query).length === 1)
+    return unpairedSurrogate(query) === undefined ? query : undefined
   const match = /^(?:U\+)?([0-9a-f]{1,6})$/i.exec(query.trim())
   if (!match) return undefined
   const value = Number.parseInt(match[1], 16)
   return value <= 0x10ffff && (value < 0xd800 || value > 0xdfff)
-    ? String.fromCodePoint(value) : undefined
+    ? String.fromCodePoint(value)
+    : undefined
 }
 
 export async function copyText(value: string) {

@@ -8,14 +8,16 @@ import type { Engine, EngineError, Evaluation, Target } from './types'
 
 const props = defineProps<{ targets: readonly Target[]; engine: Engine }>()
 const targetId = ref(props.targets[0]?.id ?? '')
-const target = computed(() => props.targets.find(item => item.id === targetId.value))
+const target = computed(() => props.targets.find((item) => item.id === targetId.value))
 const inputIds = computed(() => {
   const inputs = target.value?.program?.inputs
-  return Array.isArray(inputs) ? [...new Set(inputs.filter(id => typeof id === 'string'))] : []
+  return Array.isArray(inputs) ? [...new Set(inputs.filter((id) => typeof id === 'string'))] : []
 })
 const checks = computed(() => {
   const values = target.value?.program?.checks
-  return Array.isArray(values) ? values.filter(check => typeof check?.id === 'string' && typeof check.expected === 'boolean') : []
+  return Array.isArray(values)
+    ? values.filter((check) => typeof check?.id === 'string' && typeof check.expected === 'boolean')
+    : []
 })
 const editors = new Map<string, InstanceType<typeof PayloadEditor>>()
 const drafts = new Map<string, Record<string, string>>()
@@ -29,11 +31,16 @@ const submitError = shallowRef<EngineError>()
 const phase = ref<'validating' | 'pending' | 'evaluating' | 'complete' | 'error'>('pending')
 const status = computed(() => {
   switch (phase.value) {
-    case 'validating': return 'Checking definition…'
-    case 'pending': return 'Pending'
-    case 'evaluating': return 'Evaluating…'
-    case 'complete': return result.value?.solved ? 'Passed' : 'Failed'
-    case 'error': return 'Error'
+    case 'validating':
+      return 'Checking definition…'
+    case 'pending':
+      return 'Pending'
+    case 'evaluating':
+      return 'Evaluating…'
+    case 'complete':
+      return result.value?.solved ? 'Passed' : 'Failed'
+    case 'error':
+      return 'Error'
   }
 })
 let revision = 0
@@ -41,34 +48,45 @@ let context: { id: string; span: Span } | undefined
 let returnTo: HTMLElement | undefined
 let applied = false
 
-watch(target, async (selected, _, onCleanup) => {
-  let stale = false
-  onCleanup(() => { stale = true })
-  revision++
-  result.value = undefined
-  validationError.value = undefined
-  submitError.value = undefined
-  active.value = undefined
-  composing.value = []
-  phase.value = 'pending'
-  if (!selected) return
-  let values = drafts.get(selected.id)
-  if (!values) {
-    values = Object.assign(Object.create(null), Object.fromEntries(
-      inputIds.value.map(id => [id, payloadMeta(selected, id)?.initial ?? '']),
-    )) as Record<string, string>
-    drafts.set(selected.id, values)
-  }
-  draft.value = values
-  phase.value = 'validating'
-  const response = await props.engine.validate(selected.program)
-  if (stale) return
-  if (!response.ok) validationError.value = response.error
-  phase.value = response.ok ? 'pending' : 'error'
-}, { immediate: true })
+watch(
+  target,
+  async (selected, _, onCleanup) => {
+    let stale = false
+    onCleanup(() => {
+      stale = true
+    })
+    revision++
+    result.value = undefined
+    validationError.value = undefined
+    submitError.value = undefined
+    active.value = undefined
+    composing.value = []
+    phase.value = 'pending'
+    if (!selected) return
+    let values = drafts.get(selected.id)
+    if (!values) {
+      values = Object.assign(
+        Object.create(null),
+        Object.fromEntries(
+          inputIds.value.map((id) => [id, payloadMeta(selected, id)?.initial ?? '']),
+        ),
+      ) as Record<string, string>
+      drafts.set(selected.id, values)
+    }
+    draft.value = values
+    phase.value = 'validating'
+    const response = await props.engine.validate(selected.program)
+    if (stale) return
+    if (!response.ok) validationError.value = response.error
+    phase.value = response.ok ? 'pending' : 'error'
+  },
+  { immediate: true },
+)
 
 function payloadMeta(selected: Target, id: string) {
-  return selected.payloads && Object.hasOwn(selected.payloads, id) ? selected.payloads[id] : undefined
+  return selected.payloads && Object.hasOwn(selected.payloads, id)
+    ? selected.payloads[id]
+    : undefined
 }
 
 function checkMeta(id: string) {
@@ -86,12 +104,20 @@ function setDraft(id: string, value: string) {
 }
 
 function setComposing(id: string, value: boolean) {
-  composing.value = value ? [...new Set([...composing.value, id])] : composing.value.filter(item => item !== id)
+  composing.value = value
+    ? [...new Set([...composing.value, id])]
+    : composing.value.filter((item) => item !== id)
 }
 
 async function submit() {
-  if (!target.value || validationError.value || composing.value.length ||
-    phase.value === 'validating' || phase.value === 'evaluating') return
+  if (
+    !target.value ||
+    validationError.value ||
+    composing.value.length ||
+    phase.value === 'validating' ||
+    phase.value === 'evaluating'
+  )
+    return
   const request = ++revision
   phase.value = 'evaluating'
   result.value = undefined
@@ -108,10 +134,15 @@ function openBench(id?: string, span?: Span, scalar?: string) {
   context = id !== undefined && span ? { id, span } : undefined
   returnTo = document.activeElement instanceof HTMLElement ? document.activeElement : undefined
   applied = false
-  workbench.value?.open(context && target.value ? {
-    label: payloadMeta(target.value, context.id)?.label ?? context.id,
-    span: context.span,
-  } : undefined, scalar)
+  workbench.value?.open(
+    context && target.value
+      ? {
+          label: payloadMeta(target.value, context.id)?.label ?? context.id,
+          span: context.span,
+        }
+      : undefined,
+    scalar,
+  )
 }
 
 function globalWorkbench() {
@@ -123,9 +154,11 @@ function applyCharacter(scalar: string, mode: 'insert' | 'replace') {
   if (!context) return
   const { id, span } = context
   applied = true
-  void nextTick(() => editors.get(id)?.apply(
-    mode === 'insert' ? { start: span.start, end: span.start } : span, scalar,
-  ))
+  void nextTick(() =>
+    editors
+      .get(id)
+      ?.apply(mode === 'insert' ? { start: span.start, end: span.start } : span, scalar),
+  )
 }
 
 function closeBench() {
@@ -146,14 +179,25 @@ function closeBench() {
           <option v-for="item in targets" :key="item.id" :value="item.id">{{ item.title }}</option>
         </select>
       </label>
-      <button type="button" class="nav-workbench" :disabled="!!composing.length" @click="globalWorkbench">Workbench</button>
+      <button
+        type="button"
+        class="nav-workbench"
+        :disabled="!!composing.length"
+        @click="globalWorkbench"
+      >
+        Workbench
+      </button>
     </div>
   </header>
 
   <main v-if="target" :key="target.id" class="shell">
     <header class="brief">
-      <h1><bdi>{{ target.title }}</bdi></h1>
-      <p v-if="target.description" class="meta"><bdi>{{ target.description }}</bdi></p>
+      <h1>
+        <bdi>{{ target.title }}</bdi>
+      </h1>
+      <p v-if="target.description" class="meta">
+        <bdi>{{ target.description }}</bdi>
+      </p>
       <p class="objective" dir="auto">{{ target.objective }}</p>
     </header>
 
@@ -162,47 +206,85 @@ function closeBench() {
         <h2 id="payload-heading" class="panel-heading">Payloads</h2>
         <div class="payloads">
           <PayloadEditor
-            v-for="id in inputIds" :key="id"
-            :ref="editor => editor ? editors.set(id, editor as InstanceType<typeof PayloadEditor>) : editors.delete(id)"
-            :label="payloadMeta(target, id)?.label ?? id" :model-value="draft[id] ?? ''"
-            @update:model-value="setDraft(id, $event)" @active="active = id"
+            v-for="id in inputIds"
+            :key="id"
+            :ref="
+              (editor) =>
+                editor
+                  ? editors.set(id, editor as InstanceType<typeof PayloadEditor>)
+                  : editors.delete(id)
+            "
+            :label="payloadMeta(target, id)?.label ?? id"
+            :model-value="draft[id] ?? ''"
+            @update:model-value="setDraft(id, $event)"
+            @active="active = id"
             @composition="setComposing(id, $event)"
             @workbench="(span, scalar) => openBench(id, span, scalar)"
           />
           <p v-if="!inputIds.length" class="muted">This target has no editable inputs.</p>
         </div>
         <div class="submit-row toolbar">
-          <button type="submit" class="primary"
-            :disabled="!!validationError || !!composing.length || phase === 'validating' || phase === 'evaluating'"
-          >Submit</button>
+          <button
+            type="submit"
+            class="primary"
+            :disabled="
+              !!validationError ||
+              !!composing.length ||
+              phase === 'validating' ||
+              phase === 'evaluating'
+            "
+          >
+            Submit
+          </button>
         </div>
       </form>
 
       <section class="workspace-panel verification" aria-labelledby="verification-heading">
         <div class="panel-heading verification-head">
           <h2 id="verification-heading">Verification</h2>
-          <span role="status" class="status" :class="phase === 'complete' ? (result?.solved ? 'pass' : 'fail') : phase">
+          <span
+            role="status"
+            class="status"
+            :class="phase === 'complete' ? (result?.solved ? 'pass' : 'fail') : phase"
+          >
             {{ status }}
           </span>
         </div>
         <div v-if="validationError || submitError" class="diagnostic error" role="alert">
           <template v-for="diagnostic in [validationError ?? submitError!]" :key="diagnostic.code">
-            <code>{{ diagnostic.code }}<template v-if="diagnostic.path"> · <bdi>{{ diagnostic.path }}</bdi></template></code>
+            <code
+              >{{ diagnostic.code
+              }}<template v-if="diagnostic.path">
+                · <bdi>{{ diagnostic.path }}</bdi></template
+              ></code
+            >
             <p>{{ diagnostic.message }}</p>
           </template>
         </div>
         <ul class="check-list">
           <li v-for="(check, index) in checks" :key="index" class="check-row">
             <div>
-              <div class="check-label"><bdi>{{ checkMeta(check.id)?.label ?? check.id }}</bdi></div>
+              <div class="check-label">
+                <bdi>{{ checkMeta(check.id)?.label ?? check.id }}</bdi>
+              </div>
               <div class="check-values meta">
-                <span>Expected <code>{{ check.expected }}</code></span>
-                <span v-if="result?.checks[index]">Actual <code>{{ result.checks[index].actual }}</code></span>
+                <span
+                  >Expected <code>{{ check.expected }}</code></span
+                >
+                <span v-if="result?.checks[index]"
+                  >Actual <code>{{ result.checks[index].actual }}</code></span
+                >
                 <span v-if="check.required === false">Optional</span>
               </div>
-              <p v-if="checkMeta(check.id)?.detail" class="check-detail" dir="auto">{{ checkMeta(check.id)?.detail }}</p>
+              <p v-if="checkMeta(check.id)?.detail" class="check-detail" dir="auto">
+                {{ checkMeta(check.id)?.detail }}
+              </p>
             </div>
-            <span v-if="result?.checks[index]" class="status" :class="result.checks[index].passed ? 'pass' : 'fail'">
+            <span
+              v-if="result?.checks[index]"
+              class="status"
+              :class="result.checks[index].passed ? 'pass' : 'fail'"
+            >
               {{ result.checks[index].passed ? '✓ PASS' : '× FAIL' }}
             </span>
             <span v-else class="meta" aria-hidden="true">—</span>
@@ -210,20 +292,32 @@ function closeBench() {
         </ul>
         <p v-if="!checks.length" class="muted diagnostic">No verification checks.</p>
         <details v-if="result?.trace?.length" class="analysis">
-          <summary>Analysis <span class="meta">{{ result.trace.length }} nodes</span></summary>
+          <summary>
+            Analysis <span class="meta">{{ result.trace.length }} nodes</span>
+          </summary>
           <ol>
             <li v-for="node in result.trace" :key="node.id" class="trace-row">
               <div class="trace-head">
-                <code><bdi>{{ node.id }}</bdi></code>
+                <code
+                  ><bdi>{{ node.id }}</bdi></code
+                >
                 <span class="meta">{{ node.op }} · {{ node.result.type }}</span>
               </div>
-              <p v-if="node.dependencies.length" class="meta">From <bdi>{{ node.dependencies.join(', ') }}</bdi></p>
+              <p v-if="node.dependencies.length" class="meta">
+                From <bdi>{{ node.dependencies.join(', ') }}</bdi>
+              </p>
               <TraceValue :value="node.result" />
             </li>
           </ol>
-          <p v-if="result.traceTruncated" class="diagnostic muted">Trace stopped at the output size limit.</p>
+          <p v-if="result.traceTruncated" class="diagnostic muted">
+            Trace stopped at the output size limit.
+          </p>
         </details>
-        <p v-if="result && target.output?.[result.solved ? 'passed' : 'failed']" class="system-output mono" dir="auto">
+        <p
+          v-if="result && target.output?.[result.solved ? 'passed' : 'failed']"
+          class="system-output mono"
+          dir="auto"
+        >
           {{ target.output[result.solved ? 'passed' : 'failed'] }}
         </p>
       </section>
@@ -232,7 +326,9 @@ function closeBench() {
 
   <main v-else class="shell empty">
     <h1>No puzzle loaded</h1>
-    <p class="muted">Loaded targets appear in the selector. The Workbench is available on its own.</p>
+    <p class="muted">
+      Loaded targets appear in the selector. The Workbench is available on its own.
+    </p>
   </main>
 
   <Workbench ref="workbench" :engine="engine" @apply="applyCharacter" @close="closeBench" />

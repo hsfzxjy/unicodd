@@ -10,7 +10,8 @@ const preview = computed(() => {
   const value = props.value.value
   if (value && value.length <= 2 && Array.from(value).length === 1) {
     const point = describe(value)
-    if (point.glyph !== value) return { text: `${point.glyph} · ${point.notation}`, truncated: false }
+    if (point.glyph !== value)
+      return { text: `${point.glyph} · ${point.notation}`, truncated: false }
   }
   let text = ''
   let count = 0
@@ -26,7 +27,12 @@ const preview = computed(() => {
   <div class="trace-value">
     <span v-if="value.type === 'text' && !value.value" class="meta">Empty text</span>
     <bdi v-else class="mono">{{ preview.text }}{{ preview.truncated ? '…' : '' }}</bdi>
-    <button v-if="preview.truncated || expanded" type="button" :aria-expanded="expanded" @click="expanded = !expanded">
+    <button
+      v-if="preview.truncated || expanded"
+      type="button"
+      :aria-expanded="expanded"
+      @click="expanded = !expanded"
+    >
       {{ expanded ? 'Show less' : 'Show full value' }}
     </button>
   </div>

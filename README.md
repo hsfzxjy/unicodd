@@ -34,27 +34,27 @@ Export a catalog of `Target` objects from `src/data/targets.ts`. Each target pro
 
 A program has four fields.
 
-| Field | Meaning |
-| --- | --- |
-| `version` | Schema version, currently `1` |
-| `inputs` | Array of unique text input IDs |
-| `nodes` | Array of computation nodes in any declaration order |
-| `checks` | Array of Boolean checks in display order |
+| Field     | Meaning                                             |
+| --------- | --------------------------------------------------- |
+| `version` | Schema version, currently `1`                       |
+| `inputs`  | Array of unique text input IDs                      |
+| `nodes`   | Array of computation nodes in any declaration order |
+| `checks`  | Array of Boolean checks in display order            |
 
 Identifiers contain 1–64 ASCII letters, digits, underscores, hyphens, or dots. Input, node, and check identifiers are unique within their respective arrays. Nodes have an `id`, an `op`, and the fields shown below. The entries of `args` are node IDs. Literals use `{ "type": "text" | "boolean" | "integer", "value": … }`. Integers range from zero to `Number.MAX_SAFE_INTEGER`.
 
-| Operation | Additional fields or argument types | Result |
-| --- | --- | --- |
-| `input` | `input` is a declared input ID | Text |
-| `literal` | `value` is a typed literal | Literal type |
-| `concat` | Text, text | Text |
-| `normalize` | One text argument and `form` set to `NFC`, `NFD`, `NFKC`, or `NFKD` | Text |
-| `codePointLength` | Text | Integer |
-| `textEqual` | Text, text | Boolean |
-| `contains`, `startsWith`, `endsWith` | Text to search, text to find | Boolean |
-| `not` | Boolean | Boolean |
-| `and`, `or`, `booleanEqual` | Boolean, Boolean | Boolean |
-| `integerEqual` | Integer, integer | Boolean |
+| Operation                            | Additional fields or argument types                                 | Result       |
+| ------------------------------------ | ------------------------------------------------------------------- | ------------ |
+| `input`                              | `input` is a declared input ID                                      | Text         |
+| `literal`                            | `value` is a typed literal                                          | Literal type |
+| `concat`                             | Text, text                                                          | Text         |
+| `normalize`                          | One text argument and `form` set to `NFC`, `NFD`, `NFKC`, or `NFKD` | Text         |
+| `codePointLength`                    | Text                                                                | Integer      |
+| `textEqual`                          | Text, text                                                          | Boolean      |
+| `contains`, `startsWith`, `endsWith` | Text to search, text to find                                        | Boolean      |
+| `not`                                | Boolean                                                             | Boolean      |
+| `and`, `or`, `booleanEqual`          | Boolean, Boolean                                                    | Boolean      |
+| `integerEqual`                       | Integer, integer                                                    | Boolean      |
 
 Each check has an `id`, a `node` referring to a Boolean result, an `expected` Boolean, and an optional `required` flag that defaults to true. The check passes when actual equals expected. The program is solved when every required check passes, including programs with zero required checks.
 

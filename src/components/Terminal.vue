@@ -75,8 +75,17 @@ function readResourceSelection() {
       : undefined
 }
 
-onMounted(() => document.addEventListener('selectionchange', readResourceSelection))
-onUnmounted(() => document.removeEventListener('selectionchange', readResourceSelection))
+const transcriptResize = new ResizeObserver(() => {
+  if (following.value) scrollToEnd()
+})
+onMounted(() => {
+  document.addEventListener('selectionchange', readResourceSelection)
+  if (scroll.value) transcriptResize.observe(scroll.value)
+})
+onUnmounted(() => {
+  document.removeEventListener('selectionchange', readResourceSelection)
+  transcriptResize.disconnect()
+})
 
 watch(
   () => props.transcript,
@@ -165,10 +174,14 @@ defineExpose({ focusAction, promptInspection, revealInspection, scrollToEnd })
     <div class="frame-title">
       <span class="wordmark">unicodd</span>
       <slot name="scenario" />
-      <button v-if="!following" type="button" class="jump" @click="scrollToEnd">
-        Latest output ↓
-      </button>
+      <div class="title-actions">
+        <slot name="title-actions" />
+        <button v-if="!following" type="button" aria-label="Latest output" @click="scrollToEnd">
+          Latest<span class="latest-output-word"> output</span> ↓
+        </button>
+      </div>
     </div>
+    <div id="terminal-context" />
     <div
       ref="scroll"
       class="transcript"

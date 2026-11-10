@@ -255,6 +255,30 @@ test.describe('mobile Unicode sequence', () => {
     await insert.tap()
     await expect(alias(page)).toHaveValue('aصلى الله عليه وسلم🧪b')
   })
+
+  test('keeps the active draft and selection when crossing the layout breakpoint', async ({
+    page,
+  }) => {
+    await openRelay(page)
+    await link(page, 'relay-07').tap()
+    await quick(page, 'Login').tap()
+    const input = alias(page)
+    await input.fill('a🧪b')
+    await input.press('Home')
+    await input.press('ArrowRight')
+    await input.press('Shift+ArrowRight')
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await expect(page.locator('.workspace > .context-frame')).toBeVisible()
+    await page.setViewportSize({ width: 390, height: 844 })
+    await expect(page.locator('.terminal-frame .alias-editor')).toBeVisible()
+    await expect(input).toHaveValue('a🧪b')
+    expect(
+      await input.evaluate((field: HTMLTextAreaElement) => [
+        field.selectionStart,
+        field.selectionEnd,
+      ]),
+    ).toEqual([1, 3])
+  })
 })
 
 for (const [width, height] of [
@@ -285,7 +309,18 @@ for (const [width, height] of [
         if (width <= 768) await target.tap()
         else await target.click()
       }
+      const narrow = width <= 830
+      const frame = page.getByRole('region', { name: 'Terminal', exact: true })
+      const sessionToggle = frame.getByRole('button', { name: 'Session', exact: true })
       await openRelay(page)
+      if (narrow) {
+        await expect(contextPanel(page)).toBeHidden()
+        await expect(page.locator('.workspace > .context-frame')).toHaveCount(0)
+        await expect(sessionToggle).toHaveAttribute('aria-expanded', 'false')
+      } else {
+        await expect(contextPanel(page)).toBeVisible()
+        await expect(sessionToggle).toHaveCount(0)
+      }
       await capture('01-local')
       await act(link(page, 'relay-07'))
       await capture('02-guest')
@@ -298,6 +333,10 @@ for (const [width, height] of [
       await capture('05-denied')
       await act(quick(page, 'Login'))
       await expect(alias(page)).toBeInViewport()
+      if (narrow) {
+        await expect(frame.getByRole('form', { name: 'Login editor' })).toBeVisible()
+        await expect(frame.getByRole('heading', { name: 'Objective' })).toBeHidden()
+      }
       await capture('06-login')
       if (width < 600) {
         await alias(page).focus()
@@ -342,6 +381,12 @@ for (const [width, height] of [
       await capture('11-rejected')
       await alias(page).fill(fullwidth)
       await act(page.getByRole('button', { name: 'Submit login' }))
+      await expect(terminal(page)).toContainText('Authentication accepted')
+      if (narrow) {
+        await expect(contextPanel(page)).toBeHidden()
+        await act(sessionToggle)
+        await expect(sessionToggle).toHaveAttribute('aria-expanded', 'true')
+      }
       await expect(contextPanel(page)).toContainText('maintenance')
       if (width <= 600) {
         const access = contextPanel(page).getByText('maintenance', { exact: true })
@@ -354,11 +399,16 @@ for (const [width, height] of [
         ).toBe(1)
       }
       await capture('12-maintenance')
+      if (narrow) await act(sessionToggle)
       await act(quick(page, 'Files'))
       await act(link(page, 'queue/'))
       await act(link(page, '8c2f.msg'))
+      if (narrow) await act(sessionToggle)
       await expect(contextPanel(page)).toContainText('Complete')
       await expect(incident(page)).toBeVisible()
+      await expect(
+        terminal(page).getByText('Incident 8C2F retrieved. Objective complete.'),
+      ).toBeInViewport()
       await capture('13-complete')
     })
   })

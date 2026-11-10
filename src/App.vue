@@ -19,6 +19,9 @@ const loadingError = ref('')
 const attempt = ref(0)
 const busy = ref(false)
 const composing = ref(false)
+const narrowViewport = matchMedia('(max-width: 830px)')
+const narrow = ref(narrowViewport.matches)
+const sessionExpanded = ref(false)
 const application = ref<HTMLElement>()
 const terminal = ref<InstanceType<typeof Terminal>>()
 const editor = ref<InstanceType<typeof PayloadEditor>>()
@@ -39,6 +42,9 @@ const canReplace = computed(() => {
 })
 
 const viewport = window.visualViewport
+function updateLayout() {
+  narrow.value = narrowViewport.matches
+}
 function fitViewport() {
   if (viewport?.scale === 1 && viewport.height < document.documentElement.clientHeight)
     application.value?.style.setProperty('--app-height', `${viewport.height}px`)
@@ -46,9 +52,13 @@ function fitViewport() {
 }
 onMounted(() => {
   fitViewport()
+  narrowViewport.addEventListener('change', updateLayout)
   viewport?.addEventListener('resize', fitViewport)
 })
-onUnmounted(() => viewport?.removeEventListener('resize', fitViewport))
+onUnmounted(() => {
+  narrowViewport.removeEventListener('change', updateLayout)
+  viewport?.removeEventListener('resize', fitViewport)
+})
 
 const shortcuts = computed((): Link[] => {
   if (!session.value) return []
@@ -108,6 +118,7 @@ watch([scenarioId, attempt], async ([id], _, onCleanup) => {
   runtime = undefined
   session.value = undefined
   scenario.value = undefined
+  sessionExpanded.value = false
   busy.value = false
   composing.value = false
   loadingError.value = ''
@@ -208,6 +219,7 @@ async function dispatch(action: Action, command?: string) {
     if (runtime === active) terminal.value?.revealInspection(command === undefined)
   }
   if (response.edit) {
+    if (narrow.value) sessionExpanded.value = false
     await nextTick()
     if (runtime !== active) return
     if (matchMedia('(pointer: fine)').matches) {
@@ -227,74 +239,87 @@ async function dispatch(action: Action, command?: string) {
 <template>
   <div ref="application" class="application">
     <main v-if="scenario && session" :key="scenario.id" class="workspace">
-      <aside class="context-frame" aria-label="Session context">
-        <div class="frame-title">
-          <h2>Session</h2>
-          <button type="button" class="reset" :disabled="busy" @click="dispatch({ type: 'reset' })">
-            Reset session
-          </button>
-        </div>
-        <div class="session-context" aria-live="polite">
-          <dl class="session-details">
-            <div>
-              <dt>Host</dt>
-              <dd>
-                <bdi>{{ prompt }}</bdi>
-              </dd>
-            </div>
-            <div>
-              <dt>User</dt>
-              <dd>
-                <bdi>{{ session.identity.user }}</bdi>
-              </dd>
-            </div>
-            <div>
-              <dt>Access</dt>
-              <dd>
-                <bdi>{{ session.identity.role }}</bdi>
-              </dd>
-            </div>
-          </dl>
-          <div class="objective">
-            <div class="objective-heading">
-              <h3>Objective</h3>
-              <span :class="{ 'objective-done': session.completed }">{{
-                session.completed ? 'Complete' : 'Open'
-              }}</span>
-            </div>
-            <p dir="auto">{{ scenario.objective.text }}</p>
-          </div>
-        </div>
-        <form
-          v-if="login"
-          v-show="session.editing"
-          :key="session.host?.id"
-          class="alias-editor"
-          aria-label="Login editor"
-          @submit.prevent="dispatch({ type: 'login', alias })"
+      <Teleport to="#terminal-context" :disabled="!narrow" defer>
+        <aside
+          v-show="!narrow || sessionExpanded || session.editing"
+          class="context-frame"
+          aria-label="Session context"
         >
-          <PayloadEditor
-            ref="editor"
-            :label="login.label"
-            :model-value="alias"
-            @update:model-value="setDraft"
-            @composition="composing = $event"
-            @inspect="dispatch({ type: 'inspect', character: $event })"
-          />
-          <div class="toolbar alias-actions">
-            <button
-              type="button"
-              :disabled="busy || composing"
-              @click="dispatch({ type: 'closeEditor' })"
-            >
-              Hide editor
-            </button>
-            <button ref="loginSubmit" class="primary" type="submit" :disabled="busy || composing">
-              {{ busy ? 'Authenticating…' : 'Submit login' }}
-            </button>
+          <div v-show="!narrow || sessionExpanded" id="session-details">
+            <div class="frame-title">
+              <h2>Session</h2>
+              <button
+                type="button"
+                class="reset"
+                :disabled="busy"
+                @click="dispatch({ type: 'reset' })"
+              >
+                Reset session
+              </button>
+            </div>
+            <div class="session-context" aria-live="polite">
+              <dl class="session-details">
+                <div>
+                  <dt>Host</dt>
+                  <dd>
+                    <bdi>{{ prompt }}</bdi>
+                  </dd>
+                </div>
+                <div>
+                  <dt>User</dt>
+                  <dd>
+                    <bdi>{{ session.identity.user }}</bdi>
+                  </dd>
+                </div>
+                <div>
+                  <dt>Access</dt>
+                  <dd>
+                    <bdi>{{ session.identity.role }}</bdi>
+                  </dd>
+                </div>
+              </dl>
+              <div class="objective">
+                <div class="objective-heading">
+                  <h3>Objective</h3>
+                  <span :class="{ 'objective-done': session.completed }">{{
+                    session.completed ? 'Complete' : 'Open'
+                  }}</span>
+                </div>
+                <p dir="auto">{{ scenario.objective.text }}</p>
+              </div>
+            </div>
           </div>
-        </form>
-      </aside>
+          <form
+            v-if="login"
+            v-show="session.editing"
+            :key="session.host?.id"
+            class="alias-editor"
+            aria-label="Login editor"
+            @submit.prevent="dispatch({ type: 'login', alias })"
+          >
+            <PayloadEditor
+              ref="editor"
+              :label="login.label"
+              :model-value="alias"
+              @update:model-value="setDraft"
+              @composition="composing = $event"
+              @inspect="dispatch({ type: 'inspect', character: $event })"
+            />
+            <div class="toolbar alias-actions">
+              <button
+                type="button"
+                :disabled="busy || composing"
+                @click="dispatch({ type: 'closeEditor' })"
+              >
+                Hide editor
+              </button>
+              <button ref="loginSubmit" class="primary" type="submit" :disabled="busy || composing">
+                {{ busy ? 'Authenticating…' : 'Submit login' }}
+              </button>
+            </div>
+          </form>
+        </aside>
+      </Teleport>
 
       <Terminal
         ref="terminal"
@@ -321,6 +346,17 @@ async function dispatch(action: Action, command?: string) {
               {{ entry.label }}
             </option>
           </select>
+        </template>
+        <template #title-actions>
+          <button
+            v-if="narrow"
+            type="button"
+            aria-controls="session-details"
+            :aria-expanded="sessionExpanded"
+            @click="sessionExpanded = !sessionExpanded"
+          >
+            Session
+          </button>
         </template>
       </Terminal>
     </main>

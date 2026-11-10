@@ -34,15 +34,25 @@ export interface Program {
   checks: { id: string; node: string; expected: boolean; required?: boolean }[]
 }
 
+export interface Narrative {
+  title: string
+  system: string
+  description: string
+  objective: string
+  introduction: string[]
+  inputs: Record<string, string>
+  checks: Record<string, { label: string; detail: string }>
+  hints?: string[]
+  feedback: { failed: string; passed: string }
+  recovered?: string
+  nextTarget?: string
+}
+
 export interface Target {
   id: string
-  title: string
-  description?: string
-  objective: string
   program: Program
-  payloads?: Record<string, { label: string; initial?: string }>
-  checks?: Record<string, { label: string; detail?: string }>
-  output?: { passed?: string; failed?: string }
+  initialInputs: Record<string, string>
+  narrative: Narrative
 }
 
 export interface EngineError {
@@ -81,7 +91,7 @@ export interface Evaluation {
 }
 export interface Engine {
   info(): Promise<Result<{ version: number; unicodeVersion: string }>>
-  validate(program: Program): Promise<Result<null>>
+  validate(program: unknown): Promise<Result<null>>
   evaluate(
     program: Program,
     inputs: Record<string, string>,

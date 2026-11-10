@@ -1,15 +1,13 @@
 import { createApp } from 'vue'
 import App from './App.vue'
-import { targets } from './data/targets'
+import { createContentLoader } from './lib/content'
 import { engine } from './lib/engine'
 import './styles.css'
 
-async function start() {
-  const catalog =
-    import.meta.env.DEV && new URLSearchParams(location.search).has('fixtures')
-      ? (await import('../tests/fixtures/targets')).fixtures
-      : targets
-  createApp(App, { targets: catalog, engine }).mount('#app')
-}
+const content = createContentLoader(async (path) => {
+  const response = await fetch(`${import.meta.env.BASE_URL}content/${path}`, { cache: 'no-cache' })
+  if (!response.ok) throw new Error(`HTTP ${response.status} while loading content.`)
+  return response.arrayBuffer()
+}, engine)
 
-void start()
+createApp(App, { content, engine }).mount('#app')

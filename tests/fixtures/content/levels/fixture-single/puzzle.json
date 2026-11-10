@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "inputs": ["text"],
+  "nodes": [
+    {
+      "id": "original",
+      "op": "input",
+      "input": "text"
+    },
+    {
+      "id": "normalized",
+      "op": "normalize",
+      "args": ["original"],
+      "form": "NFC"
+    },
+    {
+      "id": "same",
+      "op": "textEqual",
+      "args": ["original", "normalized"]
+    },
+    {
+      "id": "marker",
+      "op": "literal",
+      "value": {
+        "type": "text",
+        "value": "​"
+      }
+    },
+    {
+      "id": "containsMarker",
+      "op": "contains",
+      "args": ["original", "marker"]
+    }
+  ],
+  "checks": [
+    {
+      "id": "exact",
+      "node": "same",
+      "expected": true
+    },
+    {
+      "id": "invisible",
+      "node": "containsMarker",
+      "expected": false
+    }
+  ],
+  "initialInputs": {
+    "text": "Café 👩‍💻"
+  }
+}

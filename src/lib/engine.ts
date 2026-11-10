@@ -1,5 +1,5 @@
 import type { Engine, EngineError, Result } from '../types'
-import { unpairedSurrogate } from './unicode'
+import { unpairedSurrogate } from './unicode.ts'
 
 type Bindings = typeof import('./wasm/pkg/unicodd_core.js')
 type Operations = Pick<Bindings, 'engine_info' | 'validate_program' | 'evaluate' | 'normalize_text'>

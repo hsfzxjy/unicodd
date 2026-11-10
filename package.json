@@ -11,6 +11,7 @@
     "format:check": "prettier --check --ignore-unknown . && cargo fmt --all -- --check",
     "typecheck": "vue-tsc --noEmit",
     "test": "vitest run",
+    "validate:content": "node --experimental-strip-types scripts/validate-content.ts",
     "test:browser": "playwright test"
   },
   "dependencies": {

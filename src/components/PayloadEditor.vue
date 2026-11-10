@@ -230,7 +230,7 @@ defineExpose({ apply, focusAt, context: () => ({ ...selection.value }) })
       >
         <span aria-hidden="true">{{ expanded ? '▾' : '▸' }}</span> Code points
       </button>
-      <button type="button" @click="openWorkbench">Open Workbench</button>
+      <button type="button" aria-haspopup="dialog" @click="openWorkbench">Open Workbench</button>
     </div>
     <div v-show="expanded" :id="id + '-points'" class="point-view">
       <div v-if="pages > 1" class="toolbar pagination">

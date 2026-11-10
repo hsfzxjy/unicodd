@@ -1,11 +1,16 @@
 import { expect, test, type Page } from '@playwright/test'
+import { routeFixtures } from './content-routes'
 
 async function fixture(page: Page) {
-  await page.goto('/?fixtures')
+  await routeFixtures(page)
+  await page.goto('/')
   await expect(page.getByRole('button', { name: 'Submit', exact: true })).toBeEnabled()
 }
 
 test('renders the empty shell and opens the Workbench with keyboard controls', async ({ page }) => {
+  await page.route('**/content/manifest.json', (route) =>
+    route.fulfill({ json: { version: 1, levels: [] } }),
+  )
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'No puzzle loaded' })).toBeVisible()
   await expect(page.getByRole('combobox', { name: 'Target' })).toBeDisabled()
@@ -161,9 +166,12 @@ test('preserves composition and raw line endings and exposes repairable surrogat
 
 test('shows a structured error if the browser cannot load WASM', async ({ page }) => {
   await page.route('**/*.wasm', (route) => route.abort())
-  await page.goto('/?fixtures')
+  await routeFixtures(page)
+  await page.goto('/')
   await expect(page.getByRole('alert')).toContainText('engine_unavailable')
-  await expect(page.getByRole('button', { name: 'Submit', exact: true })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Submit', exact: true })).toHaveCount(0)
+  await page.unroute('**/*.wasm')
+  await page.getByRole('button', { name: 'Retry' }).click()
   await expect(page.getByRole('textbox', { name: 'Text input' })).toHaveValue(
     'Cafe\u0301 👩\u200d💻',
   )
@@ -211,8 +219,6 @@ for (const [width, height] of [
       const checkWidth = async () => {
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
       }
-      await page.goto('/')
-      await screenshot('empty-shell')
       await fixture(page)
       await checkWidth()
       const submit = page.getByRole('button', { name: 'Submit', exact: true })

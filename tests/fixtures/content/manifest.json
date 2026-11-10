@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "levels": [
+    {
+      "id": "fixture-single",
+      "label": "Single input fixture",
+      "puzzle": "levels/fixture-single/puzzle.json",
+      "narrative": "levels/fixture-single/narrative.json"
+    },
+    {
+      "id": "fixture-multiple",
+      "label": "Two input fixture",
+      "puzzle": "levels/fixture-multiple/puzzle.json",
+      "narrative": "levels/fixture-multiple/narrative.json"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "title": "Two input fixture",
+  "system": "fixture-multiple",
+  "description": "Development fixture",
+  "objective": "Concatenate two inputs and compare their combined code-point count.",
+  "introduction": ["Two-input sample loaded."],
+  "inputs": {
+    "left": "Left input",
+    "right": "Right input"
+  },
+  "checks": {
+    "same": {
+      "detail": "Count Unicode scalar values across both inputs.",
+      "label": "Combined length is nine"
+    }
+  },
+  "feedback": {
+    "failed": "Fixture criteria unmet.",
+    "passed": "Combined length verified."
+  },
+  "recovered": "Sample record · Two inputs joined."
+}

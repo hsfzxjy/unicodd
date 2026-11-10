@@ -1,6 +1,6 @@
 # unicodd
 
-unicodd is a browser workspace for Unicode puzzle definitions. The Unicode Workbench can also inspect and normalize individual characters independently.
+unicodd is a browser-based Unicode puzzle game. Choose a target, edit its payloads, and submit them for verification. The Unicode Workbench can also inspect and normalize individual characters independently.
 
 ## Build and run
 
@@ -16,19 +16,25 @@ npm run dev
 
 Run `npm run build:wasm` again after changing the Rust core. The script builds with the Cargo lockfile and writes browser bindings to `src/lib/wasm/pkg/`. Run `npm run build` to type-check and build the static site in `dist/`. Serve it over HTTPS for clipboard access, or use localhost during development.
 
-Append `?fixtures` to the development URL to load the integration fixtures. The production build reads its target catalog from `src/data/targets.ts`.
-
 ```sh
 cargo test --locked
 npm test
 npm run typecheck
+npm run validate:content
 npx playwright install chromium
 npm run test:browser
 ```
 
-## Target definitions
+## Authoring levels
 
-Export a catalog of `Target` objects from `src/data/targets.ts`. Each target provides an `id`, `title`, `objective`, and a `program`. Optional `description`, `payloads`, `checks`, and `output` fields control presentation. The [TypeScript definitions](src/types.ts) describe these fields. Initial text is optional and defaults to an empty draft. The UI retains each target's drafts for the current page session. Workbench favorites and recents use browser storage when available.
+Add an entry to [`public/content/manifest.json`](public/content/manifest.json) and create the two JSON files it references. The game reads these files at runtime. To update a deployed catalog, publish the updated files under `content/` in the static site.
+
+1. **Register the target.** The manifest has `version: 1` and a `levels` array in display order. Each entry has a unique `id`, a selector `label`, and `puzzle` and `narrative` paths relative to `content/`. Use ASCII letters, digits, underscores, and hyphens in path segments, and end each path in `.json`. Optional `available: false` disables selection. The first available entry opens automatically.
+2. **Define the puzzle.** Use the program schema below in `puzzle.json` and add an `initialInputs` object with exactly one string per declared input ID. Use `""` to start with a blank draft. Nodes reference declared input IDs or other node IDs. Checks reference Boolean node IDs and specify the expected result. Use literal nodes for fixed values.
+3. **Write the presentation.** In `narrative.json`, set `version: 1`, `title`, `system` (the target identifier), `description`, `objective`, and `introduction` (an array of terminal lines, which may be empty). Map each input ID to its label in `inputs` and each check ID to an object with `label` and `detail` in `checks`. Both maps must cover exactly the declared IDs. Supply `feedback.failed` and `feedback.passed` for the two verification outcomes. Optional `hints` are shown on demand. Optional `recovered` and `nextTarget` text appears on success.
+4. **Validate and play-test.** After building WASM, run `npm run validate:content`. It checks all registered files, including unavailable entries, and reports file and field diagnostics for malformed content, broken references, or invalid programs and starting drafts. Open the target in the browser and submit candidates to verify the player experience.
+
+Use UTF-8 JSON and stable IDs. The workspace retains edits per target for the current page session. Workbench favorites and recents use browser storage when available.
 
 ### Program schema v1
 

@@ -169,6 +169,10 @@ code,
 .nav-workbench {
   margin-inline-start: auto;
 }
+button[aria-haspopup='dialog'] {
+  /* Chromium's tap highlight can paint over the newly opened dialog. */
+  -webkit-tap-highlight-color: transparent;
+}
 .shell {
   padding-block: 16px 24px;
 }
@@ -181,6 +185,28 @@ code,
 .objective {
   max-width: 78ch;
   margin-top: 2px;
+}
+.terminal-lines {
+  margin-top: 4px;
+  padding: 2px 0 2px 10px;
+  border-inline-start: 2px solid var(--line);
+  list-style: none;
+  color: var(--muted);
+  font-size: 13px;
+}
+.hints {
+  max-width: 78ch;
+  font-size: 13px;
+}
+.hints summary {
+  width: fit-content;
+  cursor: pointer;
+  padding: 7px 0;
+  color: var(--accent);
+}
+.hints p + p,
+.system-output p + p {
+  margin-top: 5px;
 }
 .empty {
   display: grid;
@@ -382,6 +408,13 @@ textarea {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.success-output > p:first-child {
+  color: var(--accent);
+}
+.recovered {
+  color: var(--muted);
+  font-size: 13px;
+}
 
 .workbench {
   position: fixed;
@@ -492,6 +525,11 @@ textarea {
   }
 }
 @media (max-width: 600px), (pointer: coarse) {
+  .hints summary {
+    display: list-item;
+    min-height: 44px;
+    padding-block: 12px;
+  }
   button,
   select,
   input,

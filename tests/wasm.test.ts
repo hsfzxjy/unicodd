@@ -3,7 +3,10 @@ import { describe, expect, it } from 'vitest'
 import * as wasm from '../src/lib/wasm/pkg/unicodd_core.js'
 import { createEngine } from '../src/lib/engine'
 import type { Program } from '../src/types'
-import { fixtures } from './fixtures/targets'
+import puzzle from './fixtures/content/levels/fixture-single/puzzle.json'
+
+const { initialInputs: _, ...rawProgram } = puzzle
+const program = rawProgram as Program
 
 let initializations = 0
 const engine = createEngine(async () => {
@@ -27,7 +30,6 @@ describe('generated WASM bindings', () => {
   })
 
   it('preserves Unicode input and stable typed trace serialization', async () => {
-    const program = fixtures[0].program
     const text = 'e\u0301🧪\r\n\0\u200d'
     expect(await engine.validate(program)).toEqual({ ok: true, value: null })
     const result = await engine.evaluate(program, { text }, true)
@@ -61,7 +63,6 @@ describe('generated WASM bindings', () => {
   })
 
   it('returns schema, type, and input errors from Rust', async () => {
-    const program = fixtures[0].program
     const invalid = { ...program, version: 2 } as unknown as Program
     expect(await engine.validate(invalid)).toMatchObject({
       ok: false,
@@ -97,7 +98,6 @@ describe('generated WASM bindings', () => {
       loaded = true
       throw new Error('Unexpected load')
     })
-    const program = fixtures[0].program
     expect(await guard.evaluate(program, { text: '🧪\ud800' })).toMatchObject({
       ok: false,
       error: { code: 'invalid_input', path: 'inputs.text', offset: 2 },

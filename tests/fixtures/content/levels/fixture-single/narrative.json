@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "title": "Single input fixture",
+  "system": "fixture-single",
+  "description": "Development fixture",
+  "objective": "Compare a text input with its NFC form and check for a zero-width space.",
+  "introduction": [],
+  "inputs": {
+    "text": "Text input"
+  },
+  "checks": {
+    "exact": {
+      "detail": "Exact comparison of the input and its NFC form.",
+      "label": "NFC equality"
+    },
+    "invisible": {
+      "detail": "Checks whether the input contains a zero-width space.",
+      "label": "Zero-width space present"
+    }
+  },
+  "feedback": {
+    "failed": "Fixture criteria unmet.",
+    "passed": "Fixture criteria met."
+  }
+}

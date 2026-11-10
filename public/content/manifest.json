@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "levels": [
+    {
+      "id": "001-the-gate",
+      "label": "The Gate",
+      "puzzle": "levels/001-the-gate/puzzle.json",
+      "narrative": "levels/001-the-gate/narrative.json"
+    }
+  ]
+}

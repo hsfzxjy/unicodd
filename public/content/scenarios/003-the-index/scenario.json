@@ -46,19 +46,19 @@
         },
         {
           "id": "proposals",
-          "path": "/mail/similarity-key",
+          "path": "/mail/01-similarity-key",
           "type": "mail",
           "content": "mail/similarity-key.json"
         },
         {
           "id": "objection",
-          "path": "/mail/source-records",
+          "path": "/mail/02-source-records",
           "type": "mail",
           "content": "mail/source-records.json"
         },
         {
           "id": "support",
-          "path": "/mail/support-escalation",
+          "path": "/mail/03-support-escalation",
           "type": "mail",
           "content": "mail/support-escalation.json"
         },

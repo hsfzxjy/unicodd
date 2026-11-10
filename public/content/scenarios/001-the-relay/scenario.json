@@ -58,19 +58,19 @@
         },
         {
           "id": "old-consoles",
-          "path": "/mail/old-consoles",
+          "path": "/mail/01-old-consoles",
           "type": "mail",
           "content": "mail/old-consoles.json"
         },
         {
           "id": "login-compatibility",
-          "path": "/mail/login-compatibility",
+          "path": "/mail/02-login-compatibility",
           "type": "mail",
           "content": "mail/login-compatibility.json"
         },
         {
           "id": "maintenance-policy",
-          "path": "/mail/maintenance-policy",
+          "path": "/mail/03-maintenance-policy",
           "type": "mail",
           "content": "mail/maintenance-policy.json"
         }

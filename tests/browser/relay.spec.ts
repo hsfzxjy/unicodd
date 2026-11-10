@@ -57,11 +57,16 @@ test('plays the entire Relay through graphical actions and restores only objecti
   await link(page, 'README').click()
   await expect(terminal(page)).toContainText('correspondence archive')
   await link(page, 'mail/').click()
-  await link(page, 'old-consoles').click()
-  await expect(mail(page, '/mail/old-consoles')).toContainText('different character layout')
-  await link(page, 'login-compatibility').click()
-  await expect(mail(page, '/mail/login-compatibility').getByRole('article')).toHaveCount(2)
-  await expect(mail(page, '/mail/login-compatibility')).toContainText('next maintenance window')
+  await expect(terminal(page).locator('.terminal-list').last().getByRole('button')).toHaveText([
+    '01-old-consoles',
+    '02-login-compatibility',
+    '03-maintenance-policy',
+  ])
+  await link(page, '01-old-consoles').click()
+  await expect(mail(page, '/mail/01-old-consoles')).toContainText('different character layout')
+  await link(page, '02-login-compatibility').click()
+  await expect(mail(page, '/mail/02-login-compatibility').getByRole('article')).toHaveCount(2)
+  await expect(mail(page, '/mail/02-login-compatibility')).toContainText('next maintenance window')
   await quick(page, 'Login').click()
   await alias(page).fill('MAINT')
   await page.getByRole('button', { name: 'Submit login' }).click()
@@ -129,9 +134,9 @@ test('reaches equivalent states through typed actions in a different exploration
   await run(page, 'cat notes/keypad.txt')
   await expect(terminal(page)).toContainText('Field terminal')
   await run(page, 'ls /mail')
-  await expect(link(page, 'maintenance-policy')).toBeVisible()
-  await run(page, 'cat /mail/maintenance-policy')
-  await expect(mail(page, '/mail/maintenance-policy')).toContainText(
+  await expect(link(page, '03-maintenance-policy')).toBeVisible()
+  await run(page, 'cat /mail/03-maintenance-policy')
+  await expect(mail(page, '/mail/03-maintenance-policy')).toContainText(
     'MAINT is not a personal account',
   )
   await run(page, 'mail favor')
@@ -434,8 +439,8 @@ for (const [width, height] of [
       await act(link(page, 'README'))
       await capture('04-readme')
       await act(link(page, 'mail/'))
-      await act(link(page, 'login-compatibility'))
-      const thread = mail(page, '/mail/login-compatibility')
+      await act(link(page, '02-login-compatibility'))
+      const thread = mail(page, '/mail/02-login-compatibility')
       await expect(
         thread.getByText('Rowan / Directory Team', { exact: true }).first(),
       ).toBeInViewport()

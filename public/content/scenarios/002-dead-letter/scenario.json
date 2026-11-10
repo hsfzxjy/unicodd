@@ -46,19 +46,19 @@
         },
         {
           "id": "hold",
-          "path": "/mail/delivery-hold",
+          "path": "/mail/01-delivery-hold",
           "type": "mail",
           "content": "mail/delivery-hold.json"
         },
         {
           "id": "import",
-          "path": "/mail/contact-import",
+          "path": "/mail/02-contact-import",
           "type": "mail",
           "content": "mail/contact-import.json"
         },
         {
           "id": "review",
-          "path": "/mail/queue-review",
+          "path": "/mail/03-queue-review",
           "type": "mail",
           "content": "mail/queue-review.json"
         },

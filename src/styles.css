@@ -561,8 +561,18 @@ h1.terminal-scenario {
 .prompt {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  padding-inline-start: 7px;
+  border-inline-start: 2px solid var(--control);
+  background: var(--inset);
   font-family: var(--mono);
+}
+.prompt:focus-within {
+  border-inline-start-color: var(--accent);
+  background: #192a28;
+}
+.prompt label {
+  cursor: text;
 }
 .prompt-host {
   max-width: 22%;
@@ -573,7 +583,22 @@ h1.terminal-scenario {
 .prompt input {
   flex: 1;
   min-width: 0;
-  background: var(--inset);
+  padding-inline: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  caret-color: var(--accent);
+}
+.prompt input:focus {
+  outline: none;
+}
+.prompt button {
+  border-color: transparent;
+  background: transparent;
+  font-size: 12px;
+}
+.prompt button:disabled {
+  color: var(--muted);
 }
 .suggestions {
   position: absolute;

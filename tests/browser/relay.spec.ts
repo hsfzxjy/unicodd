@@ -144,6 +144,8 @@ test('reaches equivalent states through typed actions in a different exploration
 test('supports history, completion, usage feedback, and IME-safe submission', async ({ page }) => {
   await openRelay(page)
   const field = cmd(page)
+  await page.locator('.prompt label').click()
+  await expect(field).toBeFocused()
   await field.fill('con')
   await expect(page.getByRole('button', { name: 'connect', exact: true })).toBeVisible()
   await field.press('Escape')

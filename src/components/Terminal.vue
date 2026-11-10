@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from 'vue'
 import TerminalFile from './TerminalFile.vue'
 import TerminalInspection from './TerminalInspection.vue'
 import { commandHelp, matchSuggestions, parseCommand } from '../lib/commands'
@@ -28,6 +28,7 @@ const emit = defineEmits<{ action: [Action, string?] }>()
 const scroll = ref<HTMLDivElement>()
 const frame = ref<HTMLElement>()
 const input = ref<HTMLInputElement>()
+const commandId = useId()
 const command = ref('')
 const showSuggestions = ref(true)
 const composing = ref(false)
@@ -275,14 +276,18 @@ defineExpose({ focusAction, promptInspection, revealInspection, scrollToEnd })
       </div>
       <div ref="commandGroup" @focusin="hasFocus = true" @focusout="focusout">
         <form class="prompt" @submit.prevent="submit">
-          <span class="prompt-host" :class="{ remote: connected }" aria-hidden="true"
-            >{{ connected ? '@' : '' }}{{ prompt }} ›</span
+          <label
+            class="prompt-host"
+            :class="{ remote: connected }"
+            :for="commandId"
+            aria-hidden="true"
+            >{{ connected ? '@' : '' }}{{ prompt }} ›</label
           >
           <input
+            :id="commandId"
             ref="input"
             v-model="command"
             aria-label="Terminal command"
-            placeholder="Enter a command"
             enterkeyhint="go"
             autocomplete="off"
             autocapitalize="off"

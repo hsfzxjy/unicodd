@@ -1,0 +1,6 @@
+node_modules/
+dist/
+target/
+src/lib/wasm/pkg/
+playwright-report/
+test-results/

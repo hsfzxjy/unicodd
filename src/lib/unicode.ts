@@ -61,6 +61,40 @@ export function notation(value: number): string {
   return 'U+' + value.toString(16).toUpperCase().padStart(4, '0')
 }
 
+export function readUnicodeEscape(
+  source: string,
+  offset: number,
+): { text: string; end: number } | { error: string; end: number } | undefined {
+  if (!source.startsWith('\\u', offset)) return
+  const end = offset + 8
+  const digits = source.slice(offset + 2, end)
+  if (!/^[0-9a-fA-F]{6}$/u.test(digits)) return
+  const value = Number.parseInt(digits, 16)
+  if (value > 0x10ffff || (value >= 0xd800 && value <= 0xdfff))
+    return { error: 'Not a Unicode scalar: ' + source.slice(offset, end), end }
+  return { text: String.fromCodePoint(value), end }
+}
+
+export function decodeUnicodeEscapes(source: string): { text: string } | { error: string } {
+  let result = ''
+  let cursor = 0
+  for (const match of source.matchAll(/\\+/gu)) {
+    const slashes = match[0].length
+    const start = match.index
+    const escape = readUnicodeEscape(source, start + slashes - 1)
+    if (!escape) continue
+    result += source.slice(cursor, start) + '\\'.repeat(Math.floor(slashes / 2))
+    if (slashes % 2 === 0) {
+      result += source.slice(start + slashes, escape.end)
+    } else {
+      if ('error' in escape) return { error: escape.error }
+      result += escape.text
+    }
+    cursor = escape.end
+  }
+  return { text: result + source.slice(cursor) }
+}
+
 export function unpairedSurrogate(text: string): number | undefined {
   let index = 0
   for (const scalar of text) {

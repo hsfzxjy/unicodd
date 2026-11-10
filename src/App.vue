@@ -6,7 +6,7 @@ import { actionCommand } from './lib/commands'
 import type { createContentLoader, ScenarioEntry } from './lib/content'
 import { createRuntime, type Action, type Link, type Session } from './lib/runtime'
 import type { Scenario } from './lib/scenario'
-import { copyText } from './lib/unicode'
+import { copyText, decodeUnicodeEscapes } from './lib/unicode'
 import type { Engine } from './types'
 
 const props = defineProps<{ content: ReturnType<typeof createContentLoader>; engine: Engine }>()
@@ -141,6 +141,16 @@ void loadCatalog()
 function setDraft(value: string) {
   alias.value = value
   drafts.set(draftKey(), value)
+}
+
+function submitAlias() {
+  if (composing.value) return
+  const decoded = decodeUnicodeEscapes(alias.value)
+  return dispatch(
+    'error' in decoded
+      ? { type: 'invalid', message: decoded.error }
+      : { type: 'login', alias: decoded.text },
+  )
 }
 
 function echoText(value: string) {
@@ -296,7 +306,7 @@ async function dispatch(action: Action, command?: string) {
             :key="session.host?.id"
             class="alias-editor"
             aria-label="Login editor"
-            @submit.prevent="dispatch({ type: 'login', alias })"
+            @submit.prevent="submitAlias"
           >
             <PayloadEditor
               ref="editor"

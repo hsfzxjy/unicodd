@@ -212,6 +212,36 @@ test('completes relative paths and marks local and remote command echoes', async
   await page.screenshot({ path: info.outputPath('mobile-relative-completion.png') })
 })
 
+test('interprets six-digit Unicode escapes in commands and the alias editor', async ({ page }) => {
+  const escapedAlias = String.raw`\u00FF2D\u00FF21\u00FF29\u00FF2E\u00FF34`
+  await openRelay(page)
+  await run(page, String.raw`inspect \u01F9EA`)
+  await expect(inspection(page, 'U+1F9EA')).toBeVisible()
+  await run(page, 'connect relay-07')
+  await run(page, String.raw`cat \u000052EADME`)
+  await expect(terminal(page).getByRole('region', { name: 'File /README' })).toBeVisible()
+  await run(page, 'login ' + escapedAlias)
+  await expect(contextPanel(page)).toContainText('maintenance')
+  await quick(page, 'Logout').click()
+  await quick(page, 'Login').click()
+  const draft = alias(page)
+  const submit = page.getByRole('button', { name: 'Submit login' })
+  await draft.fill(String.raw`\u01F9EA`)
+  await draft.selectText()
+  await page
+    .getByRole('form', { name: 'Login editor' })
+    .getByRole('button', { name: 'Inspect', exact: true })
+    .click()
+  await expect(terminal(page).getByRole('region', { name: 'Unicode U+1F9EA' })).toHaveCount(2)
+  await draft.fill(String.raw`\u00D800`)
+  await submit.click()
+  await expect(terminal(page)).toContainText(String.raw`Not a Unicode scalar: \u00D800`)
+  await expect(draft).toHaveValue(String.raw`\u00D800`)
+  await draft.fill(escapedAlias)
+  await submit.click()
+  await expect(contextPanel(page)).toContainText('maintenance')
+})
+
 test('loads a second authored scenario through the same terminal and handles quoted paths', async ({
   page,
 }) => {

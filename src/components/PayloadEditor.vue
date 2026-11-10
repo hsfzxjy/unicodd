@@ -8,6 +8,7 @@ import {
   inspectRange,
   pointIndex,
   rawOffset,
+  readUnicodeEscape,
   scalarSpan,
   type Span,
 } from '../lib/unicode'
@@ -33,9 +34,11 @@ const selected = computed(() => props.modelValue.slice(selection.value.start, se
 const caretOffset = computed(() =>
   selection.value.start === selection.value.end ? selection.value.start : undefined,
 )
-const selectedPoint = computed(() => {
+const selectedScalar = computed(() => {
   const point = inspectRange(selected.value, 0, 1)[0]
-  return point?.end === selected.value.length ? point : undefined
+  if (point?.valid && point.end === selected.value.length) return point.scalar
+  const escape = readUnicodeEscape(selected.value, 0)
+  if (escape && 'text' in escape && escape.end === selected.value.length) return escape.text
 })
 const pointContext = computed(() => {
   if (!expanded.value) return ''
@@ -233,8 +236,8 @@ defineExpose({ apply, focusAt, context: () => ({ ...selection.value }) })
       </button>
       <button
         type="button"
-        :disabled="!selectedPoint?.valid"
-        @click="selectedPoint && emit('inspect', selectedPoint.scalar)"
+        :disabled="selectedScalar === undefined"
+        @click="selectedScalar !== undefined && emit('inspect', selectedScalar)"
       >
         Inspect
       </button>

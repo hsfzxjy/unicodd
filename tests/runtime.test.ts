@@ -9,6 +9,15 @@ const incident = { type: 'cat', path: '/queue/8c2f.msg' } as const
 const login = (alias: string) => ({ type: 'login', alias }) as const
 const fullwidth = 'ＭＡＩＮＴ'
 
+it('decodes command escapes without reinterpreting the resulting characters as syntax', () => {
+  expect(parseCommand(String.raw`inspect \u01F9EA`)).toEqual({ type: 'inspect', character: '🧪' })
+  expect(parseCommand(String.raw`login "a\u000022\u000020b"`)).toEqual(login('a" b'))
+  expect(parseCommand(String.raw`login \u00000A`)).toEqual(login('\n'))
+  expect(parseCommand(String.raw`login \\u000041`)).toEqual(login(String.raw`\u000041`))
+  expect(parseCommand(String.raw`login \u00005Cu000041`)).toEqual(login(String.raw`\u000041`))
+  expect(parseCommand(String.raw`inspect \u110000`)).toMatchObject({ type: 'invalid' })
+})
+
 it('completes paths in the requested style and quotes spaces when needed', () => {
   const candidates = ['cat "/exhibit/sample card"', 'ls /exhibit']
   expect(matchSuggestions('cat ex', candidates)).toEqual(['cat "exhibit/sample card"'])

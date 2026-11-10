@@ -1,4 +1,5 @@
 import type { Action } from './runtime.ts'
+import { readUnicodeEscape } from './unicode.ts'
 
 export const commandHelp = [
   ['help', 'Show this command reference.'],
@@ -21,7 +22,16 @@ function tokenize(source: string) {
   for (let index = 0; index < source.length; index++) {
     const char = source[index]
     const next = source[index + 1]
-    if (char === '\\' && (next === '\\' || next === (quote || '"') || (!quote && next === "'"))) {
+    const escape = char === '\\' ? readUnicodeEscape(source, index) : undefined
+    if (escape) {
+      if ('error' in escape) return { args, quote, error: escape.error }
+      token += escape.text
+      started = true
+      index = escape.end - 1
+    } else if (
+      char === '\\' &&
+      (next === '\\' || next === (quote || '"') || (!quote && next === "'"))
+    ) {
       token += next
       started = true
       index++
@@ -45,7 +55,8 @@ function tokenize(source: string) {
 }
 
 export function parseCommand(source: string): Action | undefined {
-  const { args, quote } = tokenize(source)
+  const { args, quote, error } = tokenize(source)
+  if (error) return { type: 'invalid', message: error }
   if (quote) return { type: 'invalid', message: 'Close the quoted argument.' }
   if (!args.length) return
   const [command, argument] = args
@@ -83,7 +94,8 @@ export function matchSuggestions(source: string, candidates: string[]): string[]
   if (!fileQuery) return candidates.filter((item) => item.startsWith(query) && item !== query)
 
   const [, verb, input] = fileQuery
-  const { args, quote: openQuote } = tokenize(input)
+  const { args, quote: openQuote, error } = tokenize(input)
+  if (error) return []
   const prefix = args[0] ?? ''
   if (args.length > 1 || (prefix && !openQuote && /[ \t]$/u.test(input))) return []
 

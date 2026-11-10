@@ -74,4 +74,6 @@ Evaluation returns `solved`, ordered `checks` with their actual and expected Boo
 
 Unicode normalization uses the versioned data in the locked `unicode-normalization` crate (Unicode 18.0.0). Query `engine.info()` for the schema and Unicode versions. Text is compared exactly unless a program explicitly normalizes it. The evaluator counts Unicode scalar values. The editor shows code-point counts and positions and marks isolated surrogates so they can be repaired. In the terminal, `inspect` accepts a single literal scalar or a code point. A single literal scalar takes precedence over bare hex. Use `U+` to disambiguate a one-digit hex value.
 
+In commands and the alias editor, `\u` followed by exactly six hexadecimal digits denotes one Unicode scalar. For example, `\u01F9EA` denotes 🧪. The spelling stays visible while editing and is decoded when the command or alias is submitted. Enter `\\u01F9EA` to pass the literal sequence `\u01F9EA`.
+
 Limits include 32 input declarations, 256 nodes, 128 checks, 32 KiB of UTF-8 per input and 256 KiB total, 128 KiB per text value, 2 MiB combined intermediate text, and 512 KiB of trace text. WASM request limits are 13 MiB for serialized programs and 2 MiB for serialized input objects.

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   applyNativeEdit,
+  decodeUnicodeEscapes,
   editorText,
   inspect,
   inspectRange,
@@ -12,6 +13,17 @@ import {
 } from '../src/lib/unicode'
 
 describe('Unicode editing representations', () => {
+  it('decodes fixed-width escapes once and rejects non-scalars', () => {
+    expect(decodeUnicodeEscapes(String.raw`a\u01f9ea\u000301\u000000b`)).toEqual({
+      text: 'a🧪\u0301\0b',
+    })
+    expect(decodeUnicodeEscapes(String.raw`\\u000041 \u00005cu000042 \u1234`)).toEqual({
+      text: String.raw`\u000041 \u000042 \u1234`,
+    })
+    expect(decodeUnicodeEscapes(String.raw`\u00D800`)).toHaveProperty('error')
+    expect(decodeUnicodeEscapes(String.raw`\u110000`)).toHaveProperty('error')
+  })
+
   it('distinguishes UTF-16 offsets, supplementary scalars, marks, and invisible controls', () => {
     const points = inspect('e\u0301👩\u200d💻\u200b\u202e\udc00')
     expect(points.map(({ start, end, notation }) => [start, end, notation])).toEqual([

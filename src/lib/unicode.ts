@@ -35,12 +35,29 @@ export function describe(scalar: string, start = 0): Point {
 }
 
 export function inspect(text: string): Point[] {
+  return inspectRange(text, 0, Infinity)
+}
+
+export function inspectRange(text: string, first: number, limit: number): Point[] {
+  const points: Point[] = []
   let offset = 0
-  return Array.from(text, scalar => {
-    const point = describe(scalar, offset)
-    offset = point.end
-    return point
-  })
+  let index = 0
+  for (const scalar of text) {
+    if (points.length >= limit) break
+    if (index++ >= first) points.push(describe(scalar, offset))
+    offset += scalar.length
+  }
+  return points
+}
+
+export function pointIndex(text: string, offset: number): number {
+  let index = 0
+  for (const scalar of text) {
+    offset -= scalar.length
+    if (offset < 0) break
+    index++
+  }
+  return index
 }
 
 export function scalarSpan(text: string, { start, end }: Span): Span {

@@ -232,8 +232,7 @@ function closeBench() {
 
   <main v-else class="shell empty">
     <h1>No puzzle loaded</h1>
-    <p class="muted">Loaded targets appear in the selector. You can still inspect characters in the Workbench.</p>
-    <button type="button" @click="globalWorkbench">Open Workbench</button>
+    <p class="muted">Loaded targets appear in the selector. The Workbench is available on its own.</p>
   </main>
 
   <Workbench ref="workbench" :engine="engine" @apply="applyCharacter" @close="closeBench" />

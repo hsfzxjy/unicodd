@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, useId, watch } from 'vue'
-import { applyNativeEdit, copyText, editorText, inspect, rawOffset, scalarSpan, type Span } from '../lib/unicode'
+import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from 'vue'
+import { applyNativeEdit, copyText, editorText, inspect, inspectRange, pointIndex, rawOffset, scalarSpan, type Span } from '../lib/unicode'
 
 const props = defineProps<{ label: string; modelValue: string }>()
 const emit = defineEmits<{
@@ -15,27 +15,38 @@ const expanded = ref(false)
 const selection = ref<Span>({ start: 0, end: 0 })
 const page = ref(0)
 const feedback = ref('')
-const pageSize = 48
+const narrow = matchMedia('(max-width: 600px)')
+const pageSize = ref(narrow.matches ? 16 : 48)
 let composing = false
 let before: Span | undefined
 let projection: { raw: string; start: number; end: number } | undefined
-const points = computed(() => expanded.value ? inspect(props.modelValue) : [])
-const pages = computed(() => Math.max(1, Math.ceil(points.value.length / pageSize)))
-const visible = computed(() => points.value.slice(page.value * pageSize, (page.value + 1) * pageSize))
 const selected = computed(() => props.modelValue.slice(selection.value.start, selection.value.end))
-const firstPoint = computed(() => selected.value ? inspect(selected.value.slice(0, 2))[0] : undefined)
+const firstPoint = computed(() => inspectRange(selected.value, 0, 1)[0])
 const count = computed(() => {
   let total = 0
   for (const _ of props.modelValue) total++
   return total
 })
+const pages = computed(() => Math.max(1, Math.ceil(count.value / pageSize.value)))
+const visible = computed(() => expanded.value
+  ? inspectRange(props.modelValue, page.value * pageSize.value, pageSize.value)
+  : [])
 
 function syncControl() {
   const field = control.value
   const value = editorText(props.modelValue)
   if (field && !composing && field.value !== value) field.value = value
 }
-onMounted(syncControl)
+function updatePageSize() {
+  const first = page.value * pageSize.value
+  pageSize.value = narrow.matches ? 16 : 48
+  page.value = Math.floor(first / pageSize.value)
+}
+onMounted(() => {
+  syncControl()
+  narrow.addEventListener('change', updatePageSize)
+})
+onUnmounted(() => narrow.removeEventListener('change', updatePageSize))
 watch(() => props.modelValue, () => {
   syncControl()
   page.value = Math.min(page.value, pages.value - 1)
@@ -52,9 +63,8 @@ function readSelection(reveal = true, raw = props.modelValue) {
     })
   }
   if (expanded.value && reveal) {
-    let index = points.value.findIndex(point => point.end > selection.value.start)
-    if (index < 0) index = Math.max(0, points.value.length - 1)
-    page.value = Math.floor(index / pageSize)
+    const index = pointIndex(raw, selection.value.start)
+    page.value = Math.min(pages.value - 1, Math.floor(index / pageSize.value))
   }
 }
 
@@ -158,7 +168,7 @@ defineExpose({ apply, focusAt, context: () => ({ ...selection.value }) })
   <div class="payload">
     <div class="field-head">
       <label :for="id">{{ label }}</label>
-      <span class="meta">{{ count }} code {{ count === 1 ? 'point' : 'points' }} · {{ modelValue.length }} UTF-16</span>
+      <span class="meta">{{ count }} code {{ count === 1 ? 'point' : 'points' }} · {{ modelValue.length }} UTF-16 units</span>
     </div>
     <textarea
       :id="id" ref="control" dir="auto" spellcheck="false" autocapitalize="off"
@@ -176,6 +186,11 @@ defineExpose({ apply, focusAt, context: () => ({ ...selection.value }) })
       <button type="button" @click="openWorkbench">Open Workbench</button>
     </div>
     <div v-show="expanded" :id="id + '-points'" class="point-view">
+      <div v-if="pages > 1" class="toolbar pagination">
+        <button type="button" :disabled="page === 0" @click="page--">Previous</button>
+        <span class="meta" role="status">Page {{ page + 1 }} of {{ pages }}</span>
+        <button type="button" :disabled="page + 1 === pages" @click="page++">Next</button>
+      </div>
       <div v-if="visible.length" class="point-grid" role="group" :aria-label="label + ' code points'">
         <button
           v-for="(point, index) in visible" :key="point.start" type="button" class="point"
@@ -187,11 +202,6 @@ defineExpose({ apply, focusAt, context: () => ({ ...selection.value }) })
         </button>
       </div>
       <p v-else class="muted">No code points in this input.</p>
-      <div v-if="pages > 1" class="toolbar pagination">
-        <button type="button" :disabled="page === 0" @click="page--">Previous</button>
-        <span class="meta">Page {{ page + 1 }} of {{ pages }}</span>
-        <button type="button" :disabled="page + 1 === pages" @click="page++">Next</button>
-      </div>
       <div v-if="selected" class="toolbar point-actions">
         <button type="button" @click="selectPoint({ start: selection.start, end: selection.start })">Caret before</button>
         <button type="button" @click="selectPoint({ start: selection.end, end: selection.end })">Caret after</button>

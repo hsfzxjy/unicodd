@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { describe, inspect, lookup, type Span } from '../lib/unicode'
 import { forms, type Engine, type Normalization, type Result } from '../types'
 
@@ -18,6 +18,22 @@ const point = computed(() => current.value ? describe(current.value) : undefined
 const recent = ref(readList('recent'))
 const favorites = ref(readList('favorites'))
 const saved = computed(() => favorites.value.includes(current.value))
+const viewport = window.visualViewport
+
+function fitViewport() {
+  if (!viewport || !dialog.value?.open) return
+  dialog.value.style.setProperty('--bench-height', `${viewport.height}px`)
+  dialog.value.style.setProperty('--bench-top', `${viewport.offsetTop}px`)
+}
+
+onMounted(() => {
+  viewport?.addEventListener('resize', fitViewport)
+  viewport?.addEventListener('scroll', fitViewport)
+})
+onUnmounted(() => {
+  viewport?.removeEventListener('resize', fitViewport)
+  viewport?.removeEventListener('scroll', fitViewport)
+})
 
 function readList(key: string): string[] {
   try {
@@ -77,6 +93,7 @@ function open(edit?: { label: string; span: Span }, scalar?: string) {
   context.value = edit
   if (scalar) visit(scalar)
   dialog.value?.showModal()
+  fitViewport()
   void nextTick(() => {
     // Leave touch users in control of when to open the software keyboard.
     if (matchMedia('(pointer: fine)').matches) search.value?.select()
@@ -153,8 +170,9 @@ defineExpose({ open })
       </section>
     </div>
     <footer v-if="context" class="bench-footer">
-      <p class="meta"><bdi>{{ context.label }}</bdi> · {{ context.span.start === context.span.end
-        ? `caret at UTF-16 ${context.span.start}` : `UTF-16 ${context.span.start}–${context.span.end}` }}</p>
+      <p class="meta">
+        <bdi>{{ context.label }}</bdi> · UTF-16 {{ context.span.start }}<template v-if="context.span.start !== context.span.end">–{{ context.span.end }}</template>
+      </p>
       <div class="toolbar">
         <button type="button" class="primary" :disabled="!point" @click="apply('insert')">Insert</button>
         <button type="button" :disabled="!point || context.span.start === context.span.end" @click="apply('replace')">Replace</button>

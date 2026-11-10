@@ -374,16 +374,16 @@ h1.terminal-scenario {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  padding: 3px 6px;
-  border-inline-start: 2px solid var(--control);
-  background: var(--surface);
+  padding: 4px 6px;
+  border-inline-start: 3px solid #7f95a5;
+  background: #27343e;
   color: var(--text);
   font-weight: 650;
   white-space: pre-wrap;
-  margin-bottom: 3px;
 }
 .command-echo.remote {
   border-inline-start-color: var(--accent);
+  background: #203832;
 }
 .command-echo .prompt-host {
   flex: none;
@@ -391,6 +391,10 @@ h1.terminal-scenario {
 }
 .command-echo bdi {
   min-width: 0;
+}
+.command-echo + .entry-output {
+  margin-top: 5px;
+  padding-inline-start: 9px;
 }
 .terminal-line + .terminal-line {
   margin-top: 4px;

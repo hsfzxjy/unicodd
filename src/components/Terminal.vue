@@ -198,55 +198,57 @@ defineExpose({ focusAction, promptInspection, revealInspection, scrollToEnd })
           >
           <bdi>{{ entry.echo }}</bdi>
         </p>
-        <template v-for="(row, index) in entry.output" :key="index">
-          <div v-if="row.kind === 'listing'" class="terminal-list">
-            <p class="listing-path">
-              <bdi>{{ row.path ?? 'Known hosts' }}</bdi>
-            </p>
-            <p v-if="!row.links.length" class="meta">Empty directory.</p>
-            <ul v-else>
-              <li v-for="link in row.links" :key="link.label">
-                <button type="button" class="terminal-link" @click="emit('action', link.action)">
-                  <bdi>{{ link.label }}</bdi>
-                </button>
-                <span v-if="link.detail" class="listing-detail"
-                  ><bdi>{{ link.detail }}</bdi></span
-                >
-              </li>
-            </ul>
-          </div>
-          <TerminalFile
-            v-else-if="row.kind === 'file'"
-            :path="row.path"
-            :text="row.text"
-            :inspect-lines="row.inspectLines"
-            @action="emit('action', $event)"
-          />
-          <TerminalInspection
-            v-else-if="row.kind === 'inspection'"
-            :row="row"
-            :can-insert="canInsert"
-            :can-replace="canReplace"
-            :busy="busy"
-            @action="emit('action', $event)"
-          />
-          <div v-else-if="row.kind === 'help'" class="command-help">
-            <dl>
-              <template v-for="[usage, detail] in commandHelp" :key="usage">
-                <dt>{{ usage }}</dt>
-                <dd>{{ detail }}</dd>
-              </template>
-            </dl>
-            <p>
-              {{
-                row.connected
-                  ? 'File paths start at the host root.'
-                  : 'Choose a host to begin exploring.'
-              }}
-            </p>
-          </div>
-          <p v-else :class="['terminal-line', row.kind]" dir="auto">{{ row.text }}</p>
-        </template>
+        <div v-if="entry.output.length" class="entry-output">
+          <template v-for="(row, index) in entry.output" :key="index">
+            <div v-if="row.kind === 'listing'" class="terminal-list">
+              <p class="listing-path">
+                <bdi>{{ row.path ?? 'Known hosts' }}</bdi>
+              </p>
+              <p v-if="!row.links.length" class="meta">Empty directory.</p>
+              <ul v-else>
+                <li v-for="link in row.links" :key="link.label">
+                  <button type="button" class="terminal-link" @click="emit('action', link.action)">
+                    <bdi>{{ link.label }}</bdi>
+                  </button>
+                  <span v-if="link.detail" class="listing-detail"
+                    ><bdi>{{ link.detail }}</bdi></span
+                  >
+                </li>
+              </ul>
+            </div>
+            <TerminalFile
+              v-else-if="row.kind === 'file'"
+              :path="row.path"
+              :text="row.text"
+              :inspect-lines="row.inspectLines"
+              @action="emit('action', $event)"
+            />
+            <TerminalInspection
+              v-else-if="row.kind === 'inspection'"
+              :row="row"
+              :can-insert="canInsert"
+              :can-replace="canReplace"
+              :busy="busy"
+              @action="emit('action', $event)"
+            />
+            <div v-else-if="row.kind === 'help'" class="command-help">
+              <dl>
+                <template v-for="[usage, detail] in commandHelp" :key="usage">
+                  <dt>{{ usage }}</dt>
+                  <dd>{{ detail }}</dd>
+                </template>
+              </dl>
+              <p>
+                {{
+                  row.connected
+                    ? 'File paths start at the host root.'
+                    : 'Choose a host to begin exploring.'
+                }}
+              </p>
+            </div>
+            <p v-else :class="['terminal-line', row.kind]" dir="auto">{{ row.text }}</p>
+          </template>
+        </div>
       </article>
     </div>
     <div class="terminal-controls">

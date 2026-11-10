@@ -1,6 +1,6 @@
 # unicodd
 
-unicodd is a browser-based Unicode puzzle game. Explore fictional hosts, read their files, and investigate how they interpret text. Use commands or clickable actions to navigate, and use the Unicode Workbench to inspect and edit characters.
+unicodd is a browser-based Unicode puzzle game. Explore fictional hosts, read their files, and investigate how they interpret text. Use commands or clickable actions to navigate, and inspect Unicode characters and reuse them directly in the terminal.
 
 ## Build and run
 
@@ -36,7 +36,7 @@ The game reads the manifest and UTF-8 content files at runtime. Publish the cont
 5. **Set the objective.** Give `objective` its visible `text`, the file resource ID under `read`, and a completion `message`. The runtime completes the objective on an authorized read of that resource.
 6. **Validate and play-test.** Run `npm run validate:content` after building WASM. It checks every registered entry, including unavailable ones, and reports the file and field for invalid content and references. Try both command and click paths in the browser.
 
-Use stable ASCII IDs and safe relative asset paths. Published resources are public static assets, including files that require access in the game. Keep real secrets out of content. Objective completion, Workbench favorites, and recent characters use browser storage when available. Session identity and transcript are kept in memory.
+Use stable ASCII IDs and safe relative asset paths. Published resources are public static assets, including files that require access in the game. Keep real secrets out of content. Objective completion uses browser storage when available. Session identity and the transcript, including Unicode inspection history, are kept in memory.
 
 ### Program schema v1
 
@@ -72,6 +72,6 @@ Rust consumers can call `validate_program`, `evaluate`, and `normalize` from `un
 
 Evaluation returns `solved`, ordered `checks` with their actual and expected Booleans, and, when requested, a topologically ordered `trace`. Each trace record includes its node ID, operator, dependency IDs, and typed result. When the trace reaches its text budget, the response includes the available prefix and `traceTruncated: true`.
 
-Unicode normalization uses the versioned data in the locked `unicode-normalization` crate (Unicode 18.0.0). Query `engine.info()` for the schema and Unicode versions. Text is compared exactly unless a program explicitly normalizes it. The evaluator counts Unicode scalar values. The editor shows code-point counts and positions and marks isolated surrogates so they can be repaired. In Workbench lookup, a single literal scalar takes precedence over bare hex. Use `U+` to disambiguate a one-digit hex value.
+Unicode normalization uses the versioned data in the locked `unicode-normalization` crate (Unicode 18.0.0). Query `engine.info()` for the schema and Unicode versions. Text is compared exactly unless a program explicitly normalizes it. The evaluator counts Unicode scalar values. The editor shows code-point counts and positions and marks isolated surrogates so they can be repaired. In the terminal, `inspect` accepts a single literal scalar or a code point. A single literal scalar takes precedence over bare hex. Use `U+` to disambiguate a one-digit hex value.
 
 Limits include 32 input declarations, 256 nodes, 128 checks, 32 KiB of UTF-8 per input and 256 KiB total, 128 KiB per text value, 2 MiB combined intermediate text, and 512 KiB of trace text. WASM request limits are 13 MiB for serialized programs and 2 MiB for serialized input objects.

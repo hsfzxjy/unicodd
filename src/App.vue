@@ -2,12 +2,11 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import PayloadEditor from './components/PayloadEditor.vue'
 import Terminal, { type Entry } from './components/Terminal.vue'
-import Workbench from './components/Workbench.vue'
 import { actionCommand } from './lib/commands'
 import type { createContentLoader, ScenarioEntry } from './lib/content'
 import { createRuntime, type Action, type Link, type Session } from './lib/runtime'
 import type { Scenario } from './lib/scenario'
-import type { Span } from './lib/unicode'
+import { copyText } from './lib/unicode'
 import type { Engine } from './types'
 
 const props = defineProps<{ content: ReturnType<typeof createContentLoader>; engine: Engine }>()
@@ -23,7 +22,6 @@ const composing = ref(false)
 const application = ref<HTMLElement>()
 const terminal = ref<InstanceType<typeof Terminal>>()
 const editor = ref<InstanceType<typeof PayloadEditor>>()
-const bench = ref<InstanceType<typeof Workbench>>()
 const loginSubmit = ref<HTMLButtonElement>()
 const alias = ref('')
 const drafts = new Map<string, string>()
@@ -34,9 +32,11 @@ const draftKey = () => JSON.stringify([scenarioId.value, session.value?.host?.id
 const storageKey = (id: string) => 'unicodd.objective.' + id
 let runtime: ReturnType<typeof createRuntime> | undefined
 let sequence = 0
-let context: Span | undefined
-let returnTo: HTMLElement | undefined
-let applied = false
+const canInsert = computed(() => Boolean(session.value?.editing) && !composing.value)
+const canReplace = computed(() => {
+  const span = editor.value?.context()
+  return canInsert.value && Boolean(span && span.end > span.start)
+})
 
 const viewport = window.visualViewport
 function fitViewport() {
@@ -61,6 +61,7 @@ const shortcuts = computed((): Link[] => {
       actions.push({ label: 'Logout', action: { type: 'logout' } })
   }
   actions.push(
+    { label: 'Inspect', action: { type: 'inspect' } },
     { label: 'Help', action: { type: 'help' } },
     { label: 'Clear', action: { type: 'clear' } },
   )
@@ -140,7 +141,7 @@ async function dispatch(action: Action, command?: string) {
   if (
     !active ||
     busy.value ||
-    (composing.value && (action.type === 'login' || action.type === 'inspect'))
+    (composing.value && (action.type === 'login' || action.type === 'editPayload'))
   )
     return
   const id = scenarioId.value
@@ -151,6 +152,25 @@ async function dispatch(action: Action, command?: string) {
   let response
   try {
     response = await active.dispatch(action)
+    if (runtime !== active || scenarioId.value !== id) return
+    if (response.transfer?.type === 'copy') {
+      try {
+        await copyText(response.transfer.text)
+        response.output = [{ kind: 'message', text: 'Copied.' }]
+      } catch {
+        response.output = [{ kind: 'error', text: 'Clipboard unavailable.' }]
+      }
+    } else if (response.transfer?.type === 'editPayload') {
+      const { mode, text } = response.transfer
+      const span = editor.value?.context()
+      if (span && !composing.value && (mode === 'insert' || span.start < span.end)) {
+        editor.value?.apply(
+          mode === 'insert' ? { start: span.start, end: span.start } : span,
+          text,
+          false,
+        )
+      }
+    }
   } finally {
     if (runtime === active) busy.value = false
   }
@@ -182,7 +202,11 @@ async function dispatch(action: Action, command?: string) {
       },
     ]
   }
-  if (response.inspect !== undefined) openBench(undefined, response.inspect)
+  if (response.inspectPrompt) terminal.value?.promptInspection()
+  if (response.output?.some(({ kind }) => kind === 'inspection')) {
+    await nextTick()
+    if (runtime === active) terminal.value?.revealInspection(command === undefined)
+  }
   if (response.edit) {
     await nextTick()
     if (runtime !== active) return
@@ -198,62 +222,10 @@ async function dispatch(action: Action, command?: string) {
       terminal.value?.focusAction(action.type === 'closeEditor' ? 'login' : 'ls')
   }
 }
-
-function openBench(span?: Span, scalar?: string) {
-  if (composing.value) return
-  context = session.value?.editing ? (span ?? editor.value?.context()) : undefined
-  returnTo = document.activeElement instanceof HTMLElement ? document.activeElement : undefined
-  applied = false
-  bench.value?.open(
-    context && login.value ? { label: login.value.label, span: context } : undefined,
-    scalar,
-  )
-}
-
-function applyCharacter(text: string, mode: 'insert' | 'replace') {
-  const span = context
-  if (!span) return
-  applied = true
-  void nextTick(() =>
-    editor.value?.apply(mode === 'insert' ? { start: span.start, end: span.start } : span, text),
-  )
-}
-
-function closeBench() {
-  if (!applied) returnTo?.focus({ preventScroll: true })
-  context = undefined
-  returnTo = undefined
-}
 </script>
 
 <template>
   <div ref="application" class="application">
-    <header class="app-header">
-      <span class="wordmark">unicodd<span aria-hidden="true">_</span></span>
-      <h1 v-if="scenario && catalog.length === 1">
-        <bdi>{{ scenario.title }}</bdi>
-      </h1>
-      <select v-else-if="catalog.length" v-model="scenarioId" aria-label="Scenario">
-        <option
-          v-for="entry in catalog"
-          :key="entry.id"
-          :value="entry.id"
-          :disabled="!entry.available"
-        >
-          {{ entry.label }}
-        </option>
-      </select>
-      <button
-        type="button"
-        class="nav-workbench"
-        aria-haspopup="dialog"
-        :disabled="composing"
-        @click="openBench()"
-      >
-        Workbench
-      </button>
-    </header>
-
     <main v-if="scenario && session" :key="scenario.id" class="workspace">
       <aside class="context-frame" aria-label="Session context">
         <div class="frame-title">
@@ -307,7 +279,7 @@ function closeBench() {
             :model-value="alias"
             @update:model-value="setDraft"
             @composition="composing = $event"
-            @workbench="openBench"
+            @inspect="dispatch({ type: 'inspect', character: $event })"
           />
           <div class="toolbar alias-actions">
             <button
@@ -331,19 +303,45 @@ function closeBench() {
         :shortcuts="shortcuts"
         :suggestions="suggestions"
         :busy="busy"
+        :can-insert="canInsert"
+        :can-replace="canReplace"
         @action="dispatch"
-      />
+      >
+        <template #scenario>
+          <h1 v-if="catalog.length === 1" class="terminal-scenario">
+            <bdi>{{ scenario.title }}</bdi>
+          </h1>
+          <select v-else v-model="scenarioId" class="terminal-scenario" aria-label="Scenario">
+            <option
+              v-for="entry in catalog"
+              :key="entry.id"
+              :value="entry.id"
+              :disabled="!entry.available"
+            >
+              {{ entry.label }}
+            </option>
+          </select>
+        </template>
+      </Terminal>
     </main>
     <main v-else class="startup">
       <template v-if="loadingError">
         <h1>Could not load scenario content</h1>
         <p role="alert" class="error" dir="auto">{{ loadingError }}</p>
         <button type="button" @click="scenarioId ? attempt++ : loadCatalog()">Retry</button>
+        <select v-if="catalog.length > 1" v-model="scenarioId" aria-label="Scenario">
+          <option
+            v-for="entry in catalog"
+            :key="entry.id"
+            :value="entry.id"
+            :disabled="!entry.available"
+          >
+            {{ entry.label }}
+          </option>
+        </select>
       </template>
       <p v-else-if="catalogLoading || scenarioId" role="status">Loading scenario…</p>
       <p v-else>No scenario is available.</p>
     </main>
   </div>
-
-  <Workbench ref="bench" :engine="engine" @apply="applyCharacter" @close="closeBench" />
 </template>

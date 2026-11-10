@@ -1,4 +1,4 @@
-import type { Engine } from '../types.ts'
+import { forms, type Engine, type Normalization, type Result } from '../types.ts'
 import { actionCommand, commandHelp } from './commands.ts'
 import {
   parentPath,
@@ -9,7 +9,7 @@ import {
   type Resource,
   type Scenario,
 } from './scenario.ts'
-import { lookup } from './unicode.ts'
+import { describe, lookup, scalarCategory, unpairedSurrogate, type Point } from './unicode.ts'
 
 export type Action =
   | { type: 'hosts' | 'whoami' | 'logout' | 'help' | 'clear' | 'reset' | 'closeEditor' }
@@ -17,7 +17,9 @@ export type Action =
   | { type: 'ls'; path?: string }
   | { type: 'cat'; path: string }
   | { type: 'login'; alias?: string }
-  | { type: 'inspect'; character: string }
+  | { type: 'inspect'; character?: string }
+  | { type: 'copy'; text: string }
+  | { type: 'editPayload'; mode: 'insert' | 'replace'; text: string }
   | { type: 'invalid'; message: string }
 
 export interface Link {
@@ -26,11 +28,19 @@ export interface Link {
   action: Action
 }
 
+export interface Inspection {
+  kind: 'inspection'
+  point: Point
+  category?: string
+  normalization: { form: Normalization; result: Result<string> }[]
+}
+
 export type Output =
   | { kind: 'message' | 'error' | 'auth' | 'objective'; text: string }
   | { kind: 'listing'; path?: string; links: Link[] }
   | { kind: 'file'; path: string; text: string; inspectLines: number[] }
   | { kind: 'help'; connected: boolean }
+  | Inspection
 
 export interface Session {
   host?: Host
@@ -43,7 +53,8 @@ export interface Session {
 export interface Response {
   output?: Output[]
   clear?: boolean
-  inspect?: string
+  inspectPrompt?: boolean
+  transfer?: Extract<Action, { type: 'copy' | 'editPayload' }>
   edit?: boolean
 }
 
@@ -173,7 +184,7 @@ export function createRuntime(scenario: Scenario, engine: Engine, completed = fa
       pending = undefined
       return { clear: true, output: welcome() }
     }
-    if (pending) return error('Authentication is in progress.')
+    if (pending) return error('An action is in progress.')
     switch (action.type) {
       case 'help':
         return { output: [{ kind: 'help', connected: Boolean(state.host) }] }
@@ -231,11 +242,38 @@ export function createRuntime(scenario: Scenario, engine: Engine, completed = fa
         }
       }
       case 'inspect': {
+        if (action.character === undefined) return { inspectPrompt: true }
         const scalar = lookup(action.character)
-        return scalar === undefined
-          ? error('Enter one Unicode scalar or a code point such as U+00E9.')
-          : { inspect: scalar }
+        if (scalar === undefined)
+          return error('Enter one Unicode scalar or a code point such as U+00E9.')
+        const before = state
+        pending = before
+        try {
+          const normalization = await Promise.all(
+            forms.map(async (form) => ({ form, result: await engine.normalize(scalar, form) })),
+          )
+          if (state !== before) return {}
+          return {
+            output: [
+              {
+                kind: 'inspection',
+                point: describe(scalar),
+                category: scalarCategory(scalar),
+                normalization,
+              },
+            ],
+          }
+        } finally {
+          if (pending === before) pending = undefined
+        }
       }
+      case 'copy':
+      case 'editPayload':
+        if (unpairedSurrogate(action.text) !== undefined)
+          return error('Expected valid Unicode text.')
+        if (action.type === 'editPayload' && !state.editing)
+          return error('Open a payload editor first.')
+        return { transfer: action }
       case 'clear':
         return { clear: true }
       case 'closeEditor':

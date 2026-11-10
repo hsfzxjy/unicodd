@@ -15,7 +15,7 @@ import {
 const props = defineProps<{ label: string; modelValue: string }>()
 const emit = defineEmits<{
   'update:modelValue': [string]
-  workbench: [Span, string | undefined]
+  inspect: [string]
   composition: [boolean]
 }>()
 const id = useId()
@@ -33,7 +33,10 @@ const selected = computed(() => props.modelValue.slice(selection.value.start, se
 const caretOffset = computed(() =>
   selection.value.start === selection.value.end ? selection.value.start : undefined,
 )
-const firstPoint = computed(() => inspectRange(selected.value, 0, 1)[0])
+const selectedPoint = computed(() => {
+  const point = inspectRange(selected.value, 0, 1)[0]
+  return point?.end === selected.value.length ? point : undefined
+})
 const pointContext = computed(() => {
   if (!expanded.value) return ''
   const start = pointIndex(props.modelValue, selection.value.start)
@@ -138,7 +141,7 @@ function focusAt(span: Span, focus = true) {
   if (focus) field.scrollIntoView({ block: 'nearest' })
 }
 
-function apply(span: Span, text: string) {
+function apply(span: Span, text: string, focus = true) {
   if (composing) return
   emit(
     'update:modelValue',
@@ -147,7 +150,7 @@ function apply(span: Span, text: string) {
   const caret = span.start + text.length
   void nextTick(() => {
     const position = scalarSpan(props.modelValue, { start: caret, end: caret })
-    focusAt(position)
+    focusAt(position, focus)
     readSelection()
   })
 }
@@ -176,15 +179,6 @@ function selectPoint(span: Span) {
 function toggle() {
   expanded.value = !expanded.value
   if (expanded.value) readSelection()
-}
-
-function openWorkbench() {
-  if (composing) return
-  emit(
-    'workbench',
-    { ...selection.value },
-    firstPoint.value?.valid ? firstPoint.value.scalar : undefined,
-  )
 }
 
 async function copy(value: string) {
@@ -237,7 +231,13 @@ defineExpose({ apply, focusAt, context: () => ({ ...selection.value }) })
       >
         <span aria-hidden="true">{{ expanded ? '▾' : '▸' }}</span> Code points
       </button>
-      <button type="button" aria-haspopup="dialog" @click="openWorkbench">Open Workbench</button>
+      <button
+        type="button"
+        :disabled="!selectedPoint?.valid"
+        @click="selectedPoint && emit('inspect', selectedPoint.scalar)"
+      >
+        Inspect
+      </button>
     </div>
     <div v-show="expanded" :id="id + '-points'" class="point-view">
       <div v-if="pages > 1" class="toolbar pagination">

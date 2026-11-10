@@ -116,6 +116,31 @@ it('serializes authentication and discards work invalidated by a reset', async (
   expect(runtime.state.host).toBeUndefined()
 })
 
+it('returns WASM normalization output and guards payload transfers in the dispatcher', async () => {
+  const runtime = createRuntime(await relay(), engine)
+  const before = runtime.state
+  expect(await runtime.dispatch({ type: 'inspect', character: 'U+00E9' })).toEqual({
+    output: [
+      {
+        kind: 'inspection',
+        point: expect.objectContaining({ scalar: 'é', notation: 'U+00E9' }),
+        category: 'Lowercase letter',
+        normalization: ['NFC', 'NFD', 'NFKC', 'NFKD'].map((form, index) => ({
+          form,
+          result: { ok: true, value: index % 2 ? 'e\u0301' : 'é' },
+        })),
+      },
+    ],
+  })
+  expect(runtime.state).toBe(before)
+  const insertion = { type: 'editPayload', mode: 'insert', text: 'e\u0301' } as const
+  expect((await runtime.dispatch(insertion)).output?.[0].kind).toBe('error')
+  await runtime.dispatch(connect)
+  await runtime.dispatch({ type: 'login' })
+  expect(await runtime.dispatch(insertion)).toEqual({ transfer: insertion })
+  expect((await runtime.dispatch({ type: 'copy', text: '\ud800' })).output?.[0].kind).toBe('error')
+})
+
 it.each([
   ['  help  ', { type: 'help' }],
   ['hosts', { type: 'hosts' }],

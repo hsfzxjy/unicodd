@@ -9,7 +9,7 @@ export const commandHelp = [
   ['whoami', 'Show the current identity.'],
   ['login [alias]', 'Open the alias editor or submit an alias.'],
   ['logout', 'Return to guest access.'],
-  ['inspect <character>', 'Open the Workbench for a scalar or code point.'],
+  ['inspect <character>', 'Show Unicode details for a scalar or code point.'],
   ['clear', 'Clear terminal scrollback.'],
 ] as const
 
@@ -88,10 +88,12 @@ export function actionCommand(action: Action): string | undefined {
     case 'login':
       return action.alias === undefined ? 'login' : `login ${quote(action.alias)}`
     case 'inspect':
-      return `inspect ${quote(action.character)}`
+      return action.character === undefined ? undefined : `inspect ${quote(action.character)}`
     case 'invalid':
     case 'reset':
     case 'closeEditor':
+    case 'copy':
+    case 'editPayload':
       return
     default:
       return action.type

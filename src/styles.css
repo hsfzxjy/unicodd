@@ -79,7 +79,8 @@ select:hover:not(:disabled) {
 button:active:not(:disabled) {
   border-color: var(--accent);
 }
-:disabled {
+:disabled,
+[aria-disabled='true'] {
   cursor: default;
   opacity: 0.57;
 }
@@ -214,144 +215,16 @@ textarea {
 .point-context {
   margin-top: 4px;
 }
-.workbench {
-  position: fixed;
-  inset: 54px 8px 8px auto;
-  width: min(490px, calc(100% - 16px));
-  max-width: none;
-  max-height: calc(100dvh - 62px);
-  margin: 0;
-  padding: 0;
-  color: var(--text);
-  background: var(--surface);
-  border: 1px solid var(--control);
-  border-radius: 5px;
-  overflow: hidden;
-}
-.workbench[open] {
-  display: flex;
-  flex-direction: column;
-}
-.workbench::backdrop {
-  background: #080c1059;
-}
-.bench-head,
-.bench-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 8px 12px;
-  background: #1b242b;
-}
-.bench-head {
-  border-bottom: 1px solid var(--line);
-}
-.bench-body {
-  padding: 12px;
-  overflow: auto;
-  overscroll-behavior: contain;
-}
-.lookup-controls {
-  flex-wrap: nowrap;
-  margin-top: 5px;
-}
-.lookup input {
-  min-width: 0;
-  width: 100%;
-  background: var(--inset);
-  font-family: var(--mono);
-}
-.lookup button {
-  flex: none;
-}
-.lookup [role='alert'] {
-  margin-top: 4px;
-}
-.character {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 12px;
-}
-.character-glyph {
-  display: grid;
-  place-items: center;
-  min-width: 44px;
-  min-height: 44px;
-  padding-inline: 6px;
-  font-size: 20px;
-  background: var(--inset);
-  border-radius: 4px;
-}
-.character .copy-character {
-  margin-inline-start: auto;
-}
-.bench-section {
-  margin-top: 12px;
-}
-.bench-section h3 {
-  margin-bottom: 5px;
-}
-.normalization-row {
-  display: grid;
-  grid-template-columns: 4ch minmax(36px, 0.27fr) minmax(0, 1fr);
-  align-items: center;
-  gap: 6px;
-  padding: 3px 0;
-  border-top: 1px solid var(--line);
-}
-.normalized-text {
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
-}
-.related {
-  font: 12px var(--mono);
-}
-.bench-footer {
-  border-top: 1px solid var(--line);
-  flex-wrap: wrap;
-}
-.bench-footer p {
-  overflow-wrap: anywhere;
-}
-
 .application {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
   height: var(--app-height, 100dvh);
-}
-.app-header {
-  min-height: 52px;
-  padding: 4px 16px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  border-bottom: 1px solid var(--line);
-  background: var(--surface);
 }
 .wordmark {
   font: 700 17px var(--mono);
   white-space: nowrap;
 }
-.wordmark span,
 .prompt-host {
   color: var(--accent);
-}
-.app-header h1,
-.app-header select {
-  min-width: 0;
-  font-size: 14px;
-  font-weight: 550;
-  color: var(--muted);
-}
-.app-header h1 {
-  border-inline-start: 1px solid var(--control);
-  padding-inline-start: 14px;
-  overflow-wrap: anywhere;
-}
-.nav-workbench {
-  margin-inline-start: auto;
 }
 .workspace {
   min-height: 0;
@@ -373,6 +246,26 @@ textarea {
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(96px, 1fr) auto;
   background: var(--inset);
+}
+.terminal-frame .frame-title {
+  justify-content: flex-start;
+}
+.terminal-scenario {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 550;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+h1.terminal-scenario {
+  padding-inline-start: 9px;
+  border-inline-start: 1px solid var(--control);
+}
+.terminal-frame .jump {
+  flex: none;
+  margin-inline-start: auto;
 }
 .context-frame {
   grid-area: context;
@@ -458,6 +351,7 @@ textarea {
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
+  scroll-padding-block: 6px;
   padding: 12px 14px 18px;
   font: 14px/1.52 var(--mono);
   overflow-wrap: anywhere;
@@ -542,6 +436,74 @@ textarea {
   border-bottom-color: var(--control);
   font-size: 16px;
 }
+.inspection-summary,
+.inspection-actions,
+.inspection-sequence,
+.inspection-form dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+}
+.inspection {
+  min-width: 0;
+  margin-top: 3px;
+}
+.inspection:focus-visible {
+  outline-offset: 3px;
+}
+.inspection-summary {
+  column-gap: 12px;
+}
+.inspection-category {
+  color: var(--muted);
+  font-size: 12px;
+}
+.inspection .inspection-point {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  margin-inline-start: 0;
+  text-decoration: none;
+}
+.inspection-point bdi {
+  overflow-wrap: anywhere;
+}
+.inspection-point code {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.inspection button:not(.terminal-link) {
+  min-height: 28px;
+  padding: 2px 8px;
+  font: 12px var(--sans);
+}
+.inspection-normalization {
+  margin: 4px 0 0;
+}
+.inspection-form {
+  display: grid;
+  grid-template-columns: 5ch minmax(0, 1fr);
+}
+.inspection-form dt {
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+  align-self: start;
+  color: var(--muted);
+}
+.inspection-form dd {
+  align-items: flex-start;
+  flex-wrap: nowrap;
+  margin: 0;
+}
+.inspection-form dd > button {
+  flex: none;
+  white-space: nowrap;
+}
+.inspection-sequence {
+  min-width: 0;
+}
 .command-help dl {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
@@ -598,14 +560,10 @@ textarea {
 .startup p {
   margin-block: 6px 10px;
 }
-.copy-feedback {
-  color: var(--muted);
-}
-
 @media (max-width: 830px) {
   .workspace {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: max-content minmax(210px, 1fr);
+    grid-template-rows: max-content minmax(250px, 1fr);
     grid-template-areas: 'context' 'terminal';
     padding: 8px;
     gap: 8px;
@@ -614,6 +572,9 @@ textarea {
   .context-frame {
     max-height: none;
     overflow: visible;
+  }
+  .terminal-frame {
+    grid-template-rows: auto minmax(60px, 1fr) auto;
   }
   .session-context {
     padding: 5px 10px 8px;
@@ -646,21 +607,19 @@ textarea {
   input,
   .shortcuts button,
   .frame-title button,
+  .inspection button:not(.terminal-link),
+  .inspection-form dt,
   .terminal-link {
     min-height: 44px;
   }
   .terminal-link {
     min-width: 44px;
   }
+  .terminal-frame .frame-title {
+    min-height: 44px;
+  }
 }
 @media (max-width: 600px) {
-  .app-header {
-    gap: 8px;
-    padding-inline: 9px;
-  }
-  .app-header h1 {
-    padding-inline-start: 8px;
-  }
   .context-frame .frame-title h2 {
     position: absolute;
     clip-path: inset(50%);
@@ -707,26 +666,11 @@ textarea {
     font-size: 12px;
   }
   .prompt input,
-  textarea,
-  .lookup input {
+  textarea {
     font-size: 16px;
   }
   .alias-editor textarea {
     min-height: 54px;
     height: 54px;
-  }
-  .workbench {
-    inset: var(--bench-top, 0px) 0 auto;
-    width: 100%;
-    height: var(--bench-height, 100dvh);
-    max-height: 100dvh;
-    border: 0;
-    border-radius: 0;
-  }
-  .bench-body {
-    flex: 1;
-  }
-  .bench-footer {
-    padding-bottom: max(8px, env(safe-area-inset-bottom));
   }
 }

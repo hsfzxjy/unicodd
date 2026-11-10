@@ -21,6 +21,42 @@ const names = new Map([
   ['\ufeff', 'BOM'],
 ])
 
+const categories = [
+  [/\p{Lu}/u, 'Uppercase letter'],
+  [/\p{Ll}/u, 'Lowercase letter'],
+  [/\p{Lt}/u, 'Titlecase letter'],
+  [/\p{Lm}/u, 'Modifier letter'],
+  [/\p{Lo}/u, 'Other letter'],
+  [/\p{Mn}/u, 'Nonspacing mark'],
+  [/\p{Mc}/u, 'Spacing mark'],
+  [/\p{Me}/u, 'Enclosing mark'],
+  [/\p{Nd}/u, 'Decimal number'],
+  [/\p{Nl}/u, 'Letter number'],
+  [/\p{No}/u, 'Other number'],
+  [/\p{Pc}/u, 'Connector punctuation'],
+  [/\p{Pd}/u, 'Dash punctuation'],
+  [/\p{Ps}/u, 'Open punctuation'],
+  [/\p{Pe}/u, 'Close punctuation'],
+  [/\p{Pi}/u, 'Initial punctuation'],
+  [/\p{Pf}/u, 'Final punctuation'],
+  [/\p{Po}/u, 'Other punctuation'],
+  [/\p{Sm}/u, 'Math symbol'],
+  [/\p{Sc}/u, 'Currency symbol'],
+  [/\p{Sk}/u, 'Modifier symbol'],
+  [/\p{So}/u, 'Other symbol'],
+  [/\p{Zs}/u, 'Space separator'],
+  [/\p{Zl}/u, 'Line separator'],
+  [/\p{Zp}/u, 'Paragraph separator'],
+  [/\p{Cc}/u, 'Control'],
+  [/\p{Cf}/u, 'Format'],
+  [/\p{Co}/u, 'Private use'],
+  [/\p{Cn}/u, 'Unassigned'],
+] as const
+
+export function scalarCategory(scalar: string): string | undefined {
+  return categories.find(([pattern]) => pattern.test(scalar))?.[1]
+}
+
 export function notation(value: number): string {
   return 'U+' + value.toString(16).toUpperCase().padStart(4, '0')
 }

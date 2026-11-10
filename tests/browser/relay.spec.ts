@@ -12,6 +12,10 @@ const incident = (page: Page) =>
   terminal(page).getByRole('region', { name: 'File /queue/8c2f.msg' })
 const alias = (page: Page) => page.getByRole('textbox', { name: 'Account alias' })
 const cmd = (page: Page) => page.getByRole('textbox', { name: 'Terminal command' })
+const inspection = (page: Page, notation: string) =>
+  terminal(page)
+    .getByRole('region', { name: 'Unicode ' + notation })
+    .last()
 
 async function run(page: Page, text: string) {
   await expect(cmd(page)).toBeEditable()
@@ -58,12 +62,13 @@ test('plays the entire Relay through graphical actions and restores only objecti
   await terminal(page)
     .getByRole('button', { name: /Inspect U\+FF2D/ })
     .click()
-  const bench = page.getByRole('dialog', { name: 'Unicode Workbench' })
-  await expect(bench.getByRole('textbox')).toHaveValue('U+FF2D')
-  await expect(bench.getByRole('button', { name: /NFKC: inspect U\+004D/ })).toBeVisible()
-  await bench.getByRole('button', { name: 'Copy', exact: true }).click()
+  const details = inspection(page, 'U+FF2D')
+  await expect(details).toContainText('Uppercase letter')
+  await expect(details.getByRole('button', { name: /NFKC: Inspect U\+004D/ })).toBeVisible()
+  await details.getByRole('button', { name: 'Copy', exact: true }).click()
+  await expect(terminal(page)).toContainText('Copied.')
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('Ｍ')
-  await bench.getByRole('button', { name: 'Insert', exact: true }).click()
+  await details.getByRole('button', { name: 'Insert', exact: true }).click()
   await expect(alias(page)).toHaveValue(fullwidth)
   expect(await alias(page).evaluate((field: HTMLTextAreaElement) => field.selectionStart)).toBe(1)
   await page.getByRole('button', { name: 'Submit login' }).click()
@@ -119,9 +124,8 @@ test('reaches equivalent states through typed actions in a different exploration
   await quick(page, 'Login').click()
   await expect(alias(page)).toHaveValue('unsent')
   await run(page, 'inspect Ｍ')
-  const dialog = page.getByRole('dialog')
-  await expect(dialog.getByRole('textbox')).toHaveValue('U+FF2D')
-  await dialog.getByRole('button', { name: 'Close', exact: true }).click()
+  await expect(inspection(page, 'U+FF2D')).toBeVisible()
+  await expect(alias(page)).toHaveValue('unsent')
   await run(page, `login "${fullwidth}"`)
   await expect(contextPanel(page)).toContainText('maintenance')
   await expect(contextPanel(page)).toContainText('Open')
@@ -164,12 +168,12 @@ test('supports history, completion, usage feedback, and IME-safe submission', as
     element.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true })),
   )
   await field.press('Enter')
-  await expect(page.getByRole('dialog')).toBeHidden()
+  await expect(inspection(page, 'U+65E5')).toHaveCount(0)
   await field.evaluate((element) =>
     element.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true })),
   )
   await field.press('Enter')
-  await expect(page.getByRole('dialog').getByRole('textbox')).toHaveValue('U+65E5')
+  await expect(inspection(page, 'U+65E5')).toBeVisible()
 })
 
 test('loads a second authored scenario through the same terminal and handles quoted paths', async ({
@@ -227,6 +231,32 @@ test('keeps manual scrollback and safely renders raw command echoes', async ({ p
   await expect(latest).toHaveCount(0)
 })
 
+test.describe('mobile Unicode sequence', () => {
+  test.use({ viewport: { width: 375, height: 812 }, hasTouch: true, isMobile: true })
+
+  test('wraps long normalization output and inserts the whole sequence by touch', async ({
+    page,
+  }, info) => {
+    await openRelay(page)
+    await link(page, 'relay-07').tap()
+    await quick(page, 'Login').tap()
+    await alias(page).fill('a🧪b')
+    await alias(page).press('Home')
+    await alias(page).press('ArrowRight')
+    await run(page, 'inspect U+FDFA')
+    const details = inspection(page, 'U+FDFA')
+    const insert = details.getByRole('button', { name: 'Insert NFKC', exact: true })
+    await expect(details.getByRole('button', { name: /^NFKC: Inspect / })).toHaveCount(18)
+    expect((await insert.boundingBox())?.height).toBe(44)
+    expect(await terminal(page).evaluate((element) => element.scrollWidth)).toBe(
+      await terminal(page).evaluate((element) => element.clientWidth),
+    )
+    await page.screenshot({ path: info.outputPath('long-inspection.png') })
+    await insert.tap()
+    await expect(alias(page)).toHaveValue('aصلى الله عليه وسلم🧪b')
+  })
+})
+
 for (const [width, height] of [
   [375, 812],
   [390, 844],
@@ -246,10 +276,9 @@ for (const [width, height] of [
             .locator('.transcript')
             .evaluate((element) => element.scrollWidth <= element.clientWidth),
         ).toBe(true)
-        if (!(await page.getByRole('dialog').isVisible()))
-          await expect(page.getByRole('button', { name: 'Run', exact: true })).toBeInViewport({
-            ratio: 1,
-          })
+        await expect(page.getByRole('button', { name: 'Run', exact: true })).toBeInViewport({
+          ratio: 1,
+        })
         await page.screenshot({ path: info.outputPath(name + '.png') })
       }
       const act = async (target: ReturnType<Page['getByRole']>) => {
@@ -285,14 +314,19 @@ for (const [width, height] of [
       await act(link(page, 'keypad.txt'))
       await capture('08-keypad')
       await act(terminal(page).getByRole('button', { name: /Inspect U\+FF2D/ }))
-      const bench = page.getByRole('dialog')
-      await expect(bench.getByRole('button', { name: /NFKC: inspect U\+004D/ })).toBeVisible()
-      await capture('09-workbench')
-      const insert = bench.getByRole('button', { name: 'Insert', exact: true })
+      const details = inspection(page, 'U+FF2D')
+      await expect(details.getByRole('button', { name: /NFKC: Inspect U\+004D/ })).toBeVisible()
+      await capture('09-inspection')
+      const insert = details.getByRole('button', { name: 'Insert', exact: true })
       if (width < 600) {
         await page.setViewportSize({ width, height: 435 })
-        await expect(insert).toBeInViewport()
-        await page.screenshot({ path: info.outputPath('10-workbench-keyboard-space.png') })
+        await page
+          .getByRole('region', { name: 'Terminal', exact: true })
+          .evaluate((element) => element.scrollIntoView({ block: 'end' }))
+        await insert.scrollIntoViewIfNeeded()
+        await expect(insert).toBeInViewport({ ratio: 1 })
+        await expect(cmd(page)).toBeInViewport()
+        await page.screenshot({ path: info.outputPath('10-inspection-short-viewport.png') })
         await page.setViewportSize({ width, height })
       }
       await act(insert)

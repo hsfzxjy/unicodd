@@ -7,68 +7,55 @@ async function fixture(page: Page) {
   await expect(page.getByRole('textbox', { name: 'Account alias' })).toBeVisible()
 }
 
-test('navigates normalization results, persists favorites, replaces, inserts, copies, and deletes', async ({
+test('inspects a selected scalar and reuses earlier results at the active selection and caret', async ({
   page,
   context,
 }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   await fixture(page)
   const input = page.getByRole('textbox', { name: 'Account alias' })
+  const editor = page.getByRole('form', { name: 'Login editor' })
+  const log = page.getByRole('log')
+  const details = (notation: string) => log.getByRole('region', { name: 'Unicode ' + notation })
+  const command = page.getByRole('textbox', { name: 'Terminal command' })
   await input.fill('e\u0301🧪\u200b')
   await expect(page.getByText('4 code points', { exact: true })).toBeVisible()
-  await expect(page.locator('.payload').getByText('UTF-16', { exact: false })).toHaveCount(0)
-  await page.getByRole('button', { name: 'Code points', exact: true }).click()
-  await expect(page.getByRole('button', { name: /U\+0301/ })).toBeVisible()
-  await expect(page.getByRole('button', { name: /U\+200B, ZWSP/ })).toBeVisible()
-  await page.getByRole('button', { name: /U\+1F9EA/ }).click()
-  await expect(page.getByText('Selected code point 3', { exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: /U\+1F9EA/ })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  )
-  await page.getByRole('button', { name: 'Copy notation' }).click()
+  await editor.getByRole('button', { name: 'Code points', exact: true }).click()
+  await expect(editor.getByRole('button', { name: /U\+0301/ })).toBeVisible()
+  await expect(editor.getByRole('button', { name: /U\+200B, ZWSP/ })).toBeVisible()
+  await editor.getByRole('button', { name: /U\+1F9EA/ }).click()
+  await editor.getByRole('button', { name: 'Copy notation' }).click()
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('U+1F9EA')
-  await page.getByRole('button', { name: 'Copy text' }).click()
-  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('🧪')
-  await page.getByRole('button', { name: 'Open Workbench' }).click()
-  const dialog = page.getByRole('dialog')
-  await expect(dialog.getByText('UTF-16', { exact: false })).toHaveCount(0)
-  const lookup = dialog.getByRole('textbox', { name: 'Character or hex code point' })
-  await expect(lookup).toHaveValue('U+1F9EA')
-  await lookup.fill('U+D800')
-  await lookup.press('Enter')
-  await expect(dialog.getByRole('alert')).toContainText('Enter one Unicode scalar')
-  await lookup.fill('é')
-  await lookup.press('Enter')
-  await dialog.getByRole('button', { name: 'Favorite', exact: true }).click()
-  await dialog.getByRole('button', { name: /^NFD: inspect U\+0301/ }).click()
-  await expect(lookup).toHaveValue('U+0301')
-  await dialog.getByRole('button', { name: 'Back' }).click()
-  await expect(lookup).toHaveValue('U+00E9')
-  await dialog.getByRole('button', { name: 'Replace', exact: true }).click()
+  await editor.getByRole('button', { name: 'Inspect', exact: true }).press('Enter')
+  const emoji = details('U+1F9EA')
+  await expect(emoji).toBeFocused()
+  await expect(emoji).toContainText('Other symbol')
+  await expect(input).toHaveValue('e\u0301🧪\u200b')
+  await command.fill('inspect U+D800')
+  await command.press('Enter')
+  await expect(log).toContainText('Enter one Unicode scalar')
+  await command.fill('inspect U+00E9')
+  await command.press('Enter')
+  const accented = details('U+00E9')
+  await expect(accented.getByRole('button', { name: /^NFD: Inspect U\+0065/ })).toBeVisible()
+  await accented.getByRole('button', { name: /^NFD: Inspect U\+0301/ }).press('Enter')
+  await expect(details('U+0301')).toContainText('Nonspacing mark')
+  expect(
+    await input.evaluate((field: HTMLTextAreaElement) => [
+      field.selectionStart,
+      field.selectionEnd,
+    ]),
+  ).toEqual([2, 4])
+  await accented.getByRole('button', { name: 'Replace', exact: true }).click()
   await expect(input).toHaveValue('e\u0301é\u200b')
-  await expect(input).toBeFocused()
-  await page.getByRole('button', { name: /U\+200B, ZWSP/ }).click()
-  await page.getByRole('button', { name: 'Caret after' }).click()
-  await expect(page.locator('.payload').getByRole('status')).toContainText(
-    'Caret after code point 4',
-  )
-  await page.getByRole('button', { name: 'Open Workbench' }).click()
-  await lookup.fill('1F680')
-  await dialog.getByRole('button', { name: 'Look up' }).click()
-  await dialog.getByRole('button', { name: 'Insert', exact: true }).click()
-  await expect(input).toHaveValue('e\u0301é\u200b🚀')
-  await page.getByRole('button', { name: /U\+0301/ }).click()
-  await page.getByRole('button', { name: 'Delete', exact: true }).click()
-  await expect(input).toHaveValue('eé\u200b🚀')
-  await page.reload()
-  await page.getByRole('button', { name: 'Workbench', exact: true }).click()
-  await expect(
-    dialog
-      .locator('section')
-      .filter({ has: page.getByRole('heading', { name: 'Favorites', exact: true }) })
-      .getByRole('button', { name: /Inspect U\+00E9/ }),
-  ).toBeVisible()
+  await input.press('End')
+  await accented.getByRole('button', { name: 'Insert NFD', exact: true }).click()
+  await expect(input).toHaveValue('e\u0301é\u200be\u0301')
+  await emoji.getByRole('button', { name: 'Insert', exact: true }).click()
+  await expect(input).toHaveValue('e\u0301é\u200be\u0301🧪')
+  expect(await input.evaluate((field: HTMLTextAreaElement) => field.selectionStart)).toBe(8)
+  await editor.getByRole('button', { name: 'Hide editor' }).click()
+  await expect(emoji.getByRole('button', { name: 'Insert', exact: true })).toHaveCount(0)
 })
 
 test('preserves composition and raw line endings and exposes repairable surrogate errors', async ({
@@ -128,30 +115,34 @@ test('shows a structured error if the browser cannot load WASM', async ({ page }
   await expect(page.getByRole('heading', { name: 'The Relay' })).toBeVisible()
 })
 
-test('keeps the native selection through Workbench navigation and Escape', async ({ page }) => {
+test('prefills inspect from quick actions and inspects a native resource selection', async ({
+  page,
+}) => {
   await fixture(page)
-  const input = page.getByRole('textbox', { name: 'Account alias' })
-  await input.fill('a🧪b')
-  await input.press('Home')
-  await input.press('ArrowRight')
-  await input.press('Shift+ArrowRight')
-  await input.press('Tab')
-  await page.keyboard.press('Tab')
-  const opener = page.getByRole('button', { name: 'Open Workbench' })
-  await expect(opener).toBeFocused()
-  await page.keyboard.press('Enter')
-  const dialog = page.getByRole('dialog')
-  await expect(dialog.getByRole('textbox')).toHaveValue('U+1F9EA')
-  await expect(dialog.getByRole('button', { name: 'Replace' })).toBeEnabled()
-  await page.keyboard.press('Escape')
-  await expect(opener).toBeFocused()
-  await expect(input).toHaveValue('a🧪b')
-  expect(
-    await input.evaluate((field: HTMLTextAreaElement) => [
-      field.selectionStart,
-      field.selectionEnd,
-    ]),
-  ).toEqual([1, 3])
+  const quick = page.getByRole('group', { name: 'Quick actions' })
+  const command = page.getByRole('textbox', { name: 'Terminal command' })
+  await quick.getByRole('button', { name: 'Inspect', exact: true }).click()
+  await expect(command).toBeFocused()
+  await expect(command).toHaveValue('inspect ')
+  await page.keyboard.insertText('U+200B')
+  await command.press('Enter')
+  const log = page.getByRole('log')
+  await expect(log.getByRole('region', { name: 'Unicode U+200B' })).toContainText('Format')
+  await quick.getByRole('button', { name: 'Files' }).click()
+  await log.getByRole('button', { name: 'README' }).click()
+  const resource = log.getByRole('region', { name: 'File /README' })
+  await resource.locator('pre').evaluate((element) => {
+    const range = document.createRange()
+    range.setStart(element.firstChild!, 0)
+    range.setEnd(element.firstChild!, 1)
+    const selection = window.getSelection()!
+    selection.removeAllRanges()
+    selection.addRange(range)
+  })
+  await quick.getByRole('button', { name: 'Inspect selection' }).click()
+  await expect(log.getByRole('region', { name: 'Unicode U+004D' })).toContainText(
+    'Uppercase letter',
+  )
 })
 
 test('marks the caret boundary in a wrapping code-point grid', async ({ page }, info) => {

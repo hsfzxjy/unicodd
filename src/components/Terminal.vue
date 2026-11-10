@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import TerminalFile from './TerminalFile.vue'
+import TerminalInspection from './TerminalInspection.vue'
 import { commandHelp, parseCommand } from '../lib/commands'
 import type { Action, Link, Output } from '../lib/runtime'
+import { unpairedSurrogate } from '../lib/unicode'
 
 export interface Entry {
   id: number
@@ -17,9 +19,12 @@ const props = defineProps<{
   shortcuts: Link[]
   suggestions: string[]
   busy: boolean
+  canInsert: boolean
+  canReplace: boolean
 }>()
 const emit = defineEmits<{ action: [Action, string?] }>()
 const scroll = ref<HTMLDivElement>()
+const frame = ref<HTMLElement>()
 const input = ref<HTMLInputElement>()
 const command = ref('')
 const showSuggestions = ref(true)
@@ -28,6 +33,7 @@ const hasFocus = ref(false)
 const commandGroup = ref<HTMLElement>()
 const quickActions = ref<HTMLElement>()
 const following = ref(true)
+const selectedScalar = ref<string>()
 const history: string[] = []
 let index = 0
 let scratch = ''
@@ -51,6 +57,26 @@ function trackScroll() {
   const box = scroll.value
   if (box) following.value = box.scrollHeight - box.scrollTop - box.clientHeight < 28
 }
+
+function readResourceSelection() {
+  const selection = window.getSelection()
+  const node = (node: Node | null | undefined) =>
+    node instanceof Element ? node : node?.parentElement
+  const start = node(selection?.anchorNode)?.closest('[data-resource-text]')
+  const end = node(selection?.focusNode)?.closest('[data-resource-text]')
+  const text = selection?.toString() ?? ''
+  selectedScalar.value =
+    start &&
+    start === end &&
+    scroll.value?.contains(start) &&
+    Array.from(text).length === 1 &&
+    unpairedSurrogate(text) === undefined
+      ? text
+      : undefined
+}
+
+onMounted(() => document.addEventListener('selectionchange', readResourceSelection))
+onUnmounted(() => document.removeEventListener('selectionchange', readResourceSelection))
 
 watch(
   () => props.transcript,
@@ -107,13 +133,38 @@ function focusAction(type: 'login' | 'ls') {
     ?.focus({ preventScroll: true })
 }
 
-defineExpose({ focusAction, scrollToEnd })
+function promptInspection() {
+  command.value = 'inspect '
+  void nextTick(() => {
+    input.value?.focus()
+    input.value?.setSelectionRange(8, 8)
+  })
+}
+
+function revealInspection(focus: boolean) {
+  const box = scroll.value
+  const latest = box?.lastElementChild?.querySelector<HTMLElement>('.inspection')
+  if (!box || !latest) return
+  if (latest.offsetHeight + 12 > box.clientHeight) {
+    box.scrollTop += latest.getBoundingClientRect().top - box.getBoundingClientRect().top - 6
+    trackScroll()
+  } else {
+    scrollToEnd()
+  }
+  if (focus) {
+    frame.value?.scrollIntoView({ block: 'nearest' })
+    latest.focus({ preventScroll: true })
+  }
+}
+
+defineExpose({ focusAction, promptInspection, revealInspection, scrollToEnd })
 </script>
 
 <template>
-  <section class="terminal-frame" aria-label="Terminal">
+  <section ref="frame" class="terminal-frame" aria-label="Terminal">
     <div class="frame-title">
-      <h2>Terminal</h2>
+      <span class="wordmark">unicodd</span>
+      <slot name="scenario" />
       <button v-if="!following" type="button" class="jump" @click="scrollToEnd">
         Latest output ↓
       </button>
@@ -154,6 +205,14 @@ defineExpose({ focusAction, scrollToEnd })
             :inspect-lines="row.inspectLines"
             @action="emit('action', $event)"
           />
+          <TerminalInspection
+            v-else-if="row.kind === 'inspection'"
+            :row="row"
+            :can-insert="canInsert"
+            :can-replace="canReplace"
+            :busy="busy"
+            @action="emit('action', $event)"
+          />
           <div v-else-if="row.kind === 'help'" class="command-help">
             <dl>
               <template v-for="[usage, detail] in commandHelp" :key="usage">
@@ -184,6 +243,15 @@ defineExpose({ focusAction, scrollToEnd })
           @click="emit('action', link.action)"
         >
           {{ link.label }}
+        </button>
+        <button
+          v-if="selectedScalar !== undefined"
+          type="button"
+          :disabled="busy"
+          @mousedown.prevent
+          @click="emit('action', { type: 'inspect', character: selectedScalar })"
+        >
+          Inspect selection
         </button>
       </div>
       <div ref="commandGroup" @focusin="hasFocus = true" @focusout="focusout">

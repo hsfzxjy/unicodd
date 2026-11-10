@@ -25,12 +25,13 @@ const lines = computed(() =>
     <p class="file-path">
       <bdi>{{ path }}</bdi>
     </p>
-    <pre v-if="!inspectLines.length" dir="auto">{{ text }}</pre>
+    <pre v-if="!inspectLines.length" data-resource-text dir="auto">{{ text }}</pre>
     <template v-else>
       <p
         v-for="(line, index) in lines"
         :key="index"
         :class="{ 'character-bank': line.points }"
+        :data-resource-text="line.points ? undefined : ''"
         dir="auto"
       >
         <template v-if="line.points">

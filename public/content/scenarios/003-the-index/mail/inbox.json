@@ -1,0 +1,18 @@
+{
+  "messages": [
+    {
+      "id": "spoke-to-her",
+      "from": "Mira / Registration 0002917",
+      "to": "Local operator",
+      "subject": "I spoke to her",
+      "body": "She sent me a copy of her verification receipt. She has her own recovery address and documents.\n\nWe compared the names. They look identical on screen. She asked if anyone had compared the original forms we filled in.\n\nThe delivery record points to index-09. Could you see what the directory kept from those registrations?"
+    },
+    {
+      "id": "we-have-the-records",
+      "from": "Mira / Registration 0002917",
+      "to": "Local operator",
+      "subject": "We have the records",
+      "body": "I sent her the export. She laughed when I put the two names side by side. Then she asked me to send the numbered version too, so nobody could copy the wrong one into the case.\n\nSupport had been telling us one account needed to be deleted. We've sent them both verification records. We'd like to keep both accounts.\n\nThank you.\n\n- Mira"
+    }
+  ]
+}

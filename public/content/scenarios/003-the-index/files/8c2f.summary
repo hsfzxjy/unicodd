@@ -1,0 +1,13 @@
+MERGE EVENT 8C2F
+
+Source record A: 0001842
+Source record B: 0002917
+
+Display identity:
+Mira
+
+Index identities: 1
+Original registrations: 2
+Merge strategy: automatic
+
+Original identifier data: restricted

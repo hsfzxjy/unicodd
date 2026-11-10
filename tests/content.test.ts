@@ -5,7 +5,7 @@ import { engine, fixtures, production, productionRoot, readProduction } from './
 
 it('loads the production scenario catalog in progression order', async () => {
   const entries = await production.manifest()
-  expect(entries.map(({ id }) => id)).toEqual(['001-the-relay', '002-dead-letter'])
+  expect(entries.map(({ id }) => id)).toEqual(['001-the-relay', '002-dead-letter', '003-the-index'])
   await expect(production.campaign(entries)).resolves.toHaveLength(entries.length)
   expect(await readdir(productionRoot)).toEqual(['manifest.json', 'scenarios'])
   expect(await readdir(new URL('scenarios/', productionRoot))).toEqual(entries.map(({ id }) => id))
@@ -177,5 +177,40 @@ it('uses WASM to reject incompatible programs and invalid authored drafts', asyn
   data.hosts[0].login.initial = 'é'.repeat(16385)
   await expect(override(entry.scenario, data).scenario(entry)).rejects.toThrow(
     /puzzle\.json.*resource_limit/,
+  )
+})
+
+it('rejects unknown progression destinations and unreachable scenarios', async () => {
+  const entries = await production.manifest()
+  const relay = entries[0].scenario
+  const data = JSON.parse((await readProduction(relay)).toString())
+  data.objective.onComplete[1].scenario = 'missing-host'
+  await expect(override(relay, data).campaign(entries)).rejects.toThrow(
+    /Invalid discovery destination/,
+  )
+  data.objective.onComplete.pop()
+  await expect(override(relay, data).campaign(entries)).rejects.toThrow(/Unreachable scenario/)
+  data.objective.onComplete.push({ type: 'discover', scenario: entries[0].id })
+  await expect(override(relay, data).campaign(entries)).rejects.toThrow(
+    /Invalid discovery destination/,
+  )
+})
+
+it('rejects invalid scalar references, resource links, and operation names', async () => {
+  const [, entry] = await production.manifest()
+  const sample = entry.scenario.replace('scenario.json', 'files/legacy-address.txt')
+  for (const invalid of ['U+D800', 'U+110000', 'U+NOTHEX']) {
+    await expect(
+      override(sample, new TextEncoder().encode(invalid)).scenario(entry),
+    ).rejects.toThrow(/Invalid scalar notation/)
+  }
+  const data = JSON.parse((await readProduction(entry.scenario)).toString())
+  data.hosts[0].operation.success[2].resource = 'absent'
+  await expect(override(entry.scenario, data).scenario(entry)).rejects.toThrow(
+    /Unknown linked resource/,
+  )
+  data.hosts[0].operation.command = 'transfer'
+  await expect(override(entry.scenario, data).scenario(entry)).rejects.toThrow(
+    /Unknown puzzle command/,
   )
 })

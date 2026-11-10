@@ -1,0 +1,161 @@
+{
+  "version": 1,
+  "title": "The Index",
+  "introduction": "The delivery record identifies index-09 as the source of merge event 8C2F.",
+  "roles": ["auditor"],
+  "flags": ["export_ready"],
+  "local": {
+    "user": "operator",
+    "role": "auditor"
+  },
+  "initialHost": "index-09",
+  "hosts": [
+    {
+      "id": "index-09",
+      "name": "MONONYM identity index",
+      "guest": {
+        "user": "auditor",
+        "role": "auditor"
+      },
+      "welcome": "Read-only auditor access. Collision diagnostics and audit summaries are available.",
+      "status": [
+        {
+          "label": "Incident",
+          "value": "8C2F"
+        },
+        {
+          "label": "Export",
+          "value": "Restricted",
+          "after": {
+            "flag": "export_ready",
+            "value": "Available"
+          }
+        }
+      ],
+      "resources": [
+        {
+          "id": "readme",
+          "path": "/README",
+          "type": "file",
+          "content": "files/README.txt"
+        },
+        {
+          "id": "mail",
+          "path": "/mail",
+          "type": "directory"
+        },
+        {
+          "id": "proposals",
+          "path": "/mail/similarity-key",
+          "type": "mail",
+          "content": "mail/similarity-key.json"
+        },
+        {
+          "id": "objection",
+          "path": "/mail/source-records",
+          "type": "mail",
+          "content": "mail/source-records.json"
+        },
+        {
+          "id": "support",
+          "path": "/mail/support-escalation",
+          "type": "mail",
+          "content": "mail/support-escalation.json"
+        },
+        {
+          "id": "audit",
+          "path": "/audit",
+          "type": "directory"
+        },
+        {
+          "id": "summary",
+          "path": "/audit/8c2f.summary",
+          "type": "file",
+          "content": "files/8c2f.summary",
+          "inspectLines": [7]
+        },
+        {
+          "id": "review",
+          "path": "/audit/identifier-review.txt",
+          "type": "file",
+          "content": "files/identifier-review.txt"
+        },
+        {
+          "id": "tools",
+          "path": "/tools",
+          "type": "directory"
+        },
+        {
+          "id": "diagnostic",
+          "path": "/tools/reconcile.txt",
+          "type": "file",
+          "content": "files/reconcile.txt"
+        },
+        {
+          "id": "exports",
+          "path": "/exports",
+          "type": "directory"
+        },
+        {
+          "id": "originals",
+          "path": "/exports/8c2f-originals.json",
+          "type": "file",
+          "content": "files/8c2f-originals.json",
+          "inspectNotation": true,
+          "access": {
+            "flag": "export_ready"
+          },
+          "denied": "Original identifiers are restricted. An authorized collision query can release the export."
+        }
+      ],
+      "operation": {
+        "command": "reconcile",
+        "label": "Candidate identifier",
+        "actionLabel": "Reconcile identifier",
+        "submitLabel": "Submit query",
+        "puzzle": "puzzle.json",
+        "input": "candidate",
+        "initial": "Mira",
+        "access": {
+          "roles": ["auditor"]
+        },
+        "success": [
+          {
+            "type": "flag",
+            "flag": "export_ready"
+          },
+          {
+            "type": "message",
+            "text": "Collision found. Index entry: 8C2F. Source registrations: 2."
+          },
+          {
+            "type": "resourceLink",
+            "resource": "originals"
+          }
+        ],
+        "failure": "Query rejected. No matching collision record.",
+        "rejected": [
+          {
+            "check": "ordinary_filter",
+            "message": "Query rejected. Protected canonical identifier."
+          }
+        ]
+      }
+    }
+  ],
+  "objective": {
+    "text": "Recover the original identity mapping for incident 8C2F.",
+    "read": "originals",
+    "message": "Original registrations recovered for incident 8C2F. Objective complete.",
+    "onComplete": [
+      {
+        "type": "deliverMail",
+        "message": "we-have-the-records"
+      }
+    ]
+  },
+  "inbox": {
+    "content": "mail/inbox.json",
+    "initial": ["spoke-to-her"]
+  }
+}

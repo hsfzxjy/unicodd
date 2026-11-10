@@ -49,11 +49,17 @@ pub fn engine_info() -> String {
     struct Info {
         version: u32,
         unicode_version: String,
+        case_folding_version: &'static str,
+        skeleton_version: &'static str,
+        uts39_revision: u32,
     }
     let (major, minor, patch) = core::unicode_version();
     respond(Ok(Info {
         version: SCHEMA_VERSION,
         unicode_version: format!("{major}.{minor}.{patch}"),
+        case_folding_version: core::SECURITY_UNICODE_VERSION,
+        skeleton_version: core::SECURITY_UNICODE_VERSION,
+        uts39_revision: core::UTS39_REVISION,
     }))
 }
 
@@ -118,4 +124,16 @@ pub fn normalize_text(text: &[u8], form: &str) -> String {
             })
             .and_then(|text| core::normalize(text, form).map_err(|error| error.at("text"))),
     )
+}
+
+#[wasm_bindgen]
+pub fn inspect_scalar(text: &[u8]) -> String {
+    let scalar = std::str::from_utf8(text).ok().and_then(|text| {
+        let mut chars = text.chars();
+        let first = chars.next()?;
+        chars.next().is_none().then_some(first)
+    });
+    respond(scalar.map(core::scalar_details).ok_or_else(|| {
+        EngineError::new(ErrorCode::InvalidInput, "Expected one Unicode scalar.").at("text")
+    }))
 }

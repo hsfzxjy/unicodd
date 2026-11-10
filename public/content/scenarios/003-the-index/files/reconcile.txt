@@ -1,0 +1,5 @@
+COLLISION QUERY / OPERATOR NOTES
+
+The diagnostic accepts a candidate spelling of the displayed name. Requests for the ordinary lookup key are blocked. When a distinct spelling matches a recorded similarity key, the console makes its source records available in /exports.
+
+For character review, inspect individual code points from the audit display name. Confusables lists related scalars with their scripts.

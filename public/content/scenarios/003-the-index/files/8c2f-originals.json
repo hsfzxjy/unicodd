@@ -1,0 +1,19 @@
+{
+  "merge_event": "8C2F",
+  "records": [
+    {
+      "id": "0001842",
+      "name": "Mira",
+      "codepoints": ["U+004D", "U+0069", "U+0072", "U+0061"],
+      "verified": true
+    },
+    {
+      "id": "0002917",
+      "name": "Mіra",
+      "codepoints": ["U+004D", "U+0456", "U+0072", "U+0061"],
+      "verified": true
+    }
+  ],
+  "canonical_identities": 1,
+  "merge_policy": "display-confusability"
+}

@@ -1,0 +1,11 @@
+{
+  "messages": [
+    {
+      "id": "two-owners",
+      "from": "Nia / User Support",
+      "to": "Rowan / Directory Team",
+      "subject": "Two owners, one identity",
+      "body": "We have two people with the same displayed name and different verification records. One registered last year, the other last month. They're both getting the wrong notifications.\n\nI opened a separate case for the second person. The tool closed it as a duplicate before I could finish the notes. Can you send me both original records? Right now I can only see the shared entry."
+    }
+  ]
+}

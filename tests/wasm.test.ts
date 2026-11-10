@@ -4,6 +4,7 @@ import * as wasm from '../src/lib/wasm/pkg/unicodd_core.js'
 import { createEngine } from '../src/lib/engine'
 import type { Program } from '../src/types'
 import puzzle from './fixtures/transport.json'
+import vectors from './fixtures/unicode-operations.json'
 
 const program = puzzle as Program
 
@@ -22,7 +23,13 @@ describe('generated WASM bindings', () => {
     const results = await Promise.all([engine.info(), engine.info()])
     expect(results[0]).toEqual({
       ok: true,
-      value: { version: 1, unicodeVersion: expect.stringMatching(/^\d+\.\d+\.\d+$/) },
+      value: {
+        version: 1,
+        unicodeVersion: '18.0.0',
+        caseFoldingVersion: '15.1.0',
+        skeletonVersion: '15.1.0',
+        uts39Revision: 28,
+      },
     })
     expect(results[1]).toEqual(results[0])
     expect(initializations).toBe(1)
@@ -125,5 +132,63 @@ describe('generated WASM bindings', () => {
     })
     expect(await retry.info()).toMatchObject({ ok: false, error: { code: 'engine_unavailable' } })
     expect(await retry.info()).toMatchObject({ ok: true })
+  })
+})
+
+it.each(vectors)(
+  'agrees with native Rust for $op($text)',
+  async ({ op, text, scalar, expected }) => {
+    const graph: Program = {
+      version: 1,
+      inputs: ['text'],
+      nodes: [
+        { id: 'raw', op: 'input', input: 'text' },
+        ...(scalar === undefined
+          ? []
+          : [
+              {
+                id: 'scalar',
+                op: 'literal' as const,
+                value: { type: 'integer' as const, value: scalar },
+              },
+            ]),
+        {
+          id: 'result',
+          op: op as 'caseFold' | 'skeleton' | 'remove_code_point',
+          args: scalar === undefined ? ['raw'] : ['raw', 'scalar'],
+        },
+      ],
+      checks: [],
+    }
+    const result = await engine.evaluate(graph, { text }, true)
+    expect(result.ok && result.value.trace?.at(-1)?.result).toEqual({
+      type: 'text',
+      value: expected,
+    })
+  },
+)
+
+it('serializes scalar details and rejects invalid inspection input at the WASM boundary', async () => {
+  const result = await engine.inspectScalar('i')
+  expect(result).toMatchObject({
+    ok: true,
+    value: {
+      name: 'LATIN SMALL LETTER I',
+      script: 'Latin',
+      unicodeVersion: '15.1.0',
+      confusables: expect.arrayContaining([{ scalar: '\u0456', script: 'Cyrillic' }]),
+    },
+  })
+  expect(await engine.inspectScalar('ii')).toMatchObject({
+    ok: false,
+    error: { code: 'invalid_input' },
+  })
+  expect(await engine.inspectScalar('\ud800')).toMatchObject({
+    ok: false,
+    error: { code: 'invalid_input', offset: 0 },
+  })
+  expect(JSON.parse(wasm.inspect_scalar(new Uint8Array([0xed, 0xa0, 0x80])))).toMatchObject({
+    ok: false,
+    error: { code: 'invalid_input' },
   })
 })

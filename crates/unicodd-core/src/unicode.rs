@@ -19,7 +19,7 @@ pub fn normalize(text: &str, form: Form) -> Result<String, EngineError> {
     }
 }
 
-fn collect(scalars: impl Iterator<Item = char>) -> Result<String, EngineError> {
+pub(crate) fn collect(scalars: impl Iterator<Item = char>) -> Result<String, EngineError> {
     let mut result = String::new();
     for scalar in scalars {
         if result.len() + scalar.len_utf8() > MAX_TEXT_BYTES {

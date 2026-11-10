@@ -1,0 +1,13 @@
+IDENTIFIER REVIEW / 8C2F
+
+Registration A
+  Length: 4 code points
+  Script profile: Latin
+
+Registration B
+  Length: 4 code points
+  Script profile: Mixed
+
+Rendered comparison: visually confusable
+Canonical index: collision detected
+Original identifiers: retained in restricted export

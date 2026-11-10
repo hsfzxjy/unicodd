@@ -174,6 +174,13 @@ it('returns WASM normalization output and guards payload transfers in the dispat
         kind: 'inspection',
         point: expect.objectContaining({ scalar: 'é', notation: 'U+00E9' }),
         category: 'Lowercase letter',
+        details: {
+          ok: true,
+          value: expect.objectContaining({
+            name: 'LATIN SMALL LETTER E WITH ACUTE',
+            script: 'Latin',
+          }),
+        },
         normalization: ['NFC', 'NFD', 'NFKC', 'NFKD'].map((form, index) => ({
           form,
           result: { ok: true, value: index % 2 ? 'e\u0301' : 'é' },

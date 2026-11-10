@@ -1,0 +1,107 @@
+[
+  {
+    "op": "remove_code_point",
+    "text": "Mi\u200bra",
+    "scalar": 8203,
+    "expected": "Mira"
+  },
+  {
+    "op": "remove_code_point",
+    "text": "\u200be\u0301\u200b\ud83e\uddea",
+    "scalar": 8203,
+    "expected": "e\u0301\ud83e\uddea"
+  },
+  {
+    "op": "remove_code_point",
+    "text": "\ud83e\uddeaX\ud83e\uddea",
+    "scalar": 129514,
+    "expected": "X"
+  },
+  {
+    "op": "remove_code_point",
+    "text": "abc",
+    "scalar": 8203,
+    "expected": "abc"
+  },
+  {
+    "op": "remove_code_point",
+    "text": "",
+    "scalar": 8203,
+    "expected": ""
+  },
+  {
+    "op": "caseFold",
+    "text": "Stra\u00dfe \u1e9e \ufb03",
+    "expected": "strasse ss ffi"
+  },
+  {
+    "op": "caseFold",
+    "text": "I\u0130\u0131 \u03a3\u03c2\u03c3",
+    "expected": "ii\u0307\u0131 \u03c3\u03c3\u03c3"
+  },
+  {
+    "op": "caseFold",
+    "text": "\u13a0\uab70 e\u0301",
+    "expected": "\u13a0\u13a0 e\u0301"
+  },
+  {
+    "op": "skeleton",
+    "text": "Mira",
+    "expected": "Mira"
+  },
+  {
+    "op": "skeleton",
+    "text": "M\u0456ra",
+    "expected": "Mira"
+  },
+  {
+    "op": "skeleton",
+    "text": "\u039cira",
+    "expected": "Mira"
+  },
+  {
+    "op": "skeleton",
+    "text": "\u0153m",
+    "expected": "oern"
+  },
+  {
+    "op": "skeleton",
+    "text": "\u00e9",
+    "expected": "e\u0301"
+  },
+  {
+    "op": "skeleton",
+    "text": "a\u0301\u034f\u0327",
+    "expected": "a\u0326\u0301"
+  },
+  {
+    "op": "skeleton",
+    "text": "\u320e",
+    "expected": "(\u1100\u1161)"
+  },
+  {
+    "op": "skeleton",
+    "text": "\u200bMira\ufe0f",
+    "expected": "Mira"
+  },
+  {
+    "op": "skeleton",
+    "text": "\ud83e\uddea\ue000",
+    "expected": "\ud83e\uddea\ue000"
+  },
+  {
+    "op": "skeleton",
+    "text": "b\u0315\u0897",
+    "expected": "b\u0313\u0897"
+  },
+  {
+    "op": "skeleton",
+    "text": "\u05e91",
+    "expected": "\u05e9l"
+  },
+  {
+    "op": "skeleton",
+    "text": "1\u05e9",
+    "expected": "l\u05e9"
+  }
+]

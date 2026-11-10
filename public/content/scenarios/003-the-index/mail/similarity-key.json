@@ -1,0 +1,11 @@
+{
+  "messages": [
+    {
+      "id": "proposal",
+      "from": "Helena / Identity Architecture",
+      "to": "Directory Team",
+      "subject": "Duplicate-looking accounts",
+      "body": "Registration still reviews every collision the duplicate detector flags. Support is waiting on those reviews while the queue grows.\n\nCould the identity index use the display similarity key directly? The comparison already groups names that look alike, including letters from different scripts. We could retain the original registrations and give each group one index entry."
+    }
+  ]
+}

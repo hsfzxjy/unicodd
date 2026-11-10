@@ -21,6 +21,8 @@ enum Operation<'a> {
     Normalize(Form),
     CodePointLength,
     RemoveCodePoint,
+    CaseFold,
+    Skeleton,
     Contains,
     StartsWith,
     EndsWith,
@@ -40,7 +42,7 @@ impl Operation<'_> {
                 (&[Text, Text], Boolean)
             }
             Self::Concat => (&[Text, Text], Text),
-            Self::Normalize(_) => (&[Text], Text),
+            Self::Normalize(_) | Self::CaseFold | Self::Skeleton => (&[Text], Text),
             Self::RemoveCodePoint => (&[Text, Integer], Text),
             Self::CodePointLength => (&[Text], Integer),
             Self::Not => (&[Boolean], Boolean),
@@ -73,6 +75,10 @@ fn identifier(id: &str) -> bool {
             .all(|byte| byte.is_ascii_alphanumeric() || b"_.-".contains(&byte))
 }
 
+fn scalar(value: u64) -> Option<char> {
+    u32::try_from(value).ok().and_then(char::from_u32)
+}
+
 fn operation(node: &Node) -> Result<Operation<'_>, EngineError> {
     let op = match node.op.as_str() {
         "input" => Operation::Input(
@@ -91,6 +97,8 @@ fn operation(node: &Node) -> Result<Operation<'_>, EngineError> {
             node.form
                 .ok_or_else(|| invalid("Missing normalization form."))?,
         ),
+        "caseFold" => Operation::CaseFold,
+        "skeleton" => Operation::Skeleton,
         "remove_code_point" => Operation::RemoveCodePoint,
         "codePointLength" => Operation::CodePointLength,
         "contains" => Operation::Contains,
@@ -202,6 +210,13 @@ fn compile(program: &Program) -> Result<Compiled<'_>, EngineError> {
             }
             resolved.push(dependency);
             consumers[dependency].push(index);
+        }
+        if matches!(op, Operation::RemoveCodePoint) {
+            if let Operation::Literal(Value::Integer(value)) = ops[resolved[1]] {
+                if scalar(*value).is_none() {
+                    return Err(invalid("Expected a Unicode scalar value.").at(path));
+                }
+            }
         }
         deps.push(resolved);
     }
@@ -335,13 +350,12 @@ fn run(
             Ok(Value::Text(text))
         }
         (Normalize(form), [Some(Value::Text(text))]) => Ok(Value::Text(normalize(text, form)?)),
+        (CaseFold, [Some(Value::Text(text))]) => Ok(Value::Text(case_fold(text)?)),
+        (Skeleton, [Some(Value::Text(text))]) => Ok(Value::Text(skeleton(text)?)),
         (RemoveCodePoint, [Some(Value::Text(text)), Some(Value::Integer(value))]) => {
-            let scalar = u32::try_from(*value)
-                .ok()
-                .and_then(char::from_u32)
-                .ok_or_else(|| {
-                    EngineError::new(ErrorCode::InvalidInput, "Expected a Unicode scalar value.")
-                })?;
+            let scalar = scalar(*value).ok_or_else(|| {
+                EngineError::new(ErrorCode::InvalidInput, "Expected a Unicode scalar value.")
+            })?;
             Ok(Value::Text(
                 text.chars()
                     .filter(|character| *character != scalar)

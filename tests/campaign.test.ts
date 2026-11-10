@@ -16,7 +16,7 @@ const load = async () => production.campaign(await production.manifest())
 
 it('keeps campaign progression and inbox separate from replayable sessions', async () => {
   const scenarios = await load()
-  const [relay, dead] = scenarios
+  const [relay, dead, index] = scenarios
   const disk = storage()
   let campaign = createCampaign(scenarios, disk)
   let runtime = createRuntime(relay, engine, campaign)
@@ -65,9 +65,63 @@ it('keeps campaign progression and inbox separate from replayable sessions', asy
   await run('cat /delivered/2917.msg')
   expect(runtime.state.completed).toBe(true)
   await run('cat /delivered/2917.msg')
-  expect(campaign.delivered).toEqual(['favor', 'missing-notice', 'spoke-to-her'])
+  expect(campaign.delivered).toEqual(['favor', 'missing-notice', 'missing-notice-reply'])
+  campaign = createCampaign(scenarios, disk)
+  expect(campaign.completed(dead.id)).toBe(true)
+  expect(campaign.selectable(index.id)).toBe(true)
+  expect(campaign.enter(index.id)).toBe(true)
+  runtime = createRuntime(index, engine, campaign)
+  expect(runtime.state.identity.role).toBe('auditor')
+  expect(await run('cat /audit/identifier-review.txt')).toMatchObject({
+    output: [{ kind: 'file', text: expect.stringContaining('Script profile: Mixed') }],
+  })
+  const exportPath = 'cat /exports/8c2f-originals.json'
+  expect(await run(exportPath)).toMatchObject({ output: [{ kind: 'error' }] })
+  expect(await run('reconcile')).toEqual({ edit: true })
+  expect(await run('reconcile Mira')).toMatchObject({
+    output: [{ text: expect.stringContaining('Protected canonical identifier') }],
+  })
+  expect(await run('reconcile Other')).toMatchObject({
+    output: [{ text: expect.stringContaining('No matching collision record') }],
+  })
+  const candidate = '\u039cira'
+  await run('reconcile ' + candidate)
+  expect(runtime.state.flags).toContain('export_ready')
+  expect(runtime.state.completed).toBe(false)
+  expect(campaign.finished).toBe(false)
+  const output = (await run(exportPath)).output
+  const file = output?.[0]
+  if (file?.kind !== 'file') throw new Error('Expected the diagnostic export')
+  const records = JSON.parse(file.text).records
+  expect(records).toEqual([
+    {
+      id: '0001842',
+      name: 'Mira',
+      codepoints: ['U+004D', 'U+0069', 'U+0072', 'U+0061'],
+      verified: true,
+    },
+    {
+      id: '0002917',
+      name: 'M\u0456ra',
+      codepoints: ['U+004D', 'U+0456', 'U+0072', 'U+0061'],
+      verified: true,
+    },
+  ])
+  expect(campaign.finished).toBe(true)
+  expect(await run(exportPath)).toMatchObject({ output: [{ kind: 'file' }] })
+  await runtime.dispatch({ type: 'reset' })
+  await run(String.raw`reconcile M\u000456ra`)
+  expect((await run(exportPath)).output?.map(({ kind }) => kind)).toEqual(['file', 'objective'])
   const restored = createCampaign(scenarios, disk)
-  expect(restored.completed(dead.id)).toBe(true)
+  expect(restored.current).toBe(index.id)
+  expect(restored.finished).toBe(true)
+  expect(restored.delivered).toEqual([
+    'favor',
+    'missing-notice',
+    'missing-notice-reply',
+    'spoke-to-her',
+    'we-have-the-records',
+  ])
   expect(restored.reset()).toBe(relay.id)
   expect(restored.delivered).toEqual(['favor'])
   expect(restored.destinations()).toEqual([relay])

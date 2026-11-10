@@ -36,7 +36,7 @@ const lines = computed(() =>
 </script>
 
 <template>
-  <section class="terminal-file" :aria-label="'File ' + path">
+  <section class="terminal-file" :aria-label="'File ' + path" tabindex="-1">
     <p class="file-path">
       <bdi>{{ path }}</bdi>
     </p>

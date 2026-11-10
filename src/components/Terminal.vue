@@ -159,9 +159,9 @@ function insertCommand(text: string) {
   field.focus()
 }
 
-function revealOutput(kind: 'inspection' | 'mail', focus: boolean) {
+function revealOutput(kind: 'inspection' | 'mail' | 'file', focus: boolean) {
   const box = scroll.value
-  const selector = kind === 'inspection' ? '.inspection' : '.terminal-mail'
+  const selector = kind === 'inspection' ? '.inspection' : '.terminal-' + kind
   const latest = box?.lastElementChild?.querySelector<HTMLElement>(selector)
   if (!box || !latest) return
   if (latest.offsetHeight + 12 > box.clientHeight) {
@@ -176,7 +176,18 @@ function revealOutput(kind: 'inspection' | 'mail', focus: boolean) {
   }
 }
 
-defineExpose({ focusAction, insertCommand, promptInspection, revealOutput, scrollToEnd })
+function focusTranscript() {
+  scroll.value?.focus({ preventScroll: true })
+}
+
+defineExpose({
+  focusAction,
+  focusTranscript,
+  insertCommand,
+  promptInspection,
+  revealOutput,
+  scrollToEnd,
+})
 </script>
 
 <template>

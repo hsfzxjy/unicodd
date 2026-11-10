@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 
 const transcript = (page: Page) => page.getByRole('log', { name: 'Terminal transcript' })
 const link = (page: Page, name: string | RegExp) =>
@@ -9,44 +9,254 @@ const panel = (page: Page) => page.getByRole('complementary', { name: 'Session c
 
 async function run(page: Page, text: string) {
   const input = page.getByRole('textbox', { name: 'Terminal command' })
+  await expect(input).toBeEditable()
   await input.fill(text)
   await input.press('Enter')
 }
 
-test('recovers Dead Letter through the archive, notation links and recipient editor', async ({
-  page,
-}) => {
+type Activate = (target: Locator) => Promise<void>
+
+async function recoverNotice(page: Page, act: Activate) {
+  await act(quick(page, 'Files'))
+  await act(link(page, 'delivered/'))
+  await act(link(page, '2917.msg'))
+  await expect(transcript(page)).toContainText('still quarantined')
+  await act(link(page, 'mail/'))
+  await act(link(page, 'contact-import'))
+  await expect(transcript(page)).toContainText('invisible separator')
+  await act(link(page, 'queue-review'))
+  await expect(transcript(page)).toContainText('resolver cleans it up later')
+  await act(quick(page, 'Route message'))
+  const recipient = page.getByRole('textbox', { name: 'Recipient', exact: true })
+  const submit = page.getByRole('button', { name: 'Submit route' })
+  await act(submit)
+  await expect(transcript(page)).toContainText('under delivery hold')
+  await act(link(page, 'samples/'))
+  await act(link(page, 'legacy-address.txt'))
+  await act(link(page, 'Inspect U+200B'))
+  const details = transcript(page).getByRole('region', { name: 'Unicode U+200B' })
+  await act(page.getByRole('button', { name: 'Code points', exact: false }))
+  await act(page.getByRole('button', { name: '2. U+0069, i' }))
+  await act(page.getByRole('button', { name: 'Caret after' }))
+  await act(details.getByRole('button', { name: 'Insert', exact: true }))
+  await expect(recipient).toHaveValue('Mi\u200bra')
+  await act(submit)
+  await expect(transcript(page)).toContainText('Message released from quarantine')
+  await expect(transcript(page)).not.toContainText('2917 recovered. Objective complete.')
+  await act(link(page, '/delivered/2917.msg'))
+  await expect(transcript(page)).toContainText('I think we have the same account')
+  await expect(transcript(page)).toContainText('Directory reference: index-09')
+}
+
+test('recovers Dead Letter by graphical actions from the development entry', async ({ page }) => {
   await page.goto('/?scenario=002-dead-letter')
   await expect(panel(page)).toContainText('guest')
   await expect(panel(page)).toContainText('Quarantined')
-  await quick(page, 'Files').click()
-  await link(page, 'delivered/').click()
-  await link(page, '2917.msg').click()
-  await expect(transcript(page)).toContainText('still quarantined')
-  await link(page, 'mail/').click()
-  await link(page, 'contact-import').click()
-  await expect(transcript(page)).toContainText('invisible separator')
-  await link(page, 'queue-review').click()
-  await expect(transcript(page)).toContainText('resolver cleans it up later')
-  await quick(page, 'Route message').click()
-  const recipient = page.getByRole('textbox', { name: 'Recipient', exact: true })
-  const submit = page.getByRole('button', { name: 'Submit route' })
-  await submit.click()
-  await expect(transcript(page)).toContainText('under delivery hold')
-  await link(page, 'samples/').click()
-  await link(page, 'legacy-address.txt').click()
-  await link(page, 'Inspect U+200B').click()
-  const details = transcript(page).getByRole('region', { name: 'Unicode U+200B' })
-  await page.getByRole('button', { name: 'Code points', exact: false }).click()
-  await page.getByRole('button', { name: '2. U+0069, i' }).click()
-  await page.getByRole('button', { name: 'Caret after' }).click()
-  await details.getByRole('button', { name: 'Insert', exact: true }).click()
-  await expect(recipient).toHaveValue('Mi\u200bra')
-  await submit.click()
+  await recoverNotice(page, (target) => target.click())
   await expect(panel(page)).toContainText('Released')
-  await expect(panel(page)).toContainText('Open')
-  await link(page, '/delivered/2917.msg').click()
   await expect(panel(page)).toContainText('Complete')
+})
+
+async function openIndexGraphically(page: Page, act: Activate) {
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'The Relay' })).toBeVisible()
+  await act(link(page, 'relay-07'))
+  await act(quick(page, 'Login'))
+  const alias = page.getByRole('textbox', { name: 'Account alias' })
+  await alias.fill('ＡＩＮＴ')
+  await alias.press('Home')
+  await act(quick(page, 'Files'))
+  await act(link(page, 'notes/'))
+  await act(link(page, 'keypad.txt'))
+  await act(link(page, /Inspect U\+FF2D/))
+  await act(
+    transcript(page)
+      .getByRole('region', { name: 'Unicode U+FF2D' })
+      .getByRole('button', { name: 'Insert', exact: true }),
+  )
+  await expect(alias).toHaveValue('ＭＡＩＮＴ')
+  await act(page.getByRole('button', { name: 'Submit login' }))
+  await act(quick(page, 'Files'))
+  await act(link(page, 'queue/'))
+  await act(link(page, '8c2f.msg'))
+  await act(quick(page, 'Mail'))
+  await act(link(page, 'The missing notice'))
+  await expect(transcript(page)).toContainText('The relay handed it to postbox-03')
+  await act(link(page, 'Dead Letter'))
+  await recoverNotice(page, act)
+  await act(quick(page, 'Mail'))
+  await act(link(page, 'Re: The missing notice'))
+  await expect(transcript(page)).toContainText('points to index-09')
+  await act(link(page, 'The Index'))
+  await act(quick(page, 'Mail'))
+  await act(link(page, 'I spoke to her'))
+  await expect(transcript(page)).toContainText('original forms we filled in')
+}
+
+async function beginIndex(page: Page, act: Activate) {
+  await act(quick(page, 'Files'))
+  await act(link(page, 'exports/'))
+  await act(link(page, '8c2f-originals.json'))
+  await expect(transcript(page)).toContainText('Original identifiers are restricted')
+  await act(link(page, 'audit/'))
+  await act(link(page, 'identifier-review.txt'))
+  await expect(transcript(page)).toContainText('Script profile: Mixed')
+  await act(link(page, 'mail/'))
+  await act(link(page, 'source-records'))
+  await expect(transcript(page)).toContainText('Which ID does a shared entry return')
+  await act(link(page, '8c2f.summary'))
+  await act(quick(page, 'Reconcile identifier'))
+  await act(page.getByRole('button', { name: 'Submit query' }))
+  await expect(transcript(page)).toContainText('Protected canonical identifier')
+  await act(page.getByRole('button', { name: /Code points/ }))
+  await act(page.getByRole('button', { name: '2. U+0069, i' }))
+  await act(page.getByRole('button', { name: /Code points/ }))
+  await act(link(page, 'Inspect U+0069, i'))
+  const latin = transcript(page).getByRole('region', { name: 'Unicode U+0069', exact: true })
+  await expect(latin).toContainText('LATIN SMALL LETTER I')
+  await act(latin.locator('summary'))
+  return latin.getByRole('button', { name: 'Inspect confusable U+0456, Cyrillic' })
+}
+
+for (const [width, height] of [
+  [375, 812],
+  [390, 844],
+  [768, 1024],
+  [1280, 800],
+  [1440, 900],
+]) {
+  test.describe(`${width} × ${height}`, () => {
+    test.use({ viewport: { width, height }, hasTouch: width <= 768, isMobile: width <= 600 })
+
+    test('graphically recovers the original registrations', async ({ page, context }, info) => {
+      const act: Activate = (target) => (width <= 768 ? target.tap() : target.click())
+      const capture = async (name: string) => {
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
+        expect(await transcript(page).evaluate((el) => el.scrollWidth)).toBe(
+          await transcript(page).evaluate((el) => el.clientWidth),
+        )
+        await page.screenshot({ path: info.outputPath(name + '.png') })
+      }
+      if (width === 390 || width === 1440) await openIndexGraphically(page, act)
+      else await page.goto('/?scenario=003-the-index')
+      if (width <= 830) await act(page.getByRole('button', { name: 'Session', exact: true }))
+      await expect(panel(page)).toContainText('auditor')
+      await capture('01-auditor')
+      if (width <= 830) await act(page.getByRole('button', { name: 'Session', exact: true }))
+      const candidateLink = await beginIndex(page, act)
+      await candidateLink.scrollIntoViewIfNeeded()
+      await capture('02-confusables')
+      await act(candidateLink)
+      const details = transcript(page).getByRole('region', { name: 'Unicode U+0456' })
+      await expect(details).toContainText('CYRILLIC SMALL LETTER BYELORUSSIAN-UKRAINIAN I')
+      const replace = details.getByRole('button', { name: 'Replace', exact: true })
+      if (width < 600) {
+        await page.setViewportSize({ width, height: 435 })
+        await replace.scrollIntoViewIfNeeded()
+        await expect(replace).toBeInViewport()
+        await expect(page.getByRole('button', { name: 'Run', exact: true })).toBeInViewport()
+        await expect(page.getByRole('textbox', { name: 'Candidate identifier' })).toBeInViewport()
+        await capture('03-keyboard-height')
+      }
+      const payload = page.getByRole('textbox', { name: 'Candidate identifier' })
+      if (width === 1280) {
+        await payload.fill('Mra')
+        await payload.press('Home')
+        await payload.press('ArrowRight')
+        await act(details.getByRole('button', { name: 'Insert', exact: true }))
+      } else {
+        await act(replace)
+      }
+      await expect(payload).toHaveValue('M\u0456ra')
+      if (width === 1440) {
+        await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+        await act(details.getByRole('button', { name: 'Copy notation U+0456' }))
+        await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe('U+0456')
+      }
+      if (width < 600) await page.setViewportSize({ width, height })
+      await act(page.getByRole('button', { name: 'Submit query' }))
+      await expect(transcript(page)).toContainText('Collision found')
+      await expect(transcript(page)).not.toContainText('Original registrations recovered')
+      await act(link(page, '/exports/8c2f-originals.json'))
+      await expect(transcript(page)).toContainText('Original registrations recovered')
+      await expect(link(page, 'Inspect U+0456')).toBeVisible()
+      await capture('04-originals')
+      await act(quick(page, 'Mail'))
+      await act(link(page, 'We have the records'))
+      await expect(transcript(page)).toContainText("We'd like to keep both accounts.")
+      await capture('05-final-mail')
+    })
+  })
+}
+
+test('completes and replays the entire campaign with commands across reloads', async ({ page }) => {
+  await page.goto('/')
+  await run(page, 'campaign')
+  await expect(link(page, 'The Relay')).toBeVisible()
+  await expect(link(page, 'The Index')).toHaveCount(0)
+  await run(page, 'scenario 003-the-index')
+  await expect(transcript(page)).toContainText('Unknown destination')
+  await run(page, 'connect relay-07')
+  await run(page, 'login ＭＡＩＮＴ')
+  await run(page, 'cat /queue/8c2f.msg')
+  await run(page, 'mail missing-notice')
+  await expect(transcript(page)).toContainText('The relay handed it to postbox-03')
+  await page.reload()
+  await expect(panel(page)).toContainText('Complete')
+  await run(page, 'scenario 002-dead-letter')
+  await expect(panel(page)).toContainText('postbox-03')
+  await run(page, 'route Mira')
+  await expect(transcript(page)).toContainText('under delivery hold')
+  await run(page, 'route stranger')
+  await expect(transcript(page)).toContainText('could not be resolved')
+  await run(page, String.raw`route Mi\u00200Bra`)
+  await run(page, 'cat /delivered/2917.msg')
   await expect(transcript(page)).toContainText('I think we have the same account')
-  await expect(transcript(page)).toContainText('Directory reference: index-09')
+  await page.reload()
+  await expect(panel(page)).toContainText('postbox-03')
+  await expect(panel(page)).toContainText('Complete')
+  await run(page, 'scenario 003-the-index')
+  await expect(panel(page)).toContainText('index-09')
+  await run(page, 'reconcile outsider')
+  await expect(transcript(page)).toContainText('No matching collision record')
+  await run(page, String.raw`reconcile M\u000456ra`)
+  await run(page, 'cat /exports/8c2f-originals.json')
+  await expect(panel(page)).toContainText('Campaign complete')
+  await run(page, 'mail we-have-the-records')
+  await expect(transcript(page)).toContainText("We'd like to keep both accounts.")
+  await page.reload()
+  await expect(panel(page)).toContainText('Campaign complete')
+  await run(page, 'scenario 001-the-relay')
+  await expect(panel(page)).toContainText('local')
+  await page.getByRole('button', { name: 'Reset session' }).click()
+  await expect(panel(page)).toContainText('Open')
+  await run(page, 'connect relay-07')
+  await run(page, 'login ＭＡＩＮＴ')
+  await run(page, 'cat /queue/8c2f.msg')
+  await expect(panel(page).getByText('Complete', { exact: true })).toBeVisible()
+  await run(page, 'mail')
+  await expect(
+    transcript(page).getByRole('button', { name: 'The missing notice', exact: true }),
+  ).toHaveCount(1)
+  await expect(
+    transcript(page).getByRole('button', { name: 'We have the records', exact: true }),
+  ).toHaveCount(1)
+  await expect(transcript(page)).toContainText(
+    'we-have-the-records · Mira / Registration 0002917 · Read',
+  )
+  await run(page, 'campaign')
+  page.once('dialog', (dialog) => dialog.accept())
+  await link(page, 'Reset campaign…').click()
+  await expect(page.getByRole('heading', { name: 'The Relay' })).toBeVisible()
+  await expect(panel(page)).toContainText('Open')
+  await run(page, 'mail')
+  await expect(link(page, 'We have the records')).toHaveCount(0)
+  await expect(link(page, 'A favor')).toHaveCount(1)
+})
+
+test('ignores development scenario entry on the built site', async ({ page }) => {
+  test.skip(!process.env.PLAYWRIGHT_TEST_PREVIEW, 'Requires the production build')
+  await page.goto('/?scenario=003-the-index')
+  await expect(page.getByRole('heading', { name: 'The Relay' })).toBeVisible()
+  await expect(panel(page)).toContainText('local')
 })

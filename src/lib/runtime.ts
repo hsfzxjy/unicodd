@@ -1,4 +1,10 @@
-import { forms, type Engine, type Normalization, type Result } from '../types.ts'
+import {
+  forms,
+  type Engine,
+  type Normalization,
+  type Result,
+  type ScalarDetails,
+} from '../types.ts'
 import { createCampaign } from './campaign.ts'
 import { actionCommand, commandHelp } from './commands.ts'
 import {
@@ -49,6 +55,7 @@ export interface Inspection {
   kind: 'inspection'
   point: Point
   category?: string
+  details: Result<ScalarDetails>
   normalization: { form: Normalization; result: Result<string> }[]
 }
 
@@ -331,7 +338,10 @@ export function createRuntime(
             {
               kind: 'listing',
               title: campaign.finished ? 'Campaign complete' : 'Discovered destinations',
-              links: destinationLinks(campaign.destinations()),
+              links: [
+                ...destinationLinks(campaign.destinations()),
+                { label: 'Reset campaign…', action: { type: 'resetCampaign' } },
+              ],
             },
           ],
         }
@@ -405,9 +415,12 @@ export function createRuntime(
         const before = state
         pending = before
         try {
-          const normalization = await Promise.all(
-            forms.map(async (form) => ({ form, result: await engine.normalize(scalar, form) })),
-          )
+          const [details, normalization] = await Promise.all([
+            engine.inspectScalar(scalar),
+            Promise.all(
+              forms.map(async (form) => ({ form, result: await engine.normalize(scalar, form) })),
+            ),
+          ])
           if (state !== before) return {}
           return {
             output: [
@@ -415,6 +428,7 @@ export function createRuntime(
                 kind: 'inspection',
                 point: describe(scalar),
                 category: scalarCategory(scalar),
+                details,
                 normalization,
               },
             ],

@@ -1,11 +1,11 @@
 {
   "messages": [
     {
-      "id": "spoke-to-her",
+      "id": "missing-notice-reply",
       "from": "Mira / Registration 0002917",
       "to": "Local operator",
-      "subject": "I spoke to her",
-      "body": "I sent her a reply. She's been using her account for over a year. I opened mine last month. She has her own recovery address and verification documents.\n\nWe compared the names. They look identical on screen. She asked if anyone had compared the original forms we filled in.\n\nThe delivery record points to index-09. Could you see what the directory kept from those registrations?"
+      "subject": "Re: The missing notice",
+      "body": "I sent her a reply. She's been using her account for over a year. I opened mine last month. The directory insists those are the same account.\n\nShe offered to compare our registration receipts. Maybe that will get us further than the case numbers did. The notice points to index-09 for the merge record."
     }
   ]
 }

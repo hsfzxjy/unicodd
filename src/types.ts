@@ -12,6 +12,8 @@ type Operator =
   | 'normalize'
   | 'codePointLength'
   | 'remove_code_point'
+  | 'caseFold'
+  | 'skeleton'
   | 'contains'
   | 'startsWith'
   | 'endsWith'
@@ -69,8 +71,25 @@ export interface Evaluation {
   trace?: TraceRecord[]
   traceTruncated?: boolean
 }
+export interface ScalarDetails {
+  name?: string
+  script: string
+  confusables: { scalar: string; script: string }[]
+  confusablesTruncated: boolean
+  unicodeVersion: string
+}
+
+export interface EngineInfo {
+  version: number
+  unicodeVersion: string
+  caseFoldingVersion: string
+  skeletonVersion: string
+  uts39Revision: number
+}
+
 export interface Engine {
-  info(): Promise<Result<{ version: number; unicodeVersion: string }>>
+  info(): Promise<Result<EngineInfo>>
+  inspectScalar(text: string): Promise<Result<ScalarDetails>>
   validate(program: unknown): Promise<Result<null>>
   evaluate(
     program: Program,

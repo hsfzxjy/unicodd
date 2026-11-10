@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { Action, Inspection } from '../lib/runtime'
-import { inspect } from '../lib/unicode'
+import { describe, inspect } from '../lib/unicode'
 
 const props = defineProps<{
   row: Inspection
@@ -18,6 +18,15 @@ function insert(text: string) {
       : { type: 'insertCommand', text },
   )
 }
+
+const confusables = computed(() =>
+  props.row.details.ok
+    ? props.row.details.value.confusables.map(({ scalar, script }) => ({
+        ...describe(scalar),
+        script: script.replaceAll('_', ' '),
+      }))
+    : [],
+)
 
 const normalization = computed(() => {
   const seen = new Set([props.row.point.scalar])
@@ -55,6 +64,14 @@ const normalization = computed(() => {
         <button
           type="button"
           :aria-disabled="busy || undefined"
+          :aria-label="'Copy notation ' + row.point.notation"
+          @click="emit('action', { type: 'copy', text: row.point.notation })"
+        >
+          Copy U+
+        </button>
+        <button
+          type="button"
+          :aria-disabled="busy || undefined"
           :title="canInsertPayload ? 'Insert into active payload' : 'Insert into command prompt'"
           @click="insert(row.point.scalar)"
         >
@@ -74,6 +91,10 @@ const normalization = computed(() => {
         </button>
       </div>
     </div>
+    <p v-if="row.details.ok" class="inspection-metadata meta">
+      <bdi v-if="row.details.value.name">{{ row.details.value.name }}</bdi>
+      <span>{{ row.details.value.script.replaceAll('_', ' ') }} script</span>
+    </p>
     <dl class="inspection-normalization" aria-label="Normalization">
       <div
         v-for="{ form, points, text, offerInsert, error } in normalization"
@@ -114,5 +135,29 @@ const normalization = computed(() => {
         </dd>
       </div>
     </dl>
+    <details v-if="row.details.ok && confusables.length" class="inspection-confusables">
+      <summary>
+        Confusables ({{ confusables.length
+        }}{{ row.details.value.confusablesTruncated ? '+' : '' }})
+      </summary>
+      <div class="inspection-sequence">
+        <button
+          v-for="point in confusables"
+          :key="point.scalar"
+          type="button"
+          class="terminal-link inspection-point"
+          :aria-label="'Inspect confusable ' + point.notation + ', ' + point.script"
+          :aria-disabled="busy || undefined"
+          @click="emit('action', { type: 'inspect', character: point.scalar })"
+        >
+          <bdi>{{ point.glyph }}</bdi>
+          <code>{{ point.notation }}</code>
+          <span class="meta">{{ point.script }}</span>
+        </button>
+      </div>
+      <p class="meta">
+        Related scalars from UTS #39 · Unicode {{ row.details.value.unicodeVersion }}
+      </p>
+    </details>
   </section>
 </template>

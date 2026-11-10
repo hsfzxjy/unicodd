@@ -140,7 +140,11 @@
     "onComplete": [
       {
         "type": "deliverMail",
-        "message": "spoke-to-her"
+        "message": "missing-notice-reply"
+      },
+      {
+        "type": "discover",
+        "scenario": "003-the-index"
       }
     ]
   },

@@ -10,7 +10,7 @@ export default defineConfig({
   fullyParallel: true,
   use: { baseURL, browserName: 'chromium' },
   webServer: {
-    command: `node ./node_modules/vite/bin/vite.js --host 0.0.0.0 --port ${port} --strictPort`,
+    command: `node ./node_modules/vite/bin/vite.js ${process.env.PLAYWRIGHT_TEST_PREVIEW ? 'preview ' : ''}--host 0.0.0.0 --port ${port} --strictPort`,
     url: baseURL,
   },
 })

@@ -423,6 +423,10 @@ export function createContentLoader(
             const inspectNotation =
               resource('inspectNotation').optional((item) => item.bool()) ?? false
             if (inspectNotation) {
+              if (inspectLines.length)
+                resource('inspectNotation').fail(
+                  'Choose either notation links or interactive lines.',
+                )
               const invalid = invalidNotation(body)
               if (invalid)
                 resource('inspectNotation').fail(

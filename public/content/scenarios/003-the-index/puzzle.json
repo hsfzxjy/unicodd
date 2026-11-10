@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "inputs": ["candidate"],
+  "nodes": [
+    {
+      "id": "raw",
+      "op": "input",
+      "input": "candidate"
+    },
+    {
+      "id": "canonical",
+      "op": "literal",
+      "value": {
+        "type": "text",
+        "value": "Mira"
+      }
+    },
+    {
+      "id": "folded",
+      "op": "caseFold",
+      "args": ["raw"]
+    },
+    {
+      "id": "folded_canonical",
+      "op": "caseFold",
+      "args": ["canonical"]
+    },
+    {
+      "id": "lookup",
+      "op": "normalize",
+      "args": ["folded"],
+      "form": "NFKC"
+    },
+    {
+      "id": "lookup_canonical",
+      "op": "normalize",
+      "args": ["folded_canonical"],
+      "form": "NFKC"
+    },
+    {
+      "id": "ordinary",
+      "op": "textEqual",
+      "args": ["lookup", "lookup_canonical"]
+    },
+    {
+      "id": "candidate_key",
+      "op": "skeleton",
+      "args": ["raw"]
+    },
+    {
+      "id": "canonical_key",
+      "op": "skeleton",
+      "args": ["canonical"]
+    },
+    {
+      "id": "collision",
+      "op": "textEqual",
+      "args": ["candidate_key", "canonical_key"]
+    }
+  ],
+  "checks": [
+    {
+      "id": "ordinary_filter",
+      "node": "ordinary",
+      "expected": false
+    },
+    {
+      "id": "visual_collision",
+      "node": "collision",
+      "expected": true
+    }
+  ]
+}

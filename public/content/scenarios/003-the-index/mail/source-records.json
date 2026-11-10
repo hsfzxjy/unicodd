@@ -1,0 +1,18 @@
+{
+  "messages": [
+    {
+      "id": "owner-ids",
+      "from": "Rowan / Directory Team",
+      "to": "Helena / Identity Architecture",
+      "subject": "Re: Duplicate-looking accounts",
+      "body": "The similarity key tells us which names might confuse a human. It doesn't tell us who submitted them. We already have verified owner IDs. Which ID does a shared entry return when Support asks for the account?"
+    },
+    {
+      "id": "reconstruct",
+      "from": "Helena / Identity Architecture",
+      "to": "Rowan / Directory Team",
+      "subject": "Re: Duplicate-looking accounts",
+      "body": "The shared entry would be for lookup. Both owner IDs stay in the original records. I assumed account tools would keep resolving those separately.\n\nLet's retain the diagnostic export until the integration team has checked their callers. If the grouping causes trouble, we should be able to reconstruct the sources."
+    }
+  ]
+}

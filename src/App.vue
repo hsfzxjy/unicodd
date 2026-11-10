@@ -159,6 +159,11 @@ async function dispatch(action: Action, command?: string) {
     (composing.value && (action.type === operation.value?.command || action.type === 'editPayload'))
   )
     return
+  if (
+    action.type === 'resetCampaign' &&
+    !window.confirm('Clear campaign progress and all local mail?')
+  )
+    return
   const id = scenarioId.value
   const before = active.state
   const from = prompt.value
@@ -196,6 +201,10 @@ async function dispatch(action: Action, command?: string) {
     if (action.type === 'resetCampaign') drafts.clear()
     if (response.enter !== scenarioId.value) scenarioId.value = response.enter
     else if (action.type === 'resetCampaign') attempt.value++
+    if (response.enter !== id || action.type === 'resetCampaign') {
+      await nextTick()
+      terminal.value?.focusTranscript()
+    }
     return
   }
   session.value = active.state
@@ -224,7 +233,9 @@ async function dispatch(action: Action, command?: string) {
     ]
   }
   if (response.inspectPrompt) terminal.value?.promptInspection()
-  const readable = response.output?.find((row) => row.kind === 'inspection' || row.kind === 'mail')
+  const readable = response.output?.find(
+    (row) => row.kind === 'inspection' || row.kind === 'mail' || row.kind === 'file',
+  )
   if (readable) {
     await nextTick()
     if (runtime === active) terminal.value?.revealOutput(readable.kind, command === undefined)
@@ -247,11 +258,6 @@ async function dispatch(action: Action, command?: string) {
       )
   }
 }
-
-function resetCampaign() {
-  if (window.confirm('Clear campaign progress and all local mail?'))
-    void dispatch({ type: 'resetCampaign' })
-}
 </script>
 
 <template>
@@ -273,15 +279,6 @@ function resetCampaign() {
                 @click="dispatch({ type: 'reset' })"
               >
                 Reset session
-              </button>
-              <button
-                v-if="catalog.length > 1"
-                type="button"
-                class="reset"
-                :disabled="busy"
-                @click="resetCampaign"
-              >
-                Reset campaign
               </button>
             </div>
             <div class="session-context" aria-live="polite">

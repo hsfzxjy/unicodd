@@ -11,6 +11,12 @@
       "label": "Dead Letter",
       "scenario": "scenarios/002-dead-letter/scenario.json",
       "initiallyDiscovered": false
+    },
+    {
+      "id": "003-the-index",
+      "label": "The Index",
+      "scenario": "scenarios/003-the-index/scenario.json",
+      "initiallyDiscovered": false
     }
   ]
 }

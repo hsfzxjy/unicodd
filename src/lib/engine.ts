@@ -2,7 +2,10 @@ import type { Engine, EngineError, Result } from '../types'
 import { unpairedSurrogate } from './unicode.ts'
 
 type Bindings = typeof import('./wasm/pkg/unicodd_core.js')
-type Operations = Pick<Bindings, 'engine_info' | 'validate_program' | 'evaluate' | 'normalize_text'>
+type Operations = Pick<
+  Bindings,
+  'engine_info' | 'validate_program' | 'evaluate' | 'normalize_text' | 'inspect_scalar'
+>
 const encoder = new TextEncoder()
 const programLimit = 13 * 1024 * 1024
 const inputLimit = 2 * 1024 * 1024
@@ -97,6 +100,12 @@ export function createEngine(load: () => Promise<Operations>): Engine {
       return snapshot.ok
         ? call((module) => module.evaluate(data.value, snapshot.value, trace))
         : snapshot
+    },
+    async inspectScalar(text) {
+      const invalid = surrogateError(text, 'invalid_input', 'text')
+      if (invalid) return invalid
+      if (text.length > 2) return failure('invalid_input', 'Expected one Unicode scalar.', 'text')
+      return call((module) => module.inspect_scalar(encoder.encode(text)))
     },
     async normalize(text, form) {
       const invalid = surrogateError(text, 'invalid_input', 'text')

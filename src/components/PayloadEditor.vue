@@ -18,6 +18,7 @@ const feedback = ref('')
 const pageSize = 48
 let composing = false
 let before: Span | undefined
+let projection: { raw: string; start: number; end: number } | undefined
 const points = computed(() => expanded.value ? inspect(props.modelValue) : [])
 const pages = computed(() => Math.max(1, Math.ceil(points.value.length / pageSize)))
 const visible = computed(() => points.value.slice(page.value * pageSize, (page.value + 1) * pageSize))
@@ -43,10 +44,13 @@ watch(() => props.modelValue, () => {
 function readSelection(reveal = true, raw = props.modelValue) {
   const field = control.value
   if (!field || composing) return
-  selection.value = scalarSpan(raw, {
-    start: rawOffset(raw, field.selectionStart),
-    end: rawOffset(raw, field.selectionEnd),
-  })
+  if (projection?.raw !== raw || projection.start !== field.selectionStart || projection.end !== field.selectionEnd) {
+    projection = undefined
+    selection.value = scalarSpan(raw, {
+      start: rawOffset(raw, field.selectionStart),
+      end: rawOffset(raw, field.selectionEnd),
+    })
+  }
   if (expanded.value && reveal) {
     let index = points.value.findIndex(point => point.end > selection.value.start)
     if (index < 0) index = Math.max(0, points.value.length - 1)
@@ -57,6 +61,7 @@ function readSelection(reveal = true, raw = props.modelValue) {
 function remember(event: InputEvent) {
   const field = control.value!
   if (composing) return
+  projection = undefined
   before = { start: field.selectionStart, end: field.selectionEnd }
   if (event.inputType.startsWith('history')) before = undefined
 }
@@ -90,6 +95,7 @@ function focusAt(span: Span, focus = true) {
   const end = editorText(raw.slice(0, span.end)).length
   if (focus) field.focus()
   field.setSelectionRange(start, end)
+  projection = { raw, start, end }
   selection.value = span
   if (focus) field.scrollIntoView({ block: 'nearest' })
 }
@@ -116,7 +122,7 @@ function paste(event: ClipboardEvent) {
 function copySelection(event: ClipboardEvent) {
   if (composing || !event.clipboardData) return
   readSelection()
-  if (!selected.value.includes('\r')) return
+  if (!selected.value || (!projection && !selected.value.includes('\r'))) return
   event.preventDefault()
   event.clipboardData.setData('text/plain', selected.value)
   if (event.type === 'cut') apply(selection.value, '')
@@ -158,6 +164,7 @@ defineExpose({ apply, focusAt, context: () => ({ ...selection.value }) })
       :id="id" ref="control" dir="auto" spellcheck="false" autocapitalize="off"
       autocomplete="off" autocorrect="off" rows="3"
       @focus="emit('active')" @select="readSelection()" @keyup="readSelection()"
+      @pointerdown="projection = undefined"
       @pointerup="readSelection()" @blur="readSelection()" @beforeinput="remember" @input="nativeInput"
       @compositionstart="startComposition" @compositionend="endComposition"
       @paste="paste" @copy="copySelection" @cut="copySelection"
@@ -168,7 +175,7 @@ defineExpose({ apply, focusAt, context: () => ({ ...selection.value }) })
       </button>
       <button type="button" @click="openWorkbench">Open Workbench</button>
     </div>
-    <div v-if="expanded" :id="id + '-points'" class="point-view">
+    <div v-show="expanded" :id="id + '-points'" class="point-view">
       <div v-if="visible.length" class="point-grid" role="group" :aria-label="label + ' code points'">
         <button
           v-for="(point, index) in visible" :key="point.start" type="button" class="point"

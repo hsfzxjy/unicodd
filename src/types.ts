@@ -47,7 +47,7 @@ export interface EngineError {
 export type Result<T> = { ok: true; value: T } | { ok: false; error: EngineError }
 export interface CheckResult { id: string; actual: boolean; expected: boolean; passed: boolean; required: boolean }
 export interface TraceRecord { id: string; op: string; dependencies: string[]; result: Value }
-export interface Evaluation { solved: boolean; checks: CheckResult[]; trace?: TraceRecord[] }
+export interface Evaluation { solved: boolean; checks: CheckResult[]; trace?: TraceRecord[]; traceTruncated?: boolean }
 export interface Engine {
   info(): Promise<Result<{ version: number; unicodeVersion: string }>>
   validate(program: Program): Promise<Result<null>>

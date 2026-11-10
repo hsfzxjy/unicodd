@@ -9,6 +9,14 @@ import type { Engine, EngineError, Evaluation, Target } from './types'
 const props = defineProps<{ targets: readonly Target[]; engine: Engine }>()
 const targetId = ref(props.targets[0]?.id ?? '')
 const target = computed(() => props.targets.find(item => item.id === targetId.value))
+const inputIds = computed(() => {
+  const inputs = target.value?.program?.inputs
+  return Array.isArray(inputs) ? [...new Set(inputs.filter(id => typeof id === 'string'))] : []
+})
+const checks = computed(() => {
+  const values = target.value?.program?.checks
+  return Array.isArray(values) ? values.filter(check => typeof check?.id === 'string' && typeof check.expected === 'boolean') : []
+})
 const editors = new Map<string, InstanceType<typeof PayloadEditor>>()
 const drafts = new Map<string, Record<string, string>>()
 const draft = ref<Record<string, string>>(Object.create(null))
@@ -47,7 +55,7 @@ watch(target, async (selected, _, onCleanup) => {
   let values = drafts.get(selected.id)
   if (!values) {
     values = Object.assign(Object.create(null), Object.fromEntries(
-      selected.program.inputs.map(id => [id, payloadMeta(selected, id)?.initial ?? '']),
+      inputIds.value.map(id => [id, payloadMeta(selected, id)?.initial ?? '']),
     )) as Record<string, string>
     drafts.set(selected.id, values)
   }
@@ -154,14 +162,14 @@ function closeBench() {
         <h2 id="payload-heading" class="panel-heading">Payloads</h2>
         <div class="payloads">
           <PayloadEditor
-            v-for="id in target.program.inputs" :key="id"
+            v-for="id in inputIds" :key="id"
             :ref="editor => editor ? editors.set(id, editor as InstanceType<typeof PayloadEditor>) : editors.delete(id)"
             :label="payloadMeta(target, id)?.label ?? id" :model-value="draft[id] ?? ''"
             @update:model-value="setDraft(id, $event)" @active="active = id"
             @composition="setComposing(id, $event)"
             @workbench="(span, scalar) => openBench(id, span, scalar)"
           />
-          <p v-if="!target.program.inputs.length" class="muted">This target has no editable inputs.</p>
+          <p v-if="!inputIds.length" class="muted">This target has no editable inputs.</p>
         </div>
         <div class="submit-row toolbar">
           <button type="submit" class="primary"
@@ -184,7 +192,7 @@ function closeBench() {
           </template>
         </div>
         <ul class="check-list">
-          <li v-for="(check, index) in target.program.checks" :key="index" class="check-row">
+          <li v-for="(check, index) in checks" :key="index" class="check-row">
             <div>
               <div class="check-label"><bdi>{{ checkMeta(check.id)?.label ?? check.id }}</bdi></div>
               <div class="check-values meta">
@@ -200,7 +208,7 @@ function closeBench() {
             <span v-else class="meta" aria-hidden="true">—</span>
           </li>
         </ul>
-        <p v-if="!target.program.checks.length" class="muted diagnostic">No verification checks.</p>
+        <p v-if="!checks.length" class="muted diagnostic">No verification checks.</p>
         <details v-if="result?.trace?.length" class="analysis">
           <summary>Analysis <span class="meta">{{ result.trace.length }} nodes</span></summary>
           <ol>
@@ -213,6 +221,7 @@ function closeBench() {
               <TraceValue :value="node.result" />
             </li>
           </ol>
+          <p v-if="result.traceTruncated" class="diagnostic muted">Trace stopped at the output size limit.</p>
         </details>
         <p v-if="result && target.output?.[result.solved ? 'passed' : 'failed']" class="system-output mono" dir="auto">
           {{ target.output[result.solved ? 'passed' : 'failed'] }}

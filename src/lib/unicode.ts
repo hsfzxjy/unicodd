@@ -59,6 +59,7 @@ export function editorText(raw: string) {
 }
 
 export function rawOffset(raw: string, offset: number): number {
+  if (!raw.includes('\r')) return Math.min(raw.length, offset)
   let index = 0
   for (let unit = 0; unit < offset && index < raw.length; unit++) {
     if (raw[index] === '\r' && raw[index + 1] === '\n') index++

@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "title": "The Relay",
+  "introduction": "MONONYM incident 8C2F was routed to a legacy message relay. One host is available.",
+  "roles": ["guest", "maintenance"],
+  "flags": [],
+  "local": {
+    "user": "guest",
+    "role": "guest"
+  },
+  "hosts": [
+    {
+      "id": "relay-07",
+      "name": "MONONYM legacy message relay",
+      "guest": {
+        "user": "guest",
+        "role": "guest"
+      },
+      "welcome": "Guest session opened. Browse the relay files for local documentation.",
+      "resources": [
+        {
+          "id": "manual",
+          "path": "/README",
+          "type": "file",
+          "content": "files/README.txt"
+        },
+        {
+          "id": "notes",
+          "path": "/notes",
+          "type": "directory"
+        },
+        {
+          "id": "migration",
+          "path": "/notes/migration.txt",
+          "type": "file",
+          "content": "files/migration.txt"
+        },
+        {
+          "id": "keypad",
+          "path": "/notes/keypad.txt",
+          "type": "file",
+          "content": "files/keypad.txt",
+          "inspectLines": [3, 4]
+        },
+        {
+          "id": "queue",
+          "path": "/queue",
+          "type": "directory"
+        },
+        {
+          "id": "incident",
+          "path": "/queue/8c2f.msg",
+          "type": "file",
+          "content": "files/8c2f.msg",
+          "access": {
+            "roles": ["maintenance"]
+          },
+          "denied": "Permission denied: /queue/8c2f.msg requires maintenance access."
+        }
+      ],
+      "login": {
+        "label": "Account alias",
+        "puzzle": "puzzle.json",
+        "input": "alias",
+        "access": { "roles": ["guest"] },
+        "success": [
+          {
+            "type": "session",
+            "identity": {
+              "user": "MAINT",
+              "role": "maintenance"
+            }
+          },
+          {
+            "type": "message",
+            "text": "Authentication accepted. Resolved identity: MAINT. Session elevated."
+          }
+        ],
+        "failure": "Login rejected. Account not found.",
+        "rejected": [
+          {
+            "check": "raw_reserved",
+            "message": "Login rejected. Reserved account name."
+          },
+          {
+            "check": "canonical_reserved",
+            "message": "Login rejected. Reserved account name."
+          }
+        ]
+      }
+    }
+  ],
+  "objective": {
+    "text": "Retrieve incident 8C2F from the protected queue.",
+    "read": "incident",
+    "message": "Incident 8C2F retrieved. Objective complete."
+  }
+}

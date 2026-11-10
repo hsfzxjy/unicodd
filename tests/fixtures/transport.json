@@ -43,8 +43,5 @@
       "node": "containsMarker",
       "expected": false
     }
-  ],
-  "initialInputs": {
-    "text": "Café 👩‍💻"
-  }
+  ]
 }

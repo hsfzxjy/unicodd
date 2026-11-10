@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "inputs": ["candidate"],
+  "nodes": [
+    {
+      "id": "candidate_text",
+      "op": "input",
+      "input": "candidate"
+    },
+    {
+      "id": "length",
+      "op": "codePointLength",
+      "args": ["candidate_text"]
+    },
+    {
+      "id": "one",
+      "op": "literal",
+      "value": {
+        "type": "integer",
+        "value": 1
+      }
+    },
+    {
+      "id": "single",
+      "op": "integerEqual",
+      "args": ["length", "one"]
+    }
+  ],
+  "checks": [
+    {
+      "id": "length_matches",
+      "node": "single",
+      "expected": true
+    }
+  ]
+}

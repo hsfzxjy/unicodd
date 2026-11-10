@@ -16,7 +16,6 @@ const props = defineProps<{ label: string; modelValue: string }>()
 const emit = defineEmits<{
   'update:modelValue': [string]
   workbench: [Span, string | undefined]
-  active: []
   composition: [boolean]
 }>()
 const id = useId()
@@ -215,7 +214,6 @@ defineExpose({ apply, focusAt, context: () => ({ ...selection.value }) })
       autocomplete="off"
       autocorrect="off"
       rows="3"
-      @focus="emit('active')"
       @select="readSelection()"
       @keyup="readSelection()"
       @pointerdown="projection = undefined"

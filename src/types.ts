@@ -34,27 +34,6 @@ export interface Program {
   checks: { id: string; node: string; expected: boolean; required?: boolean }[]
 }
 
-export interface Narrative {
-  title: string
-  system: string
-  description: string
-  objective: string
-  introduction: string[]
-  inputs: Record<string, string>
-  checks: Record<string, { label: string; detail: string }>
-  hints?: string[]
-  feedback: { failed: string; passed: string }
-  recovered?: string
-  nextTarget?: string
-}
-
-export interface Target {
-  id: string
-  program: Program
-  initialInputs: Record<string, string>
-  narrative: Narrative
-}
-
 export interface EngineError {
   code:
     | 'invalid_program'

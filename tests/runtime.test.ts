@@ -1,0 +1,148 @@
+import { expect, it } from 'vitest'
+import { createRuntime } from '../src/lib/runtime'
+import { parseCommand, actionCommand } from '../src/lib/commands'
+import { engine, fixtures, production } from './scenario-content'
+
+const relay = async () => production.scenario((await production.manifest())[0])
+const connect = { type: 'connect', host: 'relay-07' } as const
+const incident = { type: 'cat', path: '/queue/8c2f.msg' } as const
+const login = (alias: string) => ({ type: 'login', alias }) as const
+const fullwidth = 'ＭＡＩＮＴ'
+
+it('checks permissions, elevates through WASM, and completes only on authorized read', async () => {
+  const runtime = createRuntime(await relay(), engine)
+  expect(runtime.state).toMatchObject({
+    host: undefined,
+    identity: { user: 'guest' },
+    completed: false,
+  })
+  const local = runtime.state
+  expect(await runtime.dispatch({ type: 'connect', host: 'unknown' })).toMatchObject({
+    output: [{ kind: 'error' }],
+  })
+  expect(runtime.state).toBe(local)
+  await runtime.dispatch(connect)
+  const guest = runtime.state
+  expect(await runtime.dispatch({ type: 'ls', path: 'queue/' })).toMatchObject({
+    output: [
+      { kind: 'listing', path: '/queue', links: [{ detail: 'restricted', action: incident }] },
+    ],
+  })
+  expect(await runtime.dispatch(incident)).toMatchObject({
+    output: [{ kind: 'error', text: expect.stringContaining('Permission denied') }],
+  })
+  expect(await runtime.dispatch({ type: 'cat', path: '/missing' })).toMatchObject({
+    output: [{ kind: 'error' }],
+  })
+  expect(runtime.state).toBe(guest)
+  for (const [alias, failure] of [
+    ['MAINT', 'Reserved account name'],
+    ['MINT', 'Account not found'],
+    ['\ud800', 'unpaired surrogate'],
+  ]) {
+    expect((await runtime.dispatch(login(alias))).output).toEqual([
+      { kind: 'error', text: expect.stringContaining(failure) },
+    ])
+    expect(runtime.state).toBe(guest)
+  }
+  expect(await runtime.dispatch(login(fullwidth))).toMatchObject({ output: [{ kind: 'auth' }] })
+  expect(runtime.state).toMatchObject({
+    identity: { user: 'MAINT', role: 'maintenance' },
+    completed: false,
+  })
+  expect((await runtime.dispatch(incident)).output?.map((item) => item.kind)).toEqual([
+    'file',
+    'objective',
+  ])
+  expect(runtime.state.completed).toBe(true)
+  expect((await runtime.dispatch(incident)).output?.map((item) => item.kind)).toEqual(['file'])
+  await runtime.dispatch({ type: 'logout' })
+  expect(runtime.state.identity).toEqual(guest.identity)
+  await runtime.dispatch(login('ＭAINT'))
+  expect(runtime.state.identity.role).toBe('maintenance')
+  await runtime.dispatch(connect)
+  expect(runtime.state.identity).toEqual(guest.identity)
+  expect(runtime.state.completed).toBe(true)
+  expect(await runtime.dispatch({ type: 'clear' })).toEqual({ clear: true })
+  expect(runtime.state.completed).toBe(true)
+  await runtime.dispatch({ type: 'reset' })
+  expect(runtime.state).toEqual(local)
+})
+
+it('uses guards and effects for a differently structured fixture', async () => {
+  const scenario = await fixtures.scenario((await fixtures.manifest())[0])
+  const runtime = createRuntime(scenario, engine)
+  expect(runtime.state.host?.id).toBe('shelf')
+  const annex = { type: 'connect', host: 'annex' } as const
+  const card = { type: 'cat', path: '/exhibit/sample card' } as const
+  expect((await runtime.dispatch(annex)).output?.[0].kind).toBe('error')
+  expect((await runtime.dispatch(card)).output).toEqual([
+    { kind: 'error', text: expect.stringContaining('No such resource') },
+  ])
+  expect((await runtime.dispatch(login('🧪'))).output?.[0].kind).toBe('error')
+  await runtime.dispatch({ type: 'cat', path: 'index' })
+  expect(runtime.suggestions()).toContain('connect annex')
+  expect((await runtime.dispatch(card)).output).toEqual([
+    { kind: 'error', text: expect.stringContaining('Permission denied') },
+  ])
+  await runtime.dispatch(login('🧪'))
+  expect((await runtime.dispatch(card)).output?.[0].kind).toBe('file')
+  expect(runtime.state.completed).toBe(false)
+  await runtime.dispatch(annex)
+  await runtime.dispatch({ type: 'cat', path: '/document' })
+  expect(runtime.state.completed).toBe(true)
+})
+
+it('serializes authentication and discards work invalidated by a reset', async () => {
+  const scenario = await relay()
+  let release!: () => void
+  const gate = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  const runtime = createRuntime(scenario, {
+    ...engine,
+    evaluate: async (...args) => {
+      await gate
+      return engine.evaluate(...args)
+    },
+  })
+  await runtime.dispatch(connect)
+  const pending = runtime.dispatch(login(fullwidth))
+  expect((await runtime.dispatch(login(fullwidth))).output?.[0].kind).toBe('error')
+  expect((await runtime.dispatch(incident)).output?.[0].kind).toBe('error')
+  await runtime.dispatch({ type: 'reset' })
+  release()
+  expect(await pending).toEqual({})
+  expect(runtime.state.host).toBeUndefined()
+})
+
+it.each([
+  ['  help  ', { type: 'help' }],
+  ['hosts', { type: 'hosts' }],
+  ['connect relay-07', connect],
+  ['ls', { type: 'ls', path: undefined }],
+  ["cat '/exhibit/sample card'", { type: 'cat', path: '/exhibit/sample card' }],
+  ['whoami', { type: 'whoami' }],
+  ['login', { type: 'login', alias: undefined }],
+  ['login ""', login('')],
+  ['login "  Ｍ🧪e\u0301  "', login('  Ｍ🧪e\u0301  ')],
+  [String.raw`login "a\"b\\c"`, login('a"b\\c')],
+  ['logout', { type: 'logout' }],
+  ['inspect Ｍ', { type: 'inspect', character: 'Ｍ' }],
+  ['clear', { type: 'clear' }],
+  ['cat', { type: 'invalid', message: 'Usage: cat <path>' }],
+  ['cat "file', { type: 'invalid', message: 'Close the quoted argument.' }],
+  ['ls | cat file', { type: 'invalid', message: 'Usage: ls [path]' }],
+])('parses %s', (raw, action) => {
+  expect(parseCommand(raw as string)).toEqual(action)
+})
+
+it('preserves aliases in generated commands and rejects unknown commands', () => {
+  const action = login(' Ｍ"e\u0301\\ 🧪 ')
+  expect(parseCommand(actionCommand(action)!)).toEqual(action)
+  expect(parseCommand('echo nope')).toMatchObject({
+    type: 'invalid',
+    message: expect.stringContaining('Unknown command'),
+  })
+  expect(parseCommand('   ')).toBeUndefined()
+})

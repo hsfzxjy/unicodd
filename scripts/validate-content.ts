@@ -18,17 +18,17 @@ const content = createContentLoader(
 try {
   const info = await engine.info()
   if (!info.ok) throw new Error('Could not load the evaluator. Run npm run build:wasm and retry.')
-  const levels = await content.manifest()
-  for (const entry of levels) {
+  const scenarios = await content.manifest()
+  for (const entry of scenarios) {
     try {
-      await content.level(entry)
+      await content.scenario(entry)
       console.log(`OK ${entry.id}`)
     } catch (error) {
       console.error(`${entry.id} — ${(error as Error).message}`)
       process.exitCode = 1
     }
   }
-  if (!process.exitCode) console.log(`Validated ${levels.length} level(s).`)
+  if (!process.exitCode) console.log(`Validated ${scenarios.length} scenario(s).`)
 } catch (error) {
   console.error((error as Error).message)
   process.exitCode = 1

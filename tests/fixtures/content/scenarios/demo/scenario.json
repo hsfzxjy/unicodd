@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "title": "Demo",
+  "introduction": "Local fixture console.",
+  "roles": ["visitor", "curator"],
+  "flags": ["index_seen"],
+  "local": {
+    "user": "local",
+    "role": "visitor"
+  },
+  "initialHost": "shelf",
+  "hosts": [
+    {
+      "id": "shelf",
+      "name": "Fixture shelf",
+      "guest": {
+        "user": "anonymous",
+        "role": "visitor"
+      },
+      "welcome": "Fixture session opened.",
+      "resources": [
+        {
+          "id": "index",
+          "path": "/index",
+          "type": "file",
+          "content": "index.txt",
+          "onRead": [
+            {
+              "type": "flag",
+              "flag": "index_seen"
+            },
+            {
+              "type": "message",
+              "text": "The annex is available."
+            }
+          ]
+        },
+        {
+          "id": "display",
+          "path": "/exhibit",
+          "type": "directory",
+          "access": {
+            "roles": ["curator"]
+          }
+        },
+        {
+          "id": "record",
+          "path": "/exhibit/sample card",
+          "type": "file",
+          "content": "sample.txt",
+          "discover": {
+            "flag": "index_seen"
+          }
+        }
+      ],
+      "login": {
+        "label": "Sample",
+        "input": "candidate",
+        "puzzle": "challenge.json",
+        "initial": "",
+        "access": {
+          "flag": "index_seen"
+        },
+        "success": [
+          {
+            "type": "session",
+            "identity": {
+              "user": "reader",
+              "role": "curator"
+            }
+          },
+          {
+            "type": "message",
+            "text": "Curator session opened."
+          }
+        ],
+        "failure": "Sample does not match."
+      }
+    },
+    {
+      "id": "annex",
+      "name": "Fixture annex",
+      "guest": {
+        "user": "visitor",
+        "role": "visitor"
+      },
+      "welcome": "Annex session opened.",
+      "discover": "index_seen",
+      "resources": [
+        {
+          "id": "annex_file",
+          "path": "/document",
+          "type": "file",
+          "content": "annex.txt"
+        }
+      ]
+    }
+  ],
+  "objective": {
+    "text": "Read the annex document.",
+    "read": "annex_file",
+    "message": "Fixture objective completed."
+  }
+}

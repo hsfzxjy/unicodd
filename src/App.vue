@@ -1,364 +1,349 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, shallowRef, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import PayloadEditor from './components/PayloadEditor.vue'
-import TraceValue from './components/TraceValue.vue'
+import Terminal, { type Entry } from './components/Terminal.vue'
 import Workbench from './components/Workbench.vue'
-import type { createContentLoader, LevelEntry } from './lib/content'
+import { actionCommand } from './lib/commands'
+import type { createContentLoader, ScenarioEntry } from './lib/content'
+import { createRuntime, type Action, type Link, type Session } from './lib/runtime'
+import type { Scenario } from './lib/scenario'
 import type { Span } from './lib/unicode'
-import type { Engine, EngineError, Evaluation, Target } from './types'
+import type { Engine } from './types'
 
 const props = defineProps<{ content: ReturnType<typeof createContentLoader>; engine: Engine }>()
-const levels = shallowRef<LevelEntry[]>([])
-const targetId = ref('')
-const target = shallowRef<Target>()
+const catalog = shallowRef<ScenarioEntry[]>([])
+const scenarioId = ref('')
+const scenario = shallowRef<Scenario>()
+const session = shallowRef<Session>()
 const catalogLoading = ref(true)
-const catalogError = ref('')
-const levelError = ref('')
-const levelAttempt = ref(0)
-const editors = new Map<string, InstanceType<typeof PayloadEditor>>()
-const drafts = new Map<string, Map<string, string>>()
-const draft = shallowRef<Record<string, string>>({})
-const composing = ref<string[]>([])
-const active = ref<string>()
-const workbench = ref<InstanceType<typeof Workbench>>()
-const result = shallowRef<Evaluation>()
-const submitError = shallowRef<EngineError>()
-const phase = ref<'pending' | 'evaluating' | 'complete' | 'error'>('pending')
-const status = computed(() => {
-  switch (phase.value) {
-    case 'pending':
-      return 'Pending'
-    case 'evaluating':
-      return 'Evaluating…'
-    case 'complete':
-      return result.value?.solved ? 'Passed' : 'Failed'
-    case 'error':
-      return 'Error'
-  }
-})
-let revision = 0
-let context: { id: string; span: Span } | undefined
+const loadingError = ref('')
+const attempt = ref(0)
+const busy = ref(false)
+const composing = ref(false)
+const application = ref<HTMLElement>()
+const terminal = ref<InstanceType<typeof Terminal>>()
+const editor = ref<InstanceType<typeof PayloadEditor>>()
+const bench = ref<InstanceType<typeof Workbench>>()
+const loginSubmit = ref<HTMLButtonElement>()
+const alias = ref('')
+const drafts = new Map<string, string>()
+const transcript = shallowRef<Entry[]>([])
+const prompt = computed(() => session.value?.host?.id ?? 'local')
+const login = computed(() => session.value?.host?.login)
+const draftKey = () => JSON.stringify([scenarioId.value, session.value?.host?.id])
+const storageKey = (id: string) => 'unicodd.objective.' + id
+let runtime: ReturnType<typeof createRuntime> | undefined
+let sequence = 0
+let context: Span | undefined
 let returnTo: HTMLElement | undefined
 let applied = false
 
+const viewport = window.visualViewport
+function fitViewport() {
+  if (viewport?.scale === 1 && viewport.height < document.documentElement.clientHeight)
+    application.value?.style.setProperty('--app-height', `${viewport.height}px`)
+  else application.value?.style.removeProperty('--app-height')
+}
+onMounted(() => {
+  fitViewport()
+  viewport?.addEventListener('resize', fitViewport)
+})
+onUnmounted(() => viewport?.removeEventListener('resize', fitViewport))
+
+const shortcuts = computed((): Link[] => {
+  if (!session.value) return []
+  const actions: Link[] = [{ label: 'Hosts', action: { type: 'hosts' } }]
+  if (session.value.host) {
+    actions.push({ label: 'Files', action: { type: 'ls' } })
+    if (runtime?.canLogin && !session.value.editing)
+      actions.push({ label: 'Login', action: { type: 'login' } })
+    if (session.value.identity !== session.value.host.guest)
+      actions.push({ label: 'Logout', action: { type: 'logout' } })
+  }
+  actions.push(
+    { label: 'Help', action: { type: 'help' } },
+    { label: 'Clear', action: { type: 'clear' } },
+  )
+  return actions
+})
+
+const suggestions = computed(() => (session.value ? (runtime?.suggestions() ?? []) : []))
+
+function savedCompletion(id: string) {
+  try {
+    return localStorage.getItem(storageKey(id)) === 'true'
+  } catch {
+    return false
+  }
+}
+
+function storeCompletion(id: string, completed: boolean) {
+  try {
+    if (completed) localStorage.setItem(storageKey(id), 'true')
+    else localStorage.removeItem(storageKey(id))
+  } catch {
+    // The active session is sufficient if storage is unavailable.
+  }
+}
+
 async function loadCatalog() {
   catalogLoading.value = true
-  catalogError.value = ''
+  loadingError.value = ''
   try {
-    levels.value = await props.content.manifest()
-    targetId.value = levels.value.find((level) => level.available)?.id ?? ''
+    catalog.value = await props.content.manifest()
+    scenarioId.value = catalog.value.find((item) => item.available)?.id ?? ''
   } catch (error) {
-    catalogError.value = error instanceof Error ? error.message : String(error)
+    loadingError.value = error instanceof Error ? error.message : String(error)
   } finally {
     catalogLoading.value = false
   }
 }
 
-watch([targetId, levelAttempt], async ([id], _, onCleanup) => {
+watch([scenarioId, attempt], async ([id], _, onCleanup) => {
   let stale = false
   onCleanup(() => {
     stale = true
   })
-  revision++
-  target.value = undefined
-  result.value = undefined
-  levelError.value = ''
-  submitError.value = undefined
-  active.value = undefined
-  composing.value = []
-  phase.value = 'pending'
-  const entry = levels.value.find((level) => level.id === id && level.available)
+  runtime = undefined
+  session.value = undefined
+  scenario.value = undefined
+  busy.value = false
+  composing.value = false
+  loadingError.value = ''
+  const entry = catalog.value.find((item) => item.id === id && item.available)
   if (!entry) return
   try {
-    const loaded = await props.content.level(entry)
+    const loaded = await props.content.scenario(entry)
     if (stale) return
-    const edits = drafts.get(id)
-    draft.value = Object.fromEntries(
-      loaded.program.inputs.map((input) => [
-        input,
-        edits?.get(input) ?? loaded.initialInputs[input],
-      ]),
-    )
-    target.value = loaded
+    runtime = createRuntime(loaded, props.engine, savedCompletion(id))
+    scenario.value = loaded
+    session.value = runtime.state
+    alias.value = drafts.get(draftKey()) ?? login.value?.initial ?? ''
+    transcript.value = [{ id: sequence++, output: runtime.welcome() }]
   } catch (error) {
-    if (!stale) levelError.value = error instanceof Error ? error.message : String(error)
+    if (!stale) loadingError.value = error instanceof Error ? error.message : String(error)
   }
 })
-
 void loadCatalog()
 
-function setDraft(id: string, value: string) {
-  if (!target.value || draft.value[id] === value) return
-  draft.value = { ...draft.value, [id]: value }
-  let edits = drafts.get(target.value.id)
-  if (!edits) drafts.set(target.value.id, (edits = new Map()))
-  edits.set(id, value)
-  revision++
-  result.value = undefined
-  submitError.value = undefined
-  phase.value = 'pending'
+function setDraft(value: string) {
+  alias.value = value
+  drafts.set(draftKey(), value)
 }
 
-function setComposing(id: string, value: boolean) {
-  composing.value = value
-    ? [...new Set([...composing.value, id])]
-    : composing.value.filter((item) => item !== id)
+function echoText(value: string) {
+  return value.length <= 512 ? value : value.slice(0, 512) + '…'
 }
 
-async function submit() {
-  if (!target.value || composing.value.length || phase.value === 'evaluating') return
-  const request = ++revision
-  phase.value = 'evaluating'
-  result.value = undefined
-  submitError.value = undefined
-  const response = await props.engine.evaluate(target.value.program, { ...draft.value }, true)
-  if (request !== revision) return
-  if (response.ok) result.value = response.value
-  else submitError.value = response.error
-  phase.value = response.ok ? 'complete' : 'error'
+async function dispatch(action: Action, command?: string) {
+  const active = runtime
+  if (
+    !active ||
+    busy.value ||
+    (composing.value && (action.type === 'login' || action.type === 'inspect'))
+  )
+    return
+  const id = scenarioId.value
+  const before = active.state
+  const from = prompt.value
+  const editorFocused = Boolean(document.activeElement?.closest('.alias-editor'))
+  busy.value = true
+  let response
+  try {
+    response = await active.dispatch(action)
+  } finally {
+    if (runtime === active) busy.value = false
+  }
+  if (runtime !== active || scenarioId.value !== id) return
+  session.value = active.state
+  if (!active.state.editing) composing.value = false
+  if (action.type === 'reset') {
+    for (const host of scenario.value?.hosts ?? [])
+      drafts.delete(JSON.stringify([scenarioId.value, host.id]))
+  }
+  if (before.host !== active.state.host || action.type === 'reset') {
+    alias.value = drafts.get(draftKey()) ?? login.value?.initial ?? ''
+  }
+  if (before.completed !== active.state.completed || action.type === 'reset')
+    storeCompletion(id, active.state.completed)
+
+  const echo = command ?? actionCommand(action)
+  if (response.clear) {
+    transcript.value = response.output ? [{ id: sequence++, output: response.output }] : []
+    terminal.value?.scrollToEnd()
+  } else if (echo || response.output) {
+    transcript.value = [
+      ...transcript.value.slice(-79),
+      {
+        id: sequence++,
+        echo: echo === undefined ? undefined : echoText(echo),
+        prompt: from,
+        output: response.output ?? [],
+      },
+    ]
+  }
+  if (response.inspect !== undefined) openBench(undefined, response.inspect)
+  if (response.edit) {
+    await nextTick()
+    if (runtime !== active) return
+    if (matchMedia('(pointer: fine)').matches) {
+      const span = editor.value?.context()
+      if (span) editor.value?.focusAt(span)
+    } else {
+      loginSubmit.value?.focus({ preventScroll: true })
+    }
+  } else if (editorFocused && before.editing && !active.state.editing) {
+    await nextTick()
+    if (runtime === active)
+      terminal.value?.focusAction(action.type === 'closeEditor' ? 'login' : 'ls')
+  }
 }
 
-function openBench(id?: string, span?: Span, scalar?: string) {
-  if (composing.value.length) return
-  context = id !== undefined && span ? { id, span } : undefined
+function openBench(span?: Span, scalar?: string) {
+  if (composing.value) return
+  context = session.value?.editing ? (span ?? editor.value?.context()) : undefined
   returnTo = document.activeElement instanceof HTMLElement ? document.activeElement : undefined
   applied = false
-  workbench.value?.open(
-    context && target.value
-      ? {
-          label: target.value.narrative.inputs[context.id],
-          span: context.span,
-        }
-      : undefined,
+  bench.value?.open(
+    context && login.value ? { label: login.value.label, span: context } : undefined,
     scalar,
   )
 }
 
-function globalWorkbench() {
-  const id = active.value
-  openBench(id, id === undefined ? undefined : editors.get(id)?.context())
-}
-
-function applyCharacter(scalar: string, mode: 'insert' | 'replace') {
-  if (!context) return
-  const { id, span } = context
+function applyCharacter(text: string, mode: 'insert' | 'replace') {
+  const span = context
+  if (!span) return
   applied = true
   void nextTick(() =>
-    editors
-      .get(id)
-      ?.apply(mode === 'insert' ? { start: span.start, end: span.start } : span, scalar),
+    editor.value?.apply(mode === 'insert' ? { start: span.start, end: span.start } : span, text),
   )
 }
 
 function closeBench() {
-  if (!applied) returnTo?.focus()
+  if (!applied) returnTo?.focus({ preventScroll: true })
   context = undefined
   returnTo = undefined
 }
 </script>
 
 <template>
-  <header class="app-header">
-    <div class="header-inner">
+  <div ref="application" class="application">
+    <header class="app-header">
       <span class="wordmark">unicodd<span aria-hidden="true">_</span></span>
-      <label class="target-select">
-        <span class="target-caption">Target</span>
-        <select
-          v-model="targetId"
-          aria-label="Target"
-          :disabled="!levels.some((level) => level.available)"
+      <h1 v-if="scenario && catalog.length === 1">
+        <bdi>{{ scenario.title }}</bdi>
+      </h1>
+      <select v-else-if="catalog.length" v-model="scenarioId" aria-label="Scenario">
+        <option
+          v-for="entry in catalog"
+          :key="entry.id"
+          :value="entry.id"
+          :disabled="!entry.available"
         >
-          <option v-if="!targetId" value="">
-            {{ catalogLoading ? 'Loading…' : 'No targets' }}
-          </option>
-          <option
-            v-for="item in levels"
-            :key="item.id"
-            :value="item.id"
-            :disabled="!item.available"
-          >
-            {{ item.label }}{{ item.available ? '' : ' (Unavailable)' }}
-          </option>
-        </select>
-      </label>
+          {{ entry.label }}
+        </option>
+      </select>
       <button
         type="button"
         class="nav-workbench"
         aria-haspopup="dialog"
-        :disabled="!!composing.length"
-        @click="globalWorkbench"
+        :disabled="composing"
+        @click="openBench()"
       >
         Workbench
       </button>
-    </div>
-  </header>
-
-  <main v-if="target" :key="target.id" class="shell">
-    <header class="brief">
-      <h1>
-        <bdi>{{ target.narrative.title }}</bdi>
-      </h1>
-      <p class="meta">
-        <code
-          ><bdi>{{ target.narrative.system }}</bdi></code
-        >
-        · <bdi>{{ target.narrative.description }}</bdi>
-      </p>
-      <p class="objective" dir="auto">{{ target.narrative.objective }}</p>
-      <ul v-if="target.narrative.introduction.length" class="terminal-lines mono">
-        <li v-for="(line, index) in target.narrative.introduction" :key="index" dir="auto">
-          {{ line }}
-        </li>
-      </ul>
-      <details v-if="target.narrative.hints?.length" class="hints">
-        <summary>{{ target.narrative.hints.length === 1 ? 'Hint' : 'Hints' }}</summary>
-        <p v-for="(hint, index) in target.narrative.hints" :key="index" dir="auto">{{ hint }}</p>
-      </details>
     </header>
 
-    <div class="workspace">
-      <form class="workspace-panel" aria-labelledby="payload-heading" @submit.prevent="submit">
-        <h2 id="payload-heading" class="panel-heading">Payloads</h2>
-        <div class="payloads">
-          <PayloadEditor
-            v-for="id in target.program.inputs"
-            :key="id"
-            :ref="
-              (editor) =>
-                editor
-                  ? editors.set(id, editor as InstanceType<typeof PayloadEditor>)
-                  : editors.delete(id)
-            "
-            :label="target.narrative.inputs[id]"
-            :model-value="draft[id]"
-            @update:model-value="setDraft(id, $event)"
-            @active="active = id"
-            @composition="setComposing(id, $event)"
-            @workbench="(span, scalar) => openBench(id, span, scalar)"
-          />
-          <p v-if="!target.program.inputs.length" class="muted">
-            This target has no editable inputs.
-          </p>
-        </div>
-        <div class="submit-row toolbar">
-          <button
-            type="submit"
-            class="primary"
-            :disabled="!!composing.length || phase === 'evaluating'"
-          >
-            Submit
+    <main v-if="scenario && session" :key="scenario.id" class="workspace">
+      <aside class="context-frame" aria-label="Session context">
+        <div class="frame-title">
+          <h2>Session</h2>
+          <button type="button" class="reset" :disabled="busy" @click="dispatch({ type: 'reset' })">
+            Reset session
           </button>
         </div>
-      </form>
-
-      <section class="workspace-panel verification" aria-labelledby="verification-heading">
-        <div class="panel-heading verification-head">
-          <h2 id="verification-heading">Verification</h2>
-          <span
-            role="status"
-            class="status"
-            :class="phase === 'complete' ? (result?.solved ? 'pass' : 'fail') : phase"
-          >
-            {{ status }}
-          </span>
-        </div>
-        <div v-if="submitError" class="diagnostic error" role="alert">
-          <code
-            >{{ submitError.code
-            }}<template v-if="submitError.path">
-              · <bdi>{{ submitError.path }}</bdi></template
-            ></code
-          >
-          <p v-if="submitError.code === 'invalid_input' && submitError.offset !== undefined">
-            This payload contains an unpaired surrogate. Open Code points to find and remove it.
-          </p>
-          <p v-else>{{ submitError.message }}</p>
-        </div>
-        <ul class="check-list">
-          <li v-for="(check, index) in target.program.checks" :key="check.id" class="check-row">
+        <div class="session-context" aria-live="polite">
+          <dl class="session-details">
             <div>
-              <div class="check-label">
-                <bdi>{{ target.narrative.checks[check.id].label }}</bdi>
-              </div>
-              <div class="check-values meta">
-                <span
-                  >Expected <code>{{ check.expected }}</code></span
-                >
-                <span v-if="result?.checks[index]"
-                  >Actual <code>{{ result.checks[index].actual }}</code></span
-                >
-                <span v-if="check.required === false">Optional</span>
-              </div>
-              <p class="check-detail" dir="auto">
-                {{ target.narrative.checks[check.id].detail }}
-              </p>
+              <dt>Host</dt>
+              <dd>
+                <bdi>{{ prompt }}</bdi>
+              </dd>
             </div>
-            <span
-              v-if="result?.checks[index]"
-              class="status"
-              :class="result.checks[index].passed ? 'pass' : 'fail'"
-            >
-              {{ result.checks[index].passed ? '✓ PASS' : '× FAIL' }}
-            </span>
-            <span v-else class="meta" aria-hidden="true">—</span>
-          </li>
-        </ul>
-        <p v-if="!target.program.checks.length" class="muted diagnostic">No verification checks.</p>
-        <div aria-live="polite">
-          <div v-if="result" class="system-output" :class="result.solved ? 'success-output' : ''">
-            <p class="mono" dir="auto">
-              {{ target.narrative.feedback[result.solved ? 'passed' : 'failed'] }}
-            </p>
-            <p v-if="result.solved && target.narrative.recovered" class="recovered mono" dir="auto">
-              {{ target.narrative.recovered }}
-            </p>
-            <p v-if="result.solved && target.narrative.nextTarget" dir="auto">
-              {{ target.narrative.nextTarget }}
-            </p>
+            <div>
+              <dt>User</dt>
+              <dd>
+                <bdi>{{ session.identity.user }}</bdi>
+              </dd>
+            </div>
+            <div>
+              <dt>Access</dt>
+              <dd>
+                <bdi>{{ session.identity.role }}</bdi>
+              </dd>
+            </div>
+          </dl>
+          <div class="objective">
+            <div class="objective-heading">
+              <h3>Objective</h3>
+              <span :class="{ 'objective-done': session.completed }">{{
+                session.completed ? 'Complete' : 'Open'
+              }}</span>
+            </div>
+            <p dir="auto">{{ scenario.objective.text }}</p>
           </div>
         </div>
-        <details v-if="result?.trace?.length" class="analysis">
-          <summary>
-            Analysis <span class="meta">{{ result.trace.length }} nodes</span>
-          </summary>
-          <ol>
-            <li v-for="node in result.trace" :key="node.id" class="trace-row">
-              <div class="trace-head">
-                <code
-                  ><bdi>{{ node.id }}</bdi></code
-                >
-                <span class="meta">{{ node.op }} · {{ node.result.type }}</span>
-              </div>
-              <p v-if="node.dependencies.length" class="meta">
-                From <bdi>{{ node.dependencies.join(', ') }}</bdi>
-              </p>
-              <TraceValue :value="node.result" />
-            </li>
-          </ol>
-          <p v-if="result.traceTruncated" class="diagnostic muted">
-            Trace stopped at the output size limit.
-          </p>
-        </details>
-      </section>
-    </div>
-  </main>
+        <form
+          v-if="login"
+          v-show="session.editing"
+          :key="session.host?.id"
+          class="alias-editor"
+          aria-label="Login editor"
+          @submit.prevent="dispatch({ type: 'login', alias })"
+        >
+          <PayloadEditor
+            ref="editor"
+            :label="login.label"
+            :model-value="alias"
+            @update:model-value="setDraft"
+            @composition="composing = $event"
+            @workbench="openBench"
+          />
+          <div class="toolbar alias-actions">
+            <button
+              type="button"
+              :disabled="busy || composing"
+              @click="dispatch({ type: 'closeEditor' })"
+            >
+              Hide editor
+            </button>
+            <button ref="loginSubmit" class="primary" type="submit" :disabled="busy || composing">
+              {{ busy ? 'Authenticating…' : 'Submit login' }}
+            </button>
+          </div>
+        </form>
+      </aside>
 
-  <main v-else-if="catalogError || levelError" class="shell empty">
-    <h1>{{ catalogError ? 'Could not load targets' : 'Could not load target' }}</h1>
-    <p role="alert" class="error" dir="auto">{{ catalogError || levelError }}</p>
-    <button type="button" @click="catalogError ? loadCatalog() : levelAttempt++">Retry</button>
-  </main>
+      <Terminal
+        ref="terminal"
+        :transcript="transcript"
+        :prompt="prompt"
+        :shortcuts="shortcuts"
+        :suggestions="suggestions"
+        :busy="busy"
+        @action="dispatch"
+      />
+    </main>
+    <main v-else class="startup">
+      <template v-if="loadingError">
+        <h1>Could not load scenario content</h1>
+        <p role="alert" class="error" dir="auto">{{ loadingError }}</p>
+        <button type="button" @click="scenarioId ? attempt++ : loadCatalog()">Retry</button>
+      </template>
+      <p v-else-if="catalogLoading || scenarioId" role="status">Loading scenario…</p>
+      <p v-else>No scenario is available.</p>
+    </main>
+  </div>
 
-  <main v-else-if="catalogLoading || targetId" class="shell empty">
-    <p role="status">{{ catalogLoading ? 'Loading targets…' : 'Loading target…' }}</p>
-  </main>
-
-  <main v-else class="shell empty">
-    <h1>No puzzle loaded</h1>
-    <p class="muted">
-      Loaded targets appear in the selector. The Workbench is available on its own.
-    </p>
-  </main>
-
-  <Workbench ref="workbench" :engine="engine" @apply="applyCharacter" @close="closeBench" />
+  <Workbench ref="bench" :engine="engine" @apply="applyCharacter" @close="closeBench" />
 </template>

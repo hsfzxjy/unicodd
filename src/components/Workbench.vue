@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { describe, inspect, lookup, type Span } from '../lib/unicode'
+import { copyText, describe, inspect, lookup, type Span } from '../lib/unicode'
 import { forms, type Engine, type Normalization, type Result } from '../types'
 
 const props = defineProps<{ engine: Engine }>()
@@ -14,6 +14,7 @@ const context = ref<{ label: string; span: Span }>()
 const history = ref<string[]>([])
 const results = ref<{ form: Normalization; result: Result<string> }[]>([])
 const loading = ref(false)
+const copyFeedback = ref('')
 const point = computed(() => (current.value ? describe(current.value) : undefined))
 const recent = ref(readList('recent'))
 const favorites = ref(readList('favorites'))
@@ -66,6 +67,7 @@ function visit(scalar: string, push = true) {
   current.value = scalar
   query.value = describe(scalar).notation
   invalid.value = false
+  copyFeedback.value = ''
   recent.value = [scalar, ...recent.value.filter((item) => item !== scalar)].slice(0, 12)
   storeList('recent', recent.value)
 }
@@ -115,6 +117,15 @@ function open(edit?: { label: string; span: Span }, scalar?: string) {
   })
 }
 
+async function copyCharacter() {
+  try {
+    await copyText(current.value)
+    copyFeedback.value = 'Copied.'
+  } catch {
+    copyFeedback.value = 'Clipboard unavailable.'
+  }
+}
+
 function apply(mode: 'insert' | 'replace') {
   emit('apply', current.value, mode)
   dialog.value?.close()
@@ -159,10 +170,12 @@ defineExpose({ open })
         <div class="character">
           <bdi class="character-glyph">{{ point.glyph }}</bdi>
           <code>{{ point.notation }}</code>
+          <button type="button" class="copy-character" @click="copyCharacter">Copy</button>
           <button type="button" :aria-pressed="saved" @click="favorite">
             {{ saved ? 'Favorited' : 'Favorite' }}
           </button>
         </div>
+        <p v-if="copyFeedback" class="copy-feedback meta" role="status">{{ copyFeedback }}</p>
         <section aria-labelledby="normalization-heading" class="bench-section">
           <h3 id="normalization-heading">Normalization</h3>
           <p v-if="loading" class="muted" role="status">Normalizing…</p>

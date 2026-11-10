@@ -10,7 +10,7 @@
     "format": "prettier --write --ignore-unknown . && cargo fmt --all",
     "format:check": "prettier --check --ignore-unknown . && cargo fmt --all -- --check",
     "typecheck": "vue-tsc --noEmit",
-    "test": "vitest run",
+    "test": "npm run validate:content && vitest run",
     "validate:content": "node --experimental-strip-types scripts/validate-content.ts",
     "test:browser": "playwright test"
   },

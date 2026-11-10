@@ -1,63 +1,11 @@
 import { expect, test, type Page } from '@playwright/test'
-import { routeFixtures } from './content-routes'
 
 async function fixture(page: Page) {
-  await routeFixtures(page)
   await page.goto('/')
-  await expect(page.getByRole('button', { name: 'Submit', exact: true })).toBeEnabled()
+  await page.getByRole('button', { name: 'relay-07', exact: true }).click()
+  await page.getByRole('button', { name: 'Login', exact: true }).click()
+  await expect(page.getByRole('textbox', { name: 'Account alias' })).toBeVisible()
 }
-
-test('renders the empty shell and opens the Workbench with keyboard controls', async ({ page }) => {
-  await page.route('**/content/manifest.json', (route) =>
-    route.fulfill({ json: { version: 1, levels: [] } }),
-  )
-  await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'No puzzle loaded' })).toBeVisible()
-  await expect(page.getByRole('combobox', { name: 'Target' })).toBeDisabled()
-  const button = page.getByRole('button', { name: 'Workbench', exact: true })
-  await page.keyboard.press('Tab')
-  await expect(button).toBeFocused()
-  await page.keyboard.press('Enter')
-  const dialog = page.getByRole('dialog', { name: 'Unicode Workbench' })
-  await expect(dialog).toBeVisible()
-  await expect(dialog.getByRole('button', { name: 'Insert' })).toHaveCount(0)
-  await page.keyboard.press('Escape')
-  await expect(dialog).toBeHidden()
-  await expect(button).toBeFocused()
-})
-
-test('evaluates real WASM, displays analysis, and clears stale checks after editing', async ({
-  page,
-}) => {
-  await fixture(page)
-  const input = page.getByRole('textbox', { name: 'Text input' })
-  const status = page.getByRole('status')
-  await expect(status).toHaveText('Pending')
-  await page.getByRole('button', { name: 'Submit', exact: true }).click()
-  await expect(status).toHaveText('Failed')
-  await expect(
-    page.getByRole('listitem').filter({ hasText: 'Zero-width space present' }),
-  ).toContainText('Actual false')
-  await expect(
-    page.getByRole('listitem').filter({ hasText: 'Zero-width space present' }),
-  ).toContainText('PASS')
-  await page.getByText('Analysis', { exact: false }).click()
-  await expect(page.getByText('Café 👩‍💻', { exact: true })).toBeVisible()
-  await input.fill('Café 🧪')
-  await expect(status).toHaveText('Pending')
-  await expect(page.getByText('Analysis', { exact: false })).toHaveCount(0)
-  await page.getByRole('button', { name: 'Submit', exact: true }).click()
-  await expect(status).toHaveText('Passed')
-
-  await page.getByRole('combobox', { name: 'Target' }).selectOption('fixture-multiple')
-  await expect(page.getByRole('textbox', { name: 'Left input' })).toHaveValue('Cafe\u0301')
-  await expect(page.getByRole('textbox', { name: 'Right input' })).toHaveValue('Café')
-  await page.getByRole('button', { name: 'Submit', exact: true }).click()
-  await expect(status).toHaveText('Passed')
-  await page.getByRole('combobox', { name: 'Target' }).selectOption('fixture-single')
-  await expect(input).toHaveValue('Café 🧪')
-  await expect(status).toHaveText('Pending')
-})
 
 test('navigates normalization results, persists favorites, replaces, inserts, copies, and deletes', async ({
   page,
@@ -65,7 +13,7 @@ test('navigates normalization results, persists favorites, replaces, inserts, co
 }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   await fixture(page)
-  const input = page.getByRole('textbox', { name: 'Text input' })
+  const input = page.getByRole('textbox', { name: 'Account alias' })
   await input.fill('e\u0301🧪\u200b')
   await expect(page.getByText('4 code points', { exact: true })).toBeVisible()
   await expect(page.locator('.payload').getByText('UTF-16', { exact: false })).toHaveCount(0)
@@ -127,8 +75,8 @@ test('preserves composition and raw line endings and exposes repairable surrogat
   page,
 }) => {
   await fixture(page)
-  const input = page.getByRole('textbox', { name: 'Text input' })
-  const submit = page.getByRole('button', { name: 'Submit', exact: true })
+  const input = page.getByRole('textbox', { name: 'Account alias' })
+  const submit = page.getByRole('button', { name: 'Submit login', exact: true })
   await input.fill('a')
   await input.evaluate((field: HTMLTextAreaElement) => {
     field.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }))
@@ -164,29 +112,25 @@ test('preserves composition and raw line endings and exposes repairable surrogat
     field.dispatchEvent(new InputEvent('input', { bubbles: true }))
   })
   await submit.click()
-  await expect(page.getByRole('alert')).toContainText('Open Code points to find and remove it.')
+  await expect(page.getByRole('log')).toContainText('Open Code points to find and remove it.')
   await page.getByRole('button', { name: /U\+D800, Surrogate/ }).click()
   await page.getByRole('button', { name: 'Delete', exact: true }).click()
-  await expect(page.getByRole('alert')).toHaveCount(0)
   await expect(input).toHaveValue('🧪')
 })
 
 test('shows a structured error if the browser cannot load WASM', async ({ page }) => {
   await page.route('**/*.wasm', (route) => route.abort())
-  await routeFixtures(page)
   await page.goto('/')
   await expect(page.getByRole('alert')).toContainText('engine_unavailable')
-  await expect(page.getByRole('button', { name: 'Submit', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Submit login', exact: true })).toHaveCount(0)
   await page.unroute('**/*.wasm')
   await page.getByRole('button', { name: 'Retry' }).click()
-  await expect(page.getByRole('textbox', { name: 'Text input' })).toHaveValue(
-    'Cafe\u0301 👩\u200d💻',
-  )
+  await expect(page.getByRole('heading', { name: 'The Relay' })).toBeVisible()
 })
 
 test('keeps the native selection through Workbench navigation and Escape', async ({ page }) => {
   await fixture(page)
-  const input = page.getByRole('textbox', { name: 'Text input' })
+  const input = page.getByRole('textbox', { name: 'Account alias' })
   await input.fill('a🧪b')
   await input.press('Home')
   await input.press('ArrowRight')
@@ -213,11 +157,11 @@ test('keeps the native selection through Workbench navigation and Escape', async
 test('marks the caret boundary in a wrapping code-point grid', async ({ page }, info) => {
   await page.setViewportSize({ width: 375, height: 812 })
   await fixture(page)
-  const input = page.getByRole('textbox', { name: 'Text input' })
+  const input = page.getByRole('textbox', { name: 'Account alias' })
   await input.fill('a🧪bcde')
   await input.press('Home')
   await page.getByRole('button', { name: 'Code points', exact: true }).click()
-  const grid = page.getByRole('group', { name: 'Text input code points' })
+  const grid = page.getByRole('group', { name: 'Account alias code points' })
   const points = grid.getByRole('button')
   const marker = grid.locator('.point-caret')
   const before = (index: number) => points.nth(index).locator('.point-caret:not(.at-end)')
@@ -240,81 +184,3 @@ test('marks the caret boundary in a wrapping code-point grid', async ({ page }, 
   await expect(points.last().locator('.point-caret.at-end')).toBeVisible()
   await expect(marker).toHaveCount(1)
 })
-
-for (const [width, height] of [
-  [375, 812],
-  [390, 844],
-  [768, 1024],
-  [1280, 800],
-  [1440, 900],
-]) {
-  test.describe(`${width} × ${height}`, () => {
-    test.use({ viewport: { width, height }, hasTouch: width <= 768, isMobile: width <= 600 })
-
-    test('keeps the workspace and Workbench usable at this viewport', async ({ page }, info) => {
-      const screenshot = (state: string) =>
-        page.screenshot({ path: info.outputPath(state + '.png') })
-      const checkWidth = async () => {
-        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
-      }
-      await fixture(page)
-      await checkWidth()
-      const submit = page.getByRole('button', { name: 'Submit', exact: true })
-      await expect(submit).toBeInViewport()
-      await expect(page.getByRole('heading', { name: 'Verification' })).toBeInViewport()
-      await screenshot('pending-single')
-      await submit.click()
-      await page.getByText('Analysis', { exact: false }).click()
-      await screenshot('verification-analysis')
-
-      await page.getByRole('combobox', { name: 'Target' }).selectOption('fixture-multiple')
-      const left = page.getByRole('textbox', { name: 'Left input' })
-      const right = page.getByRole('textbox', { name: 'Right input' })
-      await submit.click()
-      await expect(page.getByRole('status')).toHaveText('Passed')
-      await screenshot('passed-multiple')
-      await left.fill('')
-      await expect(left).toHaveValue('')
-      await screenshot('multiple-and-empty')
-      await right.fill('e\u0301👩\u200d💻\u200bאבג'.repeat(72))
-      const rightPanel = page.locator('.payload').filter({ has: right })
-      await rightPanel.getByRole('button', { name: 'Code points' }).click()
-      await expect(rightPanel.getByText(/Page \d+ of \d+/)).toBeVisible()
-      if (width <= 600)
-        expect(await rightPanel.locator('.point-grid button').count()).toBeLessThanOrEqual(16)
-      await checkWidth()
-      await screenshot('long-and-code-points')
-
-      await right.evaluate((field: HTMLTextAreaElement) => {
-        field.focus()
-        field.setSelectionRange(2, 2)
-      })
-      await rightPanel.getByRole('button', { name: 'Open Workbench' }).click()
-      const dialog = page.getByRole('dialog')
-      await dialog.getByRole('textbox').fill('00E9')
-      await dialog.getByRole('button', { name: 'Look up' }).click()
-      await expect(dialog.getByRole('button', { name: /^NFD: inspect U\+0301/ })).toBeVisible()
-      const insert = dialog.getByRole('button', { name: 'Insert', exact: true })
-      await expect(insert).toBeInViewport()
-      await screenshot('workbench')
-      if (width <= 600) {
-        // Approximate the reduced visual space when a software keyboard opens.
-        await page.setViewportSize({ width, height: 440 })
-        await expect(insert).toBeInViewport()
-      }
-      if (width <= 768) await insert.tap()
-      else await insert.click()
-      await expect(right).toHaveValue(/^e\u0301é👩/u)
-      await expect(right).toBeFocused()
-      await page.setViewportSize({ width, height })
-      await right.evaluate((field: HTMLTextAreaElement) => {
-        field.value = 'x\udfff'
-        field.dispatchEvent(new InputEvent('input', { bubbles: true }))
-      })
-      await submit.click()
-      await expect(page.getByRole('alert')).toContainText('invalid_input')
-      await page.getByRole('alert').scrollIntoViewIfNeeded()
-      await screenshot('structured-error')
-    })
-  })
-}

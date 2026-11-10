@@ -1,6 +1,6 @@
 # unicodd
 
-unicodd is a browser-based Unicode puzzle game. Choose a target, edit its payloads, and submit them for verification. The Unicode Workbench can also inspect and normalize individual characters independently.
+unicodd is a browser-based Unicode puzzle game. Explore fictional hosts, read their files, and investigate how they interpret text. Use commands or clickable actions to navigate, and use the Unicode Workbench to inspect and edit characters.
 
 ## Build and run
 
@@ -25,16 +25,18 @@ npx playwright install chromium
 npm run test:browser
 ```
 
-## Authoring levels
+## Authoring scenarios
 
-Add an entry to [`public/content/manifest.json`](public/content/manifest.json) and create the two JSON files it references. The game reads these files at runtime. To update a deployed catalog, publish the updated files under `content/` in the static site.
+The game reads the manifest and UTF-8 content files at runtime. Publish the contents of `public/content/` under `content/` on the static site.
 
-1. **Register the target.** The manifest has `version: 1` and a `levels` array in display order. Each entry has a unique `id`, a selector `label`, and `puzzle` and `narrative` paths relative to `content/`. Use ASCII letters, digits, underscores, and hyphens in path segments, and end each path in `.json`. Optional `available: false` disables selection. The first available entry opens automatically.
-2. **Define the puzzle.** Use the program schema below in `puzzle.json` and add an `initialInputs` object with exactly one string per declared input ID. Use `""` to start with a blank draft. Nodes reference declared input IDs or other node IDs. Checks reference Boolean node IDs and specify the expected result. Use literal nodes for fixed values.
-3. **Write the presentation.** In `narrative.json`, set `version: 1`, `title`, `system` (the target identifier), `description`, `objective`, and `introduction` (an array of terminal lines, which may be empty). Map each input ID to its label in `inputs` and each check ID to an object with `label` and `detail` in `checks`. Both maps must cover exactly the declared IDs. Supply `feedback.failed` and `feedback.passed` for the two verification outcomes. Optional `hints` are shown on demand. Optional `recovered` and `nextTarget` text appears on success.
-4. **Validate and play-test.** After building WASM, run `npm run validate:content`. It checks all registered files, including unavailable entries, and reports file and field diagnostics for malformed content, broken references, or invalid programs and starting drafts. Open the target in the browser and submit candidates to verify the player experience.
+1. **Register the scenario.** Add an entry to `scenarios` in [manifest.json](public/content/manifest.json), in display order. The version-1 entry has a unique `id`, a selector `label`, and a `scenario` path relative to `content/`. Optional `available: false` disables selection. The first available scenario opens automatically.
+2. **Define the world.** In the version-1 scenario file, supply `title`, `introduction`, declared `roles` and `flags`, a `local` identity, `hosts`, and an `objective`. An identity has `user` and `role`. A host has an `id`, `name`, `guest` identity, `welcome` message, and `resources`. An optional `discover` flag hides the host until set. An optional `initialHost` starts the player on an initially discoverable host.
+3. **Add resources.** Give each resource a unique `id`, an absolute virtual `path`, and a `type` of `directory` or `file`. The root is implicit. Declare each other parent directory. Files have a `content` asset path relative to the scenario file. Optional `discover` and `access` guards govern visibility and use, including descendants. A guard can require membership in a list of `roles`, a set `flag`, or both. Mark specific file lines with one-based `inspectLines` to make their code points interactive. Optional `onRead` effects can set a `flag`, change the `session` identity, or emit a `message`.
+4. **Bind a puzzle.** A host's optional `login` defines the editor `label`, the referenced `puzzle` file, its single `input`, optional `initial` text and `access` guard, `success` effects, and fallback `failure` text. Optional `rejected` entries map failed check IDs to messages in priority order. The puzzle file contains only the program described below.
+5. **Set the objective.** Give `objective` its visible `text`, the file resource ID under `read`, and a completion `message`. The runtime completes the objective on an authorized read of that resource.
+6. **Validate and play-test.** Run `npm run validate:content` after building WASM. It checks every registered entry, including unavailable ones, and reports the file and field for invalid content and references. Try both command and click paths in the browser.
 
-Use UTF-8 JSON and stable IDs. The workspace retains edits per target for the current page session. Workbench favorites and recents use browser storage when available.
+Use stable ASCII IDs and safe relative asset paths. Published resources are public static assets, including files that require access in the game. Keep real secrets out of content. Objective completion, Workbench favorites, and recent characters use browser storage when available. Session identity and transcript are kept in memory.
 
 ### Program schema v1
 

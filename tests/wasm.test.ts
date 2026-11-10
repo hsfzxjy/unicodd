@@ -3,10 +3,9 @@ import { describe, expect, it } from 'vitest'
 import * as wasm from '../src/lib/wasm/pkg/unicodd_core.js'
 import { createEngine } from '../src/lib/engine'
 import type { Program } from '../src/types'
-import puzzle from './fixtures/content/levels/fixture-single/puzzle.json'
+import puzzle from './fixtures/transport.json'
 
-const { initialInputs: _, ...rawProgram } = puzzle
-const program = rawProgram as Program
+const program = puzzle as Program
 
 let initializations = 0
 const engine = createEngine(async () => {

@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "inputs": ["alias"],
+  "nodes": [
+    {
+      "id": "raw",
+      "op": "input",
+      "input": "alias"
+    },
+    {
+      "id": "reserved",
+      "op": "literal",
+      "value": {
+        "type": "text",
+        "value": "MAINT"
+      }
+    },
+    {
+      "id": "canonical",
+      "op": "normalize",
+      "args": ["raw"],
+      "form": "NFC"
+    },
+    {
+      "id": "compatibility",
+      "op": "normalize",
+      "args": ["raw"],
+      "form": "NFKC"
+    },
+    {
+      "id": "raw_match",
+      "op": "textEqual",
+      "args": ["raw", "reserved"]
+    },
+    {
+      "id": "canonical_match",
+      "op": "textEqual",
+      "args": ["canonical", "reserved"]
+    },
+    {
+      "id": "resolved",
+      "op": "textEqual",
+      "args": ["compatibility", "reserved"]
+    }
+  ],
+  "checks": [
+    {
+      "id": "raw_reserved",
+      "node": "raw_match",
+      "expected": false
+    },
+    {
+      "id": "canonical_reserved",
+      "node": "canonical_match",
+      "expected": false
+    },
+    {
+      "id": "resolved_identity",
+      "node": "resolved",
+      "expected": true
+    }
+  ]
+}

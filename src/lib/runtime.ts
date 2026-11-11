@@ -6,10 +6,10 @@ import {
   type ScalarDetails,
 } from '../types.ts'
 import { createCampaign } from './campaign.ts'
-import { actionCommand, commandHelp } from './commands.ts'
+import { actionCommand, commandHelp, operationArity } from './commands.ts'
+import type { Handoff, RecoveryCommand, RecoveryContext, RecoveryRow } from './recovery.ts'
 import {
   parentPath,
-  puzzleArity,
   type Effect,
   type Guard,
   type Host,
@@ -32,6 +32,7 @@ export type Action =
   | { type: 'login'; alias?: string }
   | { type: 'reconcile'; payload?: string }
   | { type: 'route' | 'reconstruct'; payloads?: string[] }
+  | { type: RecoveryCommand; payloads?: string[] }
   | { type: 'scenario'; id: string }
   | { type: 'inspect'; character?: string }
   | { type: 'copy'; text: string }
@@ -60,6 +61,7 @@ export type Output =
   | { kind: 'mail'; path?: string; messages: MailMessage[] }
   | { kind: 'mailNotice' }
   | { kind: 'help'; connected: boolean; commands: string[] }
+  | { kind: 'report'; rows: RecoveryRow[] }
   | Inspection
 
 export interface Session {
@@ -69,6 +71,7 @@ export interface Session {
   completed: boolean
   deliveredMail: readonly string[]
   readMail: readonly string[]
+  recovery?: Readonly<Record<string, { context: RecoveryContext; handoff?: Handoff }>>
 }
 
 export interface Response {
@@ -86,11 +89,15 @@ export function createRuntime(
 ) {
   const start = (completed: boolean): Session => {
     const host = scenario.hosts.find(({ id }) => id === scenario.initialHost)
+    const released = campaign.handoff(scenario.id)?.kind === 'release'
+    const final = host?.recovery?.find(({ command }) => command === scenario.objective.action)
     return {
       host,
       identity: host?.guest ?? scenario.local,
-      flags: [],
-      completed,
+      flags: released
+        ? (final?.success.flatMap((effect) => (effect.type === 'flag' ? [effect.flag] : [])) ?? [])
+        : [],
+      completed: completed || released,
       deliveredMail: campaign.delivered,
       readMail: campaign.read,
     }
@@ -179,7 +186,11 @@ export function createRuntime(
   }
 
   function availableOperations() {
-    return (state.host?.operations ?? []).filter(({ access }) => allows(access))
+    const released = campaign.handoff(scenario.id)?.kind === 'release'
+    return [...(state.host?.operations ?? []), ...(state.host?.recovery ?? [])].filter(
+      ({ command, access }) =>
+        allows(access) && (!released || command === scenario.objective.action),
+    )
   }
 
   function commands() {
@@ -187,7 +198,7 @@ export function createRuntime(
     return commandHelp
       .map(([usage]) => usage.split(' ')[0])
       .filter((command) => command !== 'mail' || campaign.hasInbox)
-      .filter((command) => !Object.hasOwn(puzzleArity, command) || available.has(command))
+      .filter((command) => !Object.hasOwn(operationArity, command) || available.has(command))
   }
 
   function suggestions(): string[] {
@@ -212,6 +223,10 @@ export function createRuntime(
         case 'flag':
           if (!state.flags.includes(effect.flag))
             state = { ...state, flags: [...state.flags, effect.flag] }
+          break
+        case 'clearFlag':
+          if (state.flags.includes(effect.flag))
+            state = { ...state, flags: state.flags.filter((flag) => flag !== effect.flag) }
           break
         case 'message':
           output.push({ kind, text: effect.text })
@@ -240,6 +255,26 @@ export function createRuntime(
       syncInbox()
       output.push({ kind: 'mailNotice' })
     }
+  }
+
+  function completeObjective(output: Output[], handoff?: Handoff) {
+    if (state.completed) {
+      if (handoff) campaign.complete(scenario.id, handoff)
+      return
+    }
+    state = { ...state, completed: true }
+    output.push({ kind: 'objective', text: scenario.objective.message })
+    const { destinations, newMail } = campaign.complete(scenario.id, handoff)
+    if (newMail) {
+      syncInbox()
+      output.push({ kind: 'mailNotice' })
+    }
+    if (destinations.length)
+      output.push({
+        kind: 'listing',
+        title: 'New destination',
+        links: destinationLinks(destinations),
+      })
   }
 
   function resourceAction(action: Extract<Action, { type: 'ls' | 'cat' }>): Response {
@@ -285,21 +320,8 @@ export function createRuntime(
           },
     ]
     apply(resource.onRead, output, 'message')
-    if (!state.completed && scenario.objective.read === resource.id) {
-      state = { ...state, completed: true }
-      output.push({ kind: 'objective', text: scenario.objective.message })
-      const { destinations, newMail } = campaign.complete(scenario.id)
-      if (newMail) {
-        syncInbox()
-        output.push({ kind: 'mailNotice' })
-      }
-      if (destinations.length)
-        output.push({
-          kind: 'listing',
-          title: 'New destination',
-          links: destinationLinks(destinations),
-        })
-    }
+    if (scenario.objective.read === resource.id)
+      completeObjective(output, state.recovery?.[state.host.id]?.handoff)
     return { output }
   }
 
@@ -359,7 +381,18 @@ export function createRuntime(
       case 'login':
       case 'route':
       case 'reconstruct':
-      case 'reconcile': {
+      case 'reconcile':
+      case 'collate':
+      case 'replay':
+      case 'recover':
+      case 'casing':
+      case 'lookup':
+      case 'probe':
+      case 'bind':
+      case 'prepare':
+      case 'preview':
+      case 'verify':
+      case 'commit': {
         const binding = availableOperations().find(({ command }) => command === action.type)
         if (!binding) return error(`${action.type} is unavailable with the current access.`)
         const payload =
@@ -368,30 +401,66 @@ export function createRuntime(
             : action.type === 'reconcile'
               ? action.payload
               : action.payloads
-        if (payload === undefined) {
+        if (payload === undefined && operationArity[action.type]) {
           return { compose: action.type }
         }
-        const values = typeof payload === 'string' ? [payload] : payload
-        if (values.length !== puzzleArity[action.type])
+        const values = typeof payload === 'string' ? [payload] : (payload ?? [])
+        if (values.length !== operationArity[action.type])
           return error('Supply all arguments for this operation.')
         let index = 0
         const inputs = Object.fromEntries(
           binding.fields.map(({ input, fixed }) => [input, fixed ?? values[index++]]),
         )
         const before = state
+        const hostId = before.host!.id
+        const staged = state.recovery?.[hostId]
+        const recovery = scenario.recovery
         pending = before
         try {
-          const result = await engine.evaluate(binding.program, inputs)
+          const result =
+            'program' in binding
+              ? await engine.evaluate(binding.program, inputs)
+              : await engine.runRecovery({
+                  version: 1,
+                  dataset: recovery!.dataset,
+                  command: binding.command,
+                  args: values,
+                  context: staged?.context,
+                  prior: recovery?.prior ? campaign.handoff(recovery.prior) : undefined,
+                  committed: campaign.handoff(scenario.id),
+                  direct: campaign.direct(scenario.id),
+                })
           if (state !== before) return {}
           if (!result.ok) {
             const { error: issue } = result
-            const field = binding.fields.find(({ input }) => issue.path === 'inputs.' + input)
+            const arg = /^args\.(\d+)$/u.exec(issue.path ?? '')
+            const field = arg
+              ? binding.fields[Number(arg[1])]
+              : binding.fields.find(({ input }) => issue.path === 'inputs.' + input)
             return error(
               issue.code === 'invalid_input' && issue.offset !== undefined
                 ? (field?.label ?? 'Payload') +
                     ' contains an unpaired surrogate. Open Code points to find and remove it.'
-                : `${issue.code} · ${issue.message}`,
+                : `${field?.label ?? issue.code} · ${issue.message}`,
             )
+          }
+          const output: Output[] = []
+          let handoff: Handoff | undefined
+          if ('rows' in result.value) {
+            const { rows, context, handoff: next } = result.value
+            handoff = next
+            state = {
+              ...state,
+              recovery: {
+                ...state.recovery,
+                [hostId]: { context, handoff: handoff ?? staged?.handoff },
+              },
+              flags:
+                'invalidates' in binding
+                  ? state.flags.filter((flag) => !binding.invalidates.includes(flag))
+                  : state.flags,
+            }
+            if (rows.length) output.push({ kind: 'report', rows })
           }
           if (!result.value.solved) {
             const messages = new Map<string | undefined, string>()
@@ -402,14 +471,27 @@ export function createRuntime(
               )
                 messages.set(stage, message)
             }
-            return {
-              output: [
-                { kind: 'error', text: [...messages.values()].join('\n') || binding.failure },
-              ],
-            }
+            output.push({
+              kind: 'error',
+              text: [...messages.values()].join('\n') || binding.failure,
+            })
+            return { output }
           }
-          const output: Output[] = []
-          apply(binding.success, output, action.type === 'login' ? 'auth' : 'message')
+          if (
+            scenario.objective.action === action.type &&
+            campaign.handoff(scenario.id)?.kind === 'release'
+          ) {
+            output.push(message('Transaction already applied.'))
+            return { output }
+          }
+          if (scenario.objective.action === action.type && output.length) {
+            const report = output.pop()!
+            apply(binding.success, output, 'message')
+            output.push(report)
+          } else {
+            apply(binding.success, output, action.type === 'login' ? 'auth' : 'message')
+          }
+          if (scenario.objective.action === action.type) completeObjective(output, handoff)
           return { output }
         } finally {
           if (pending === before) pending = undefined

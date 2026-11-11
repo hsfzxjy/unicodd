@@ -1,0 +1,12 @@
+{
+  "messages": [
+    {
+      "id": "cursor-review",
+      "from": "Rowan / MONONYM",
+      "to": "MONONYM operations",
+      "subject": "Cursor review",
+      "date": "2026-08-25",
+      "body": "The cursor stores the last displayed sort key. The next page starts strictly after it. If two titles compare equal, one can sit on the wrong side of that boundary.\n\nStable sorting keeps the order of ties in a batch. It still leaves the cursor unable to name a record. The comparison tool can help show where they tie."
+    }
+  ]
+}

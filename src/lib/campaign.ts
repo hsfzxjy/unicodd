@@ -1,4 +1,5 @@
 import type { MailMessage, Scenario } from './scenario.ts'
+import type { Handoff } from './recovery.ts'
 
 export const campaignKey = 'unicodd.campaign'
 type StorageAccess = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
@@ -9,6 +10,33 @@ interface Save {
   completed: string[]
   delivered: string[]
   read: string[]
+  handoffs?: Record<string, Handoff>
+}
+
+function validHandoff(handoff: Handoff | undefined): handoff is Handoff {
+  if (!handoff || handoff.version !== 1) return false
+  const text = (value: unknown) => typeof value === 'string' && value.length > 0
+  const approval = (value: unknown) =>
+    value !== null &&
+    typeof value === 'object' &&
+    ['registration', 'owner', 'receipt'].every((key) =>
+      text((value as Record<string, unknown>)[key]),
+    )
+  switch (handoff.kind) {
+    case 'appeals':
+      return Array.isArray(handoff.records) && handoff.records.every(text)
+    case 'approvals':
+      return Array.isArray(handoff.approvals) && handoff.approvals.every(approval)
+    case 'release':
+      return (
+        Array.isArray(handoff.identities) &&
+        handoff.identities.every(
+          (entry) => entry && text(entry.canonical) && text(entry.name) && approval(entry.approval),
+        )
+      )
+    default:
+      return false
+  }
 }
 
 function decode(raw: string | null): Save | undefined {
@@ -41,6 +69,7 @@ export function createCampaign(
   const completed = new Set<string>()
   const delivered = new Set<string>()
   const read = new Set<string>()
+  const handoffs = new Map<string, Handoff>()
   let current = ''
   let restoring = true
 
@@ -53,6 +82,7 @@ export function createCampaign(
     completed.clear()
     delivered.clear()
     read.clear()
+    handoffs.clear()
     for (const scenario of available) {
       if (scenario.initiallyDiscovered) discovered.add(scenario.id)
     }
@@ -70,6 +100,7 @@ export function createCampaign(
           completed: [...completed],
           delivered: [...delivered],
           read: [...read],
+          handoffs: Object.fromEntries(handoffs),
         } satisfies Save),
       )
     } catch {
@@ -83,12 +114,13 @@ export function createCampaign(
     return true
   }
 
-  function complete(id: string) {
+  function complete(id: string, handoff?: Handoff) {
     const scenario = byId.get(id)
     const destinations: Scenario[] = []
     let newMail = false
     if (scenario && !completed.has(id)) {
       completed.add(id)
+      if (handoff) handoffs.set(id, handoff)
       for (const effect of scenario.objective.onComplete) {
         if (effect.type === 'deliverMail') {
           if (deliver(effect.message)) newMail = true
@@ -100,6 +132,9 @@ export function createCampaign(
           }
         }
       }
+      persist()
+    } else if (scenario && handoff && !handoffs.has(id)) {
+      handoffs.set(id, handoff)
       persist()
     }
     return { destinations, newMail }
@@ -119,8 +154,19 @@ export function createCampaign(
     const saved = decode(raw ?? null)
     if (saved) {
       for (const id of saved.delivered) deliver(id)
-      for (const id of saved.completed) {
-        if (discovered.has(id)) complete(id)
+      for (const { id, recovery } of available) {
+        if (!discovered.has(id) || !saved.completed.includes(id)) continue
+        const handoff = saved.handoffs?.[id]
+        if (
+          validHandoff(handoff) &&
+          recovery &&
+          handoff.incident === recovery.dataset.incident &&
+          handoff.revision === recovery.dataset.revision
+        ) {
+          complete(id, handoff)
+        } else {
+          complete(id)
+        }
       }
       for (const id of saved.read) if (delivered.has(id)) read.add(id)
       if (selectable(saved.current)) current = saved.current
@@ -171,6 +217,8 @@ export function createCampaign(
       return added
     },
     selectable,
+    direct: (id: string) => direct === id,
+    handoff: (id: string) => handoffs.get(id),
     completed: (id: string) => completed.has(id),
     destinations: () => available.filter(({ id }) => selectable(id)),
     enter,

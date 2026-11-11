@@ -1,0 +1,8 @@
+INCIDENT 8C2F / AUTHORIZED SCOPE
+
+0001842   Mira   U+004D U+0069 U+0072 U+0061   owner-1842
+0002917   Mіra   U+004D U+0456 U+0072 U+0061   owner-2917
+
+The legacy similarity bucket maps both to one canonical identity. Review the two approvals against their source registrations. Equal display names are permitted on independent accounts.
+
+Control cases include a different registration named Mira, and a retained decomposed name. Neither record is in the transaction scope.

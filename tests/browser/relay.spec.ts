@@ -338,7 +338,7 @@ test('keeps manual scrollback and safely renders raw command echoes', async ({ p
   })
   const latest = page.getByRole('button', { name: /Latest output/ })
   await expect(latest).toBeVisible()
-  const text = 'probe <img> אבג'
+  const text = 'unknown <img> אבג'
   await run(page, text)
   await expect(log).toContainText('Unknown command')
   await expect(log.locator('img')).toHaveCount(0)

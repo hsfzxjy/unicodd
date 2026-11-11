@@ -1,0 +1,12 @@
+{
+  "messages": [
+    {
+      "id": "preview-review",
+      "from": "Rowan / MONONYM",
+      "to": "MONONYM operations",
+      "subject": "RE: Audit preview is fixed",
+      "date": "2026-08-27",
+      "body": "The surrogate-pair cases are fine. The decomposed accent samples aren't. We are still cutting inside user-visible characters.\n\nAlso, please stop calling the character count a byte limit. The print spool reserves bytes."
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+Replay controls
+
+Compare titles with collate: en-US or sv-SE, primary / secondary / tertiary.
+Primary comparison can group accents or case. Regional alphabets can keep distinctions that English groups.
+
+Replay inputs: locale, strength, cursor strategy, page size (1–64), and start cursor.
+  title      advance past the last title weight
+  composite  advance past the last title weight and immutable record ID
+  inclusive  resume at the last record (legacy boundary compatibility)
+Use start to replay from the beginning. A copied or captured cursor resumes after a boundary. It carries its snapshot, collation profile, locale, strength, strategy and page size.
+
+Support needs a complete, duplicate-free replay with an unambiguous boundary before it can recover the real appeals.

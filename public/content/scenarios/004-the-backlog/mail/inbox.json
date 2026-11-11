@@ -1,0 +1,11 @@
+{
+  "messages": [
+    {
+      "id": "both-cases-open",
+      "from": "Nia / User Support",
+      "to": "Local operator",
+      "subject": "Both cases are open",
+      "body": "The reviewers accepted the evidence, but they won't separate the accounts without two independent owner confirmations.\n\nBoth confirmations have been sent. The broker at recovery-05 claims they belong to the same channel.\n\nI am beginning to dislike the word “same”."
+    }
+  ]
+}

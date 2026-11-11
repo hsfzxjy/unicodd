@@ -1,0 +1,11 @@
+2026-08-25 / broker 3.4
+
+Primary shard channel labels received: IRIS, iris
+Active lookup profile: und (default lowercase)
+Status: ambiguous channel. No receipt returned.
+
+Owner slots from the review handoff:
+  0001842 → owner-1842
+  0002917 → owner-2917
+
+Unverified shard fixtures cannot authorize a recovery.

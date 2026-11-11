@@ -4,7 +4,13 @@ import { unpairedSurrogate } from './unicode.ts'
 type Bindings = typeof import('./wasm/pkg/unicodd_core.js')
 type Operations = Pick<
   Bindings,
-  'engine_info' | 'validate_program' | 'evaluate' | 'normalize_text' | 'inspect_scalar'
+  | 'engine_info'
+  | 'validate_program'
+  | 'evaluate'
+  | 'normalize_text'
+  | 'inspect_scalar'
+  | 'validate_recovery_dataset'
+  | 'run_recovery'
 >
 const encoder = new TextEncoder()
 const programLimit = 13 * 1024 * 1024
@@ -43,7 +49,7 @@ function bytes(text: string, limit: number, path: string): Result<Uint8Array> {
 function jsonBytes(
   data: unknown,
   limit: number,
-  path: 'program' | 'inputs',
+  path: 'program' | 'inputs' | 'dataset' | 'request',
   code: 'invalid_program' | 'invalid_input',
 ): Result<Uint8Array> {
   let rejection: Result<never> | undefined
@@ -92,6 +98,18 @@ export function createEngine(load: () => Promise<Operations>): Engine {
     async validate(program) {
       const data = jsonBytes(program, programLimit, 'program', 'invalid_program')
       return data.ok ? call((module) => module.validate_program(data.value)) : data
+    },
+    async validateRecovery(dataset) {
+      const data = jsonBytes(dataset, inputLimit, 'dataset', 'invalid_program')
+      return data.ok ? call((module) => module.validate_recovery_dataset(data.value)) : data
+    },
+    async runRecovery(request) {
+      for (const [index, arg] of request.args.entries()) {
+        const invalid = surrogateError(arg, 'invalid_input', 'args.' + index)
+        if (invalid) return invalid
+      }
+      const data = jsonBytes(request, inputLimit, 'request', 'invalid_input')
+      return data.ok ? call((module) => module.run_recovery(data.value)) : data
     },
     async evaluate(program, inputs, trace = false) {
       const data = jsonBytes(program, programLimit, 'program', 'invalid_program')

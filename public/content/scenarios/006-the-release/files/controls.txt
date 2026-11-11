@@ -1,0 +1,5 @@
+Renderer diagnostics
+
+A status sample contains U+202E RIGHT-TO-LEFT OVERRIDE between “ok” and “12”. The archive retains the exact field. The preview must show the formatting control as a visible marker so that the reviewer can still read the field.
+
+U+2068 FIRST STRONG ISOLATE and U+2069 POP DIRECTIONAL ISOLATE belong to the serialized presentation. Treat an unpaired wrapper as a preview failure. Neither wrapper should appear in stored names.

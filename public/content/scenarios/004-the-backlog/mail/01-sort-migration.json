@@ -1,0 +1,12 @@
+{
+  "messages": [
+    {
+      "id": "sort-migration",
+      "from": "Eli / MONONYM",
+      "to": "MONONYM operations",
+      "subject": "Sort migration",
+      "date": "2026-08-24",
+      "body": "We moved the regional support queues to shared search. The old Swedish UI had its own ordering rules. The replacement uses a default profile.\n\nNobody complained about the alphabet. Support complained about missing cases. I assumed those were unrelated."
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "messages": [
+    {
+      "id": "release-conditions",
+      "from": "Mara / MONONYM",
+      "to": "MONONYM operations",
+      "subject": "Release conditions",
+      "date": "2026-08-27",
+      "body": "Keep the source names intact. The audit line is a representation of the records.\n\nI need two intact owner records, two valid approvals and an export I can read without guessing which number belongs to which person. Once the dry run passes, I'll approve the split."
+    }
+  ]
+}

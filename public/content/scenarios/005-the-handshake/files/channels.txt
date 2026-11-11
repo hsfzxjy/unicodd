@@ -1,0 +1,9 @@
+Diagnostic shard / channels only
+
+IRIS / iris      Latin I U+0049 vs i U+0069
+I / ı           U+0049 / U+0131
+İ / i           U+0130 / U+0069
+ΟΣ / ος / οσ    U+039F U+03A3 / U+03BF U+03C2 / U+03BF U+03C3
+İ / Í           U+0049 U+0307 / U+0049 U+0301
+
+The last two lines test context. A channel is processed as one string.

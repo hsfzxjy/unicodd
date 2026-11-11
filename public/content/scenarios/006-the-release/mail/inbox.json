@@ -1,0 +1,18 @@
+{
+  "messages": [
+    {
+      "id": "it-worked",
+      "from": "Mira / Registration 0002917",
+      "to": "Local operator",
+      "subject": "It worked",
+      "body": "I logged in this morning.\n\nMy messages were there. Only mine.\n\nShe tried hers too. Both accounts work. Support sent us separate confirmation numbers.\n\nI checked twice.\n\nThank you for not taking the easy answer."
+    },
+    {
+      "id": "thank-you",
+      "from": "Mira / Registration 0001842",
+      "to": "Local operator",
+      "subject": "Thank you",
+      "body": "I think we should finally introduce ourselves properly.\n\nWe spent weeks being told we were the same person. Turns out we have very little in common.\n\nExcept the name, apparently."
+    }
+  ]
+}

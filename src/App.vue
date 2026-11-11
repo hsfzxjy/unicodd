@@ -32,7 +32,10 @@ const terminal = ref<InstanceType<typeof Terminal>>()
 const contextVersion = ref(0)
 const transcript = shallowRef<Entry[]>([])
 const prompt = computed(() => session.value?.host?.id ?? 'local')
-const operations = computed(() => session.value?.host?.operations ?? [])
+const operations = computed(() => {
+  const host = session.value?.host
+  return [...(host?.operations ?? []), ...(host?.recovery ?? [])]
+})
 let runtime: ReturnType<typeof createRuntime> | undefined
 let sequence = 0
 
@@ -66,7 +69,8 @@ const shortcuts = computed((): Link[] => {
   if (session.value.host) {
     actions.push({ label: 'Files', action: { type: 'ls' } })
     for (const operation of runtime?.operations ?? [])
-      actions.push({ label: operation.actionLabel, action: puzzleAction(operation.command) })
+      if (!('quick' in operation) || operation.quick)
+        actions.push({ label: operation.actionLabel, action: puzzleAction(operation.command) })
     if (session.value.identity !== session.value.host.guest)
       actions.push({ label: 'Logout', action: { type: 'logout' } })
   }
@@ -199,7 +203,11 @@ async function dispatch(action: Action, command?: string) {
     if (runtime === active) await terminal.value?.selectCommand(response.compose)
   }
   const readable = response.output?.find(
-    (row) => row.kind === 'inspection' || row.kind === 'mail' || row.kind === 'file',
+    (row) =>
+      row.kind === 'inspection' ||
+      row.kind === 'mail' ||
+      row.kind === 'file' ||
+      row.kind === 'report',
   )
   if (readable) {
     await nextTick()

@@ -16,7 +16,7 @@ const load = async () => production.campaign(await production.manifest())
 
 it('keeps campaign progression and inbox separate from replayable sessions', async () => {
   const scenarios = await load()
-  const [relay, dead, index] = scenarios
+  const [relay, dead, index, backlog] = scenarios
   const disk = storage()
   let campaign = createCampaign(scenarios, disk)
   let runtime = createRuntime(relay, engine, campaign)
@@ -113,7 +113,8 @@ it('keeps campaign progression and inbox separate from replayable sessions', asy
       verified: true,
     },
   ])
-  expect(campaign.finished).toBe(true)
+  expect(campaign.finished).toBe(false)
+  expect(campaign.selectable(backlog.id)).toBe(true)
   expect(await run(exportPath)).toMatchObject({ output: [{ kind: 'file' }] })
   await runtime.dispatch({ type: 'reset' })
   await run(String.raw`reconcile M\u000456ra`)
@@ -121,13 +122,14 @@ it('keeps campaign progression and inbox separate from replayable sessions', asy
   expect((await run(exportPath)).output?.map(({ kind }) => kind)).toEqual(['file', 'objective'])
   const restored = createCampaign(scenarios, disk)
   expect(restored.current).toBe(index.id)
-  expect(restored.finished).toBe(true)
+  expect(restored.finished).toBe(false)
   expect(restored.delivered).toEqual([
     'favor',
     'missing-notice',
     'missing-notice-reply',
     'spoke-to-her',
     'we-have-the-records',
+    'reopened-both-cases',
   ])
   expect(restored.reset()).toBe(relay.id)
   expect(restored.delivered).toEqual(['favor'])

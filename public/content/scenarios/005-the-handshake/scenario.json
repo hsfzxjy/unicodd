@@ -1,0 +1,287 @@
+{
+  "version": 1,
+  "title": "The Handshake",
+  "introduction": "The recovery broker has both owner confirmations. Its channel index groups them together.",
+  "roles": ["recovery-auditor"],
+  "flags": ["consent_verified"],
+  "local": {
+    "user": "recovery-auditor",
+    "role": "recovery-auditor"
+  },
+  "initialHost": "recovery-05",
+  "recovery": {
+    "dataset": "recovery/8c2f.json",
+    "source": "scenarios/003-the-index/files/8c2f-originals.json",
+    "prior": "004-the-backlog"
+  },
+  "hosts": [
+    {
+      "id": "recovery-05",
+      "name": "MONONYM recovery broker",
+      "guest": {
+        "user": "recovery-auditor",
+        "role": "recovery-auditor"
+      },
+      "welcome": "Receipt lookup and routing diagnostics available. The split requires independent consent.",
+      "status": [
+        {
+          "label": "Incident",
+          "value": "8C2F"
+        },
+        {
+          "label": "Approvals",
+          "value": "Unbound",
+          "after": {
+            "flag": "consent_verified",
+            "value": "Two verified owners"
+          }
+        }
+      ],
+      "resources": [
+        {
+          "id": "readme",
+          "path": "/README",
+          "type": "file",
+          "content": "files/README.txt"
+        },
+        {
+          "id": "broker",
+          "path": "/broker",
+          "type": "directory"
+        },
+        {
+          "id": "index",
+          "path": "/broker/index.log",
+          "type": "file",
+          "content": "files/index.log"
+        },
+        {
+          "id": "channels",
+          "path": "/broker/channels.txt",
+          "type": "file",
+          "content": "files/channels.txt",
+          "inspectNotation": true
+        },
+        {
+          "id": "tools",
+          "path": "/tools",
+          "type": "directory"
+        },
+        {
+          "id": "routing",
+          "path": "/tools/routing.txt",
+          "type": "file",
+          "content": "files/routing.txt"
+        },
+        {
+          "id": "archive",
+          "path": "/mail",
+          "type": "directory"
+        },
+        {
+          "id": "01-regional-casing",
+          "path": "/mail/01-regional-casing",
+          "type": "mail",
+          "content": "mail/01-regional-casing.json"
+        },
+        {
+          "id": "02-routing-review",
+          "path": "/mail/02-routing-review",
+          "type": "mail",
+          "content": "mail/02-routing-review.json"
+        },
+        {
+          "id": "03-owner-records",
+          "path": "/mail/03-owner-records",
+          "type": "mail",
+          "content": "mail/03-owner-records.json"
+        },
+        {
+          "id": "outbox",
+          "path": "/outbox",
+          "type": "directory"
+        },
+        {
+          "id": "authorization",
+          "path": "/outbox/authorization.txt",
+          "type": "file",
+          "content": "files/authorization.txt",
+          "discover": {
+            "flag": "consent_verified"
+          },
+          "access": {
+            "flag": "consent_verified"
+          }
+        }
+      ],
+      "recovery": [
+        {
+          "command": "casing",
+          "actionLabel": "Map channel",
+          "submitLabel": "Run casing",
+          "label": "Map channel",
+          "fields": [
+            {
+              "input": "profile",
+              "label": "Case profile",
+              "initial": "und",
+              "kind": "text"
+            },
+            {
+              "input": "label",
+              "label": "Channel label",
+              "initial": "IRIS",
+              "kind": "payload"
+            }
+          ],
+          "success": [],
+          "failure": "The host rejected this operation.",
+          "rejected": []
+        },
+        {
+          "command": "lookup",
+          "actionLabel": "Look up receipt",
+          "submitLabel": "Run lookup",
+          "label": "Look up receipt",
+          "fields": [
+            {
+              "input": "profile",
+              "label": "Case profile",
+              "initial": "und",
+              "kind": "text"
+            },
+            {
+              "input": "channel",
+              "label": "Channel label",
+              "initial": "IRIS",
+              "kind": "payload"
+            }
+          ],
+          "success": [],
+          "failure": "The host rejected this operation.",
+          "quick": true,
+          "rejected": [
+            {
+              "check": "match",
+              "message": "No receipt matched that channel key."
+            },
+            {
+              "check": "unambiguous",
+              "message": "The broker found multiple records under the same key. No receipt was retrieved."
+            }
+          ]
+        },
+        {
+          "command": "probe",
+          "actionLabel": "Check routing",
+          "submitLabel": "Run probe",
+          "label": "Check routing",
+          "fields": [
+            {
+              "input": "key",
+              "label": "Routing key",
+              "initial": "default-lower",
+              "kind": "text"
+            }
+          ],
+          "success": [],
+          "failure": "The host rejected this operation.",
+          "rejected": [
+            {
+              "check": "routing-unique",
+              "message": "The proposed global key groups distinct receipt records."
+            }
+          ]
+        },
+        {
+          "command": "bind",
+          "actionLabel": "Bind approvals",
+          "submitLabel": "Run bind",
+          "label": "Bind approvals",
+          "fields": [
+            {
+              "input": "key",
+              "label": "Routing key",
+              "initial": "default-lower",
+              "kind": "text"
+            },
+            {
+              "input": "first",
+              "label": "Receipt for 0001842",
+              "initial": "",
+              "kind": "text"
+            },
+            {
+              "input": "second",
+              "label": "Receipt for 0002917",
+              "initial": "",
+              "kind": "text"
+            }
+          ],
+          "success": [
+            {
+              "type": "flag",
+              "flag": "consent_verified"
+            },
+            {
+              "type": "message",
+              "text": "OWNER CONSENT VERIFIED\nIndependent approvals: 2"
+            },
+            {
+              "type": "resourceLink",
+              "resource": "authorization"
+            }
+          ],
+          "failure": "The host rejected this operation.",
+          "quick": true,
+          "rejected": [
+            {
+              "check": "appeal-handoff",
+              "stage": "handoff",
+              "message": "The broker needs the verified appeals handoff."
+            },
+            {
+              "check": "receipts-retrieved",
+              "stage": "receipt",
+              "message": "Retrieve each receipt through an unambiguous channel lookup first."
+            },
+            {
+              "check": "consent-single-use",
+              "stage": "receipt",
+              "message": "Each consent can be attached only once."
+            },
+            {
+              "check": "owner-match",
+              "stage": "receipt",
+              "message": "A receipt does not match the registration and verified owner in that slot."
+            },
+            {
+              "check": "routing-unique",
+              "stage": "routing",
+              "message": "This key misroutes distinct records in the diagnostic set."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "objective": {
+    "text": "Bind both owners’ independent approvals and read the authorization handoff.",
+    "read": "authorization",
+    "message": "Independent owner approvals handed off for the limited recovery.",
+    "onComplete": [
+      {
+        "type": "deliverMail",
+        "message": "before-the-split"
+      },
+      {
+        "type": "discover",
+        "scenario": "006-the-release"
+      }
+    ]
+  },
+  "inbox": {
+    "content": "mail/inbox.json",
+    "initial": []
+  }
+}

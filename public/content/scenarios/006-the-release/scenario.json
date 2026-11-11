@@ -1,0 +1,458 @@
+{
+  "version": 1,
+  "title": "The Release",
+  "introduction": "Both owners approved a limited repair for incident 8C2F. The audit job is blocked on verification.",
+  "roles": ["recovery-operator"],
+  "flags": ["plan_prepared", "preview_ready", "plan_verified", "released"],
+  "local": {
+    "user": "recovery-operator",
+    "role": "recovery-operator"
+  },
+  "initialHost": "audit-06",
+  "recovery": {
+    "dataset": "recovery/8c2f.json",
+    "source": "scenarios/003-the-index/files/8c2f-originals.json",
+    "prior": "005-the-handshake"
+  },
+  "hosts": [
+    {
+      "id": "audit-06",
+      "name": "MONONYM recovery audit",
+      "guest": {
+        "user": "recovery-operator",
+        "role": "recovery-operator"
+      },
+      "welcome": "Restricted recovery operator. Two originals and two approvals in scope. Commit requires a verified dry run.",
+      "status": [
+        {
+          "label": "Incident",
+          "value": "8C2F"
+        },
+        {
+          "label": "Plan",
+          "value": "Pending",
+          "after": {
+            "flag": "plan_prepared",
+            "value": "Staged"
+          }
+        },
+        {
+          "label": "Preview",
+          "value": "Unverified",
+          "after": {
+            "flag": "preview_ready",
+            "value": "Passed"
+          }
+        },
+        {
+          "label": "Dry run",
+          "value": "Blocked",
+          "after": {
+            "flag": "plan_verified",
+            "value": "Verified"
+          }
+        },
+        {
+          "label": "Recovery",
+          "value": "Pending",
+          "after": {
+            "flag": "released",
+            "value": "Two active identities"
+          }
+        }
+      ],
+      "resources": [
+        {
+          "id": "readme",
+          "path": "/README",
+          "type": "file",
+          "content": "files/README.txt"
+        },
+        {
+          "id": "plans",
+          "path": "/plans",
+          "type": "directory"
+        },
+        {
+          "id": "scope",
+          "path": "/plans/8c2f.txt",
+          "type": "file",
+          "content": "files/scope.txt",
+          "inspectNotation": true
+        },
+        {
+          "id": "samples",
+          "path": "/samples",
+          "type": "directory"
+        },
+        {
+          "id": "audit-samples",
+          "path": "/samples/preview.txt",
+          "type": "file",
+          "content": "files/preview.txt",
+          "inspectLines": [3, 4, 5]
+        },
+        {
+          "id": "control-samples",
+          "path": "/samples/controls.txt",
+          "type": "file",
+          "content": "files/controls.txt",
+          "inspectNotation": true
+        },
+        {
+          "id": "logs",
+          "path": "/logs",
+          "type": "directory"
+        },
+        {
+          "id": "versions",
+          "path": "/logs/audit-history.log",
+          "type": "file",
+          "content": "files/audit-history.log"
+        },
+        {
+          "id": "tools",
+          "path": "/tools",
+          "type": "directory"
+        },
+        {
+          "id": "audit-help",
+          "path": "/tools/recovery.txt",
+          "type": "file",
+          "content": "files/recovery.txt"
+        },
+        {
+          "id": "archive",
+          "path": "/mail",
+          "type": "directory"
+        },
+        {
+          "id": "01-preview-fix",
+          "path": "/mail/01-preview-fix",
+          "type": "mail",
+          "content": "mail/01-preview-fix.json"
+        },
+        {
+          "id": "02-preview-review",
+          "path": "/mail/02-preview-review",
+          "type": "mail",
+          "content": "mail/02-preview-review.json"
+        },
+        {
+          "id": "03-printout",
+          "path": "/mail/03-printout",
+          "type": "mail",
+          "content": "mail/03-printout.json"
+        },
+        {
+          "id": "04-release-conditions",
+          "path": "/mail/04-release-conditions",
+          "type": "mail",
+          "content": "mail/04-release-conditions.json"
+        }
+      ],
+      "recovery": [
+        {
+          "command": "prepare",
+          "actionLabel": "Prepare split",
+          "submitLabel": "Run prepare",
+          "label": "Prepare split",
+          "fields": [
+            {
+              "input": "key",
+              "label": "Identity key",
+              "initial": "skeleton",
+              "kind": "text"
+            },
+            {
+              "input": "originals",
+              "label": "Original names",
+              "initial": "preserve",
+              "kind": "text"
+            }
+          ],
+          "success": [
+            {
+              "type": "flag",
+              "flag": "plan_prepared"
+            },
+            {
+              "type": "clearFlag",
+              "flag": "preview_ready"
+            },
+            {
+              "type": "clearFlag",
+              "flag": "plan_verified"
+            },
+            {
+              "type": "message",
+              "text": "Identity mapping staged. Run an audit preview for this plan."
+            }
+          ],
+          "failure": "The host rejected this operation.",
+          "quick": true,
+          "rejected": [
+            {
+              "check": "originals",
+              "stage": "identity",
+              "message": "The proposed policy changes an original code-point sequence."
+            },
+            {
+              "check": "independent-owners",
+              "stage": "identity",
+              "message": "The source owner records are not independent."
+            },
+            {
+              "check": "identity-unique",
+              "stage": "identity",
+              "message": "The identity key collides across distinct registrations."
+            },
+            {
+              "check": "approvals",
+              "stage": "consent",
+              "message": "The authorization handoff is missing or does not match both owners."
+            }
+          ]
+        },
+        {
+          "command": "preview",
+          "actionLabel": "Audit preview",
+          "submitLabel": "Run preview",
+          "label": "Audit preview",
+          "fields": [
+            {
+              "input": "units",
+              "label": "Limit units",
+              "initial": "utf16",
+              "kind": "text"
+            },
+            {
+              "input": "limit",
+              "label": "Field limit",
+              "initial": "4",
+              "kind": "text"
+            },
+            {
+              "input": "bidi",
+              "label": "Bidi policy",
+              "initial": "raw",
+              "kind": "text"
+            },
+            {
+              "input": "controls",
+              "label": "Controls",
+              "initial": "raw",
+              "kind": "text"
+            }
+          ],
+          "success": [
+            {
+              "type": "flag",
+              "flag": "preview_ready"
+            },
+            {
+              "type": "message",
+              "text": "Audit preview passed. Verify the staged recovery before commit."
+            }
+          ],
+          "failure": "The host rejected this operation.",
+          "quick": true,
+          "invalidates": ["preview_ready", "plan_verified"],
+          "rejected": [
+            {
+              "check": "plan-required",
+              "stage": "plan",
+              "message": "Stage a valid identity mapping before accepting a preview."
+            },
+            {
+              "check": "valid-encoding",
+              "stage": "preview",
+              "message": "A cut produced invalid UTF-16."
+            },
+            {
+              "check": "grapheme-boundary",
+              "stage": "preview",
+              "message": "A preview lost a required cluster or cut inside one."
+            },
+            {
+              "check": "byte-capacity",
+              "stage": "capacity",
+              "message": "A serialized audit line exceeds its UTF-8 capacity."
+            },
+            {
+              "check": "bidi-isolation",
+              "stage": "bidi",
+              "message": "The serialization does not isolate the field after truncation."
+            },
+            {
+              "check": "formatting-controls",
+              "stage": "controls",
+              "message": "A formatting control needs a visible, safe representation."
+            }
+          ]
+        },
+        {
+          "command": "verify",
+          "actionLabel": "Verify dry run",
+          "submitLabel": "Run verify",
+          "label": "Verify dry run",
+          "fields": [],
+          "success": [
+            {
+              "type": "flag",
+              "flag": "plan_verified"
+            },
+            {
+              "type": "message",
+              "text": "DRY RUN PASSED\nOriginal records · owner approvals · identity uniqueness · audit preview · rollback readiness"
+            }
+          ],
+          "failure": "The host rejected this operation.",
+          "rejected": [
+            {
+              "check": "plan-required",
+              "stage": "plan",
+              "message": "Prepare a valid identity mapping first."
+            },
+            {
+              "check": "preview-required",
+              "stage": "preview",
+              "message": "Run an audit preview for the current mapping."
+            },
+            {
+              "check": "rollback",
+              "stage": "transaction",
+              "message": "Rollback readiness check failed. Nothing has been applied."
+            },
+            {
+              "check": "valid-encoding",
+              "stage": "preview",
+              "message": "A cut produced invalid UTF-16."
+            },
+            {
+              "check": "grapheme-boundary",
+              "stage": "preview",
+              "message": "A preview lost a required cluster or cut inside one."
+            },
+            {
+              "check": "byte-capacity",
+              "stage": "capacity",
+              "message": "A serialized audit line exceeds its UTF-8 capacity."
+            },
+            {
+              "check": "bidi-isolation",
+              "stage": "bidi",
+              "message": "The serialization does not isolate the field after truncation."
+            },
+            {
+              "check": "formatting-controls",
+              "stage": "controls",
+              "message": "A formatting control needs a visible, safe representation."
+            }
+          ]
+        },
+        {
+          "command": "commit",
+          "actionLabel": "Commit recovery",
+          "submitLabel": "Run commit",
+          "label": "Commit recovery",
+          "fields": [],
+          "success": [
+            {
+              "type": "flag",
+              "flag": "plan_prepared"
+            },
+            {
+              "type": "flag",
+              "flag": "preview_ready"
+            },
+            {
+              "type": "flag",
+              "flag": "plan_verified"
+            },
+            {
+              "type": "flag",
+              "flag": "released"
+            },
+            {
+              "type": "message",
+              "text": "RECOVERY TRANSACTION 8C2F\n\nOriginal records............. OK\nOwner approvals.............. OK\nIdentity uniqueness.......... OK\nAudit preview................ OK\nRollback readiness........... OK\n\nApplying recovery...\n\nRegistration 0001842: ACTIVE\nRegistration 0002917: ACTIVE\nCross-account routing: REMOVED\nIndependent owner bindings: VERIFIED\n\nRECOVERY COMPLETE"
+            }
+          ],
+          "failure": "The host rejected this operation.",
+          "rejected": [
+            {
+              "check": "plan-required",
+              "message": "Prepare a valid recovery plan first.",
+              "stage": "plan"
+            },
+            {
+              "check": "preview-required",
+              "message": "Run the audit preview for this plan.",
+              "stage": "plan"
+            },
+            {
+              "check": "verified",
+              "message": "Run a passing dry run before committing.",
+              "stage": "plan"
+            },
+            {
+              "check": "rollback",
+              "message": "Rollback readiness check failed. Nothing has been applied.",
+              "stage": "transaction"
+            },
+            {
+              "check": "restored",
+              "message": "The transaction could not verify both restored identities.",
+              "stage": "transaction"
+            },
+            {
+              "check": "valid-encoding",
+              "stage": "preview",
+              "message": "A cut produced invalid UTF-16."
+            },
+            {
+              "check": "grapheme-boundary",
+              "stage": "preview",
+              "message": "A preview lost a required cluster or cut inside one."
+            },
+            {
+              "check": "byte-capacity",
+              "stage": "capacity",
+              "message": "A serialized audit line exceeds its UTF-8 capacity."
+            },
+            {
+              "check": "bidi-isolation",
+              "stage": "bidi",
+              "message": "The serialization does not isolate the field after truncation."
+            },
+            {
+              "check": "formatting-controls",
+              "stage": "controls",
+              "message": "A formatting control needs a visible, safe representation."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "objective": {
+    "text": "Verify and execute the split while preserving both originals and owner approvals.",
+    "action": "commit",
+    "message": "Incident 8C2F resolved. Both original registrations have independent accounts.",
+    "onComplete": [
+      {
+        "type": "deliverMail",
+        "message": "it-worked"
+      },
+      {
+        "type": "deliverMail",
+        "message": "thank-you"
+      }
+    ]
+  },
+  "inbox": {
+    "content": "mail/inbox.json",
+    "initial": []
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "messages": [
+    {
+      "id": "before-the-split",
+      "from": "Mara / Security",
+      "to": "Local operator",
+      "subject": "Before you run the split",
+      "body": "Both owners have consented. I can authorize a limited repair for these two records.\n\nBut the audit service still shows me two identical names. One preview has even made an account number appear beside the wrong label.\n\nI'm not signing a repair I can't read back reliably. Please check audit-06 first."
+    }
+  ]
+}

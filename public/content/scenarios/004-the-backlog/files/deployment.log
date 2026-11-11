@@ -1,0 +1,7 @@
+2026-08-24  v1  regional clients moved to shared search
+2026-08-25  v2  reindexed snapshot 8c2f-r3 with ICU4X / CLDR 48
+
+Active client defaults: en-US, primary, title cursor, one row per page.
+Captured cursor: deployed-v1 (retained before reindexing, CLDR 47).
+Review output stops after stepping past the title of the last visible row.
+Reordering equal titles in the database did not fix the missing rows.

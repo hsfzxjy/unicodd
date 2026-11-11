@@ -1,0 +1,843 @@
+{
+  "versions": {
+    "recoveryVersion": 1,
+    "collationProfile": "icu4x-2.1.1-cldr-48.0-icu-78.1rc-v1",
+    "casingProfile": "icu4x-2.1.1-unicode-17.0-icu-78.1rc",
+    "graphemeVersion": "16.0.0",
+    "bidiVersion": "16.0.0",
+    "skeletonVersion": "15.1.0",
+    "caseFoldingVersion": "15.1.0",
+    "unicodeVersion": "18.0.0"
+  },
+  "cases": [
+    {
+      "id": "english-primary-collision",
+      "scenario": "004-the-backlog",
+      "command": "collate",
+      "args": ["en-US", "primary", "Aterstallning", "Återställning"],
+      "classification": "partial",
+      "failed": [],
+      "rows": [["Comparison", "Aterstallning", "equal", "Återställning"]],
+      "points": [
+        {
+          "text": "Återställning",
+          "points": [
+            "U+00C5",
+            "U+0074",
+            "U+0065",
+            "U+0072",
+            "U+0073",
+            "U+0074",
+            "U+00E4",
+            "U+006C",
+            "U+006C",
+            "U+006E",
+            "U+0069",
+            "U+006E",
+            "U+0067"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "swedish-primary-distinction",
+      "scenario": "004-the-backlog",
+      "command": "collate",
+      "args": ["sv-SE", "primary", "Aterstallning", "Återställning"],
+      "classification": "partial",
+      "failed": [],
+      "rows": [["Comparison", "Aterstallning", "less", "Återställning"]],
+      "points": [
+        {
+          "text": "Återställning",
+          "points": [
+            "U+00C5",
+            "U+0074",
+            "U+0065",
+            "U+0072",
+            "U+0073",
+            "U+0074",
+            "U+00E4",
+            "U+006C",
+            "U+006C",
+            "U+006E",
+            "U+0069",
+            "U+006E",
+            "U+0067"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "english-tertiary-distinction",
+      "scenario": "004-the-backlog",
+      "command": "collate",
+      "args": ["en-US", "tertiary", "Aterstallning", "Återställning"],
+      "classification": "partial",
+      "failed": [],
+      "rows": [["Comparison", "Aterstallning", "less", "Återställning"]],
+      "points": [
+        {
+          "text": "Återställning",
+          "points": [
+            "U+00C5",
+            "U+0074",
+            "U+0065",
+            "U+0072",
+            "U+0073",
+            "U+0074",
+            "U+00E4",
+            "U+006C",
+            "U+006C",
+            "U+006E",
+            "U+0069",
+            "U+006E",
+            "U+0067"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "literal-title-tie",
+      "scenario": "004-the-backlog",
+      "command": "collate",
+      "args": ["sv-SE", "tertiary", "Återställning", "Återställning"],
+      "classification": "partial",
+      "failed": [],
+      "rows": [["Comparison", "Återställning", "equal", "Återställning"]],
+      "points": [
+        {
+          "text": "Återställning",
+          "points": [
+            "U+00C5",
+            "U+0074",
+            "U+0065",
+            "U+0072",
+            "U+0073",
+            "U+0074",
+            "U+00E4",
+            "U+006C",
+            "U+006C",
+            "U+006E",
+            "U+0069",
+            "U+006E",
+            "U+0067"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "deployed-title-cursor",
+      "scenario": "004-the-backlog",
+      "command": "replay",
+      "args": ["en-US", "primary", "title", "1", "start"],
+      "classification": "trap",
+      "failed": ["complete-traversal", "cursor-unique"],
+      "diagnostic": "Replay skipped records",
+      "rows": [
+        ["Page 1", "AP-1842"],
+        ["Missing records", "AP-2917", "AP-T001", "AP-T002"]
+      ],
+      "points": []
+    },
+    {
+      "id": "locale-cannot-fix-ties",
+      "scenario": "004-the-backlog",
+      "command": "replay",
+      "args": ["sv-SE", "primary", "title", "1", "start"],
+      "classification": "trap",
+      "failed": ["complete-traversal", "cursor-unique"],
+      "rows": [["Missing records", "AP-T001", "AP-T002"]],
+      "points": []
+    },
+    {
+      "id": "strength-cannot-fix-ties",
+      "scenario": "004-the-backlog",
+      "command": "replay",
+      "args": ["en-US", "tertiary", "title", "1", "start"],
+      "classification": "trap",
+      "failed": ["complete-traversal", "cursor-unique"],
+      "rows": [["Missing records", "AP-T001", "AP-T002"]],
+      "points": []
+    },
+    {
+      "id": "single-page-hides-unsafe-key",
+      "scenario": "004-the-backlog",
+      "command": "replay",
+      "args": ["en-US", "primary", "title", "64", "start"],
+      "classification": "trap",
+      "failed": ["cursor-unique"],
+      "diagnostic": "Title weights cannot identify a unique boundary",
+      "rows": [["Page 1", "AP-1842", "AP-2917", "AP-T001", "AP-T002", "AP-T003"]],
+      "points": []
+    },
+    {
+      "id": "inclusive-duplicates",
+      "scenario": "004-the-backlog",
+      "command": "replay",
+      "args": ["sv-SE", "primary", "inclusive", "5", "start"],
+      "classification": "trap",
+      "failed": ["no-duplicates"],
+      "diagnostic": "Replay repeated a record",
+      "rows": [["Page 2", "AP-T003"]],
+      "points": []
+    },
+    {
+      "id": "stale-profile",
+      "scenario": "004-the-backlog",
+      "command": "replay",
+      "args": ["en-US", "primary", "title", "1", "deployed-v1"],
+      "classification": "trap",
+      "failed": ["cursor-profile"],
+      "diagnostic": "does not belong to the active snapshot and sort profile",
+      "points": []
+    },
+    {
+      "id": "composite-sweden",
+      "scenario": "004-the-backlog",
+      "command": "replay",
+      "args": ["sv-SE", "primary", "composite", "2", "start"],
+      "classification": "valid",
+      "failed": [],
+      "flags": ["replay_verified"],
+      "rows": [
+        ["Page 1", "AP-1842", "AP-T001"],
+        ["Page 2", "AP-2917", "AP-T002"],
+        ["Page 3", "AP-T003"]
+      ],
+      "points": []
+    },
+    {
+      "id": "composite-english",
+      "scenario": "004-the-backlog",
+      "command": "replay",
+      "args": ["en-US", "primary", "composite", "3", "start"],
+      "classification": "valid",
+      "failed": [],
+      "flags": ["replay_verified"],
+      "rows": [
+        ["Page 1", "AP-1842", "AP-2917", "AP-T001"],
+        ["Page 2", "AP-T002", "AP-T003"]
+      ],
+      "points": []
+    },
+    {
+      "id": "diagnostic-appeal",
+      "scenario": "004-the-backlog",
+      "command": "recover",
+      "args": ["AP-1842", "AP-T001"],
+      "classification": "trap",
+      "failed": ["authentic-appeals"],
+      "setup": [["replay", "sv-SE", "primary", "composite", "2", "start"]],
+      "flags": ["replay_verified"],
+      "diagnostic": "Migration records are excluded",
+      "points": []
+    },
+    {
+      "id": "two-independent-appeals",
+      "scenario": "004-the-backlog",
+      "command": "recover",
+      "args": ["AP-2917", "AP-1842"],
+      "classification": "valid",
+      "failed": [],
+      "setup": [["replay", "sv-SE", "primary", "composite", "2", "start"]],
+      "flags": ["replay_verified", "appeals_recovered"],
+      "handoff": "appeals",
+      "rows": [
+        ["AP-1842", "0001842"],
+        ["AP-2917", "0002917"]
+      ],
+      "points": []
+    },
+    {
+      "id": "default-channel-collision",
+      "scenario": "005-the-handshake",
+      "command": "lookup",
+      "args": ["und", "IRIS"],
+      "classification": "trap",
+      "failed": ["unambiguous"],
+      "diagnostic": "multiple records under the same key",
+      "rows": [
+        ["Lookup key", "iris"],
+        ["RC-1842", "0001842", "IRIS"],
+        ["RC-2917", "0002917", "iris"]
+      ],
+      "points": []
+    },
+    {
+      "id": "folding-channel-collision",
+      "scenario": "005-the-handshake",
+      "command": "lookup",
+      "args": ["fold", "iris"],
+      "classification": "trap",
+      "failed": ["unambiguous"],
+      "rows": [["Lookup key", "iris"]],
+      "points": []
+    },
+    {
+      "id": "turkish-distinguishes-primary-receipts",
+      "scenario": "005-the-handshake",
+      "command": "lookup",
+      "args": ["tr", "IRIS"],
+      "classification": "partial",
+      "failed": [],
+      "rows": [
+        ["Lookup key", "ırıs"],
+        ["RC-1842", "0001842", "IRIS"]
+      ],
+      "points": [
+        {
+          "text": "ırıs",
+          "points": ["U+0131", "U+0072", "U+0131", "U+0073"]
+        }
+      ]
+    },
+    {
+      "id": "azeri-distinguishes-primary-receipts",
+      "scenario": "005-the-handshake",
+      "command": "lookup",
+      "args": ["az", "iris"],
+      "classification": "partial",
+      "failed": [],
+      "rows": [
+        ["Lookup key", "iris"],
+        ["RC-2917", "0002917", "iris"]
+      ],
+      "points": []
+    },
+    {
+      "id": "turkish-dotless-collision",
+      "scenario": "005-the-handshake",
+      "command": "lookup",
+      "args": ["tr", "I"],
+      "classification": "trap",
+      "failed": ["unambiguous"],
+      "rows": [
+        ["Lookup key", "ı"],
+        ["RC-T001", "TEST-1", "I"],
+        ["RC-T002", "TEST-2", "ı"]
+      ],
+      "points": [
+        {
+          "text": "ı",
+          "points": ["U+0131"]
+        }
+      ]
+    },
+    {
+      "id": "dotted-I-default",
+      "scenario": "005-the-handshake",
+      "command": "casing",
+      "args": ["und", "İ"],
+      "classification": "partial",
+      "failed": [],
+      "rows": [["Mapped", "i̇"]],
+      "points": [
+        {
+          "text": "İ",
+          "points": ["U+0130"]
+        },
+        {
+          "text": "i̇",
+          "points": ["U+0069", "U+0307"]
+        }
+      ]
+    },
+    {
+      "id": "dotted-I-turkish",
+      "scenario": "005-the-handshake",
+      "command": "casing",
+      "args": ["tr", "İ"],
+      "classification": "partial",
+      "failed": [],
+      "rows": [["Mapped", "i"]],
+      "points": [
+        {
+          "text": "İ",
+          "points": ["U+0130"]
+        }
+      ]
+    },
+    {
+      "id": "combining-dot-turkish",
+      "scenario": "005-the-handshake",
+      "command": "casing",
+      "args": ["tr", "İ"],
+      "classification": "partial",
+      "failed": [],
+      "rows": [["Mapped", "i"]],
+      "points": [
+        {
+          "text": "İ",
+          "points": ["U+0049", "U+0307"]
+        }
+      ]
+    },
+    {
+      "id": "lithuanian-dot-retention",
+      "scenario": "005-the-handshake",
+      "command": "casing",
+      "args": ["lt", "Í"],
+      "classification": "partial",
+      "failed": [],
+      "rows": [["Mapped", "i̇́"]],
+      "points": [
+        {
+          "text": "Í",
+          "points": ["U+0049", "U+0301"]
+        },
+        {
+          "text": "i̇́",
+          "points": ["U+0069", "U+0307", "U+0301"]
+        }
+      ]
+    },
+    {
+      "id": "greek-final-sigma",
+      "scenario": "005-the-handshake",
+      "command": "casing",
+      "args": ["und", "ΟΣ"],
+      "classification": "partial",
+      "failed": [],
+      "rows": [["Mapped", "ος"]],
+      "points": [
+        {
+          "text": "ΟΣ",
+          "points": ["U+039F", "U+03A3"]
+        },
+        {
+          "text": "ος",
+          "points": ["U+03BF", "U+03C2"]
+        }
+      ]
+    },
+    {
+      "id": "greek-medial-sigma",
+      "scenario": "005-the-handshake",
+      "command": "casing",
+      "args": ["und", "ΟΣΑ"],
+      "classification": "partial",
+      "failed": [],
+      "rows": [["Mapped", "οσα"]],
+      "points": [
+        {
+          "text": "ΟΣΑ",
+          "points": ["U+039F", "U+03A3", "U+0391"]
+        },
+        {
+          "text": "οσα",
+          "points": ["U+03BF", "U+03C3", "U+03B1"]
+        }
+      ]
+    },
+    {
+      "id": "greek-fold-different",
+      "scenario": "005-the-handshake",
+      "command": "casing",
+      "args": ["fold", "ΟΣ"],
+      "classification": "partial",
+      "failed": [],
+      "rows": [["Mapped", "οσ"]],
+      "points": [
+        {
+          "text": "ΟΣ",
+          "points": ["U+039F", "U+03A3"]
+        },
+        {
+          "text": "οσ",
+          "points": ["U+03BF", "U+03C3"]
+        }
+      ]
+    },
+    {
+      "id": "global-turkish-key",
+      "scenario": "005-the-handshake",
+      "command": "probe",
+      "args": ["turkish-lower"],
+      "classification": "trap",
+      "failed": ["routing-unique"],
+      "diagnostic": "groups distinct receipt records",
+      "rows": [["Routing collision", "ı", "RC-T001", "RC-T002"]],
+      "points": [
+        {
+          "text": "ı",
+          "points": ["U+0131"]
+        }
+      ]
+    },
+    {
+      "id": "global-default-key",
+      "scenario": "005-the-handshake",
+      "command": "probe",
+      "args": ["default-lower"],
+      "classification": "trap",
+      "failed": ["routing-unique"],
+      "rows": [["Routing collision", "iris", "RC-1842", "RC-2917"]],
+      "points": []
+    },
+    {
+      "id": "global-fold-key",
+      "scenario": "005-the-handshake",
+      "command": "probe",
+      "args": ["fold"],
+      "classification": "trap",
+      "failed": ["routing-unique"],
+      "rows": [["Routing collision", "οσ", "RC-T005", "RC-T006", "RC-T007"]],
+      "points": [
+        {
+          "text": "οσ",
+          "points": ["U+03BF", "U+03C3"]
+        }
+      ]
+    },
+    {
+      "id": "global-collation-key",
+      "scenario": "005-the-handshake",
+      "command": "probe",
+      "args": ["collation"],
+      "classification": "trap",
+      "failed": ["routing-unique"],
+      "points": []
+    },
+    {
+      "id": "raw-id-without-retrieval",
+      "scenario": "005-the-handshake",
+      "command": "bind",
+      "args": ["registration", "RC-1842", "RC-2917"],
+      "classification": "trap",
+      "failed": ["receipts-retrieved"],
+      "diagnostic": "unambiguous channel lookup first",
+      "points": []
+    },
+    {
+      "id": "wrong-owner-slots",
+      "scenario": "005-the-handshake",
+      "command": "bind",
+      "args": ["registration", "RC-2917", "RC-1842"],
+      "classification": "trap",
+      "failed": ["owner-match"],
+      "setup": [
+        ["lookup", "tr", "IRIS"],
+        ["lookup", "tr", "iris"]
+      ],
+      "diagnostic": "does not match the registration and verified owner",
+      "points": []
+    },
+    {
+      "id": "double-consumption",
+      "scenario": "005-the-handshake",
+      "command": "bind",
+      "args": ["registration", "RC-1842", "RC-1842"],
+      "classification": "trap",
+      "failed": ["consent-single-use", "owner-match"],
+      "setup": [
+        ["lookup", "tr", "IRIS"],
+        ["lookup", "tr", "iris"]
+      ],
+      "diagnostic": "Each consent can be attached only once",
+      "points": []
+    },
+    {
+      "id": "retrieved-but-global-collision",
+      "scenario": "005-the-handshake",
+      "command": "bind",
+      "args": ["turkish-lower", "RC-1842", "RC-2917"],
+      "classification": "trap",
+      "failed": ["routing-unique"],
+      "setup": [
+        ["lookup", "tr", "IRIS"],
+        ["lookup", "tr", "iris"]
+      ],
+      "diagnostic": "misroutes distinct records",
+      "points": []
+    },
+    {
+      "id": "independent-binding",
+      "scenario": "005-the-handshake",
+      "command": "bind",
+      "args": ["registration", "RC-1842", "RC-2917"],
+      "classification": "valid",
+      "failed": [],
+      "setup": [
+        ["lookup", "tr", "IRIS"],
+        ["lookup", "tr", "iris"]
+      ],
+      "flags": ["consent_verified"],
+      "handoff": "approvals",
+      "rows": [
+        ["0001842", "RC-1842", "owner-1842"],
+        ["0002917", "RC-2917", "owner-2917"]
+      ],
+      "points": []
+    },
+    {
+      "id": "skeleton-collides",
+      "scenario": "006-the-release",
+      "command": "prepare",
+      "args": ["skeleton", "preserve"],
+      "classification": "trap",
+      "failed": ["identity-unique"],
+      "diagnostic": "key collides across distinct registrations",
+      "rows": [["Identity collision", "0001842", "0002917", "Mira"]],
+      "points": []
+    },
+    {
+      "id": "raw-name-collides",
+      "scenario": "006-the-release",
+      "command": "prepare",
+      "args": ["name", "preserve"],
+      "classification": "trap",
+      "failed": ["identity-unique"],
+      "rows": [["Identity collision", "0001842", "TEST-N01", "Mira"]],
+      "points": []
+    },
+    {
+      "id": "nfc-changes-source",
+      "scenario": "006-the-release",
+      "command": "prepare",
+      "args": ["registration", "nfc"],
+      "classification": "trap",
+      "failed": ["originals"],
+      "diagnostic": "changes an original code-point sequence",
+      "points": []
+    },
+    {
+      "id": "staged-plan",
+      "scenario": "006-the-release",
+      "command": "prepare",
+      "args": ["registration", "preserve"],
+      "classification": "partial",
+      "failed": [],
+      "flags": ["plan_prepared"],
+      "points": []
+    },
+    {
+      "id": "legacy-utf16",
+      "scenario": "006-the-release",
+      "command": "preview",
+      "args": ["utf16", "4", "raw", "raw"],
+      "classification": "trap",
+      "failed": ["valid-encoding", "grapheme-boundary", "bidi-isolation", "formatting-controls"],
+      "setup": [["prepare", "registration", "preserve"]],
+      "diagnostic": "A cut produced invalid UTF-16",
+      "rows": [["zwj", "UTF-16 cut left an unpaired surrogate"]],
+      "points": []
+    },
+    {
+      "id": "scalar-breaks-combining-and-zwj",
+      "scenario": "006-the-release",
+      "command": "preview",
+      "args": ["scalar", "4", "isolate", "escape"],
+      "classification": "trap",
+      "failed": ["grapheme-boundary"],
+      "setup": [["prepare", "registration", "preserve"]],
+      "diagnostic": "cut inside one",
+      "rows": [
+        ["accent", "CASE ", "Cafe", " 0002917 STATE APPROVED"],
+        ["zwj", "CASE ", "abc👩", " 0002917 STATE APPROVED"]
+      ],
+      "points": [
+        {
+          "text": "abc👩",
+          "points": ["U+0061", "U+0062", "U+0063", "U+1F469"]
+        }
+      ]
+    },
+    {
+      "id": "grapheme-still-exceeds-capacity",
+      "scenario": "006-the-release",
+      "command": "preview",
+      "args": ["grapheme", "5", "isolate", "escape"],
+      "classification": "trap",
+      "failed": ["byte-capacity"],
+      "setup": [["prepare", "registration", "preserve"]],
+      "diagnostic": "exceeds its UTF-8 capacity",
+      "points": [],
+      "notes": [["zwj", "49/48 UTF-8 bytes"]]
+    },
+    {
+      "id": "rtl-visual-spill",
+      "scenario": "006-the-release",
+      "command": "preview",
+      "args": ["grapheme", "4", "raw", "escape"],
+      "classification": "trap",
+      "failed": ["bidi-isolation"],
+      "setup": [["prepare", "registration", "preserve"]],
+      "points": [],
+      "notes": [["rtl", "35/64 UTF-8 bytes", "field crosses a fixed label or number"]]
+    },
+    {
+      "id": "isolate-with-explicit-rlo",
+      "scenario": "006-the-release",
+      "command": "preview",
+      "args": ["grapheme", "4", "isolate", "raw"],
+      "classification": "trap",
+      "failed": ["formatting-controls"],
+      "setup": [["prepare", "registration", "preserve"]],
+      "points": [],
+      "notes": [["override", "40/55 UTF-8 bytes", "explicit formatting left active"]]
+    },
+    {
+      "id": "reject-control-without-visible-record",
+      "scenario": "006-the-release",
+      "command": "preview",
+      "args": ["grapheme", "4", "isolate", "reject"],
+      "classification": "trap",
+      "failed": ["formatting-controls"],
+      "setup": [["prepare", "registration", "preserve"]],
+      "rows": [["override", "40/55 UTF-8 bytes", "field rejected by control policy"]],
+      "points": []
+    },
+    {
+      "id": "isolate-before-truncation",
+      "scenario": "006-the-release",
+      "command": "preview",
+      "args": ["grapheme", "4", "isolate-first", "escape"],
+      "classification": "trap",
+      "failed": ["grapheme-boundary", "bidi-isolation"],
+      "setup": [["prepare", "registration", "preserve"]],
+      "points": [],
+      "notes": [
+        [
+          "accent",
+          "34/41 UTF-8 bytes",
+          "requires 4 complete clusters",
+          "isolation applied before truncation"
+        ]
+      ]
+    },
+    {
+      "id": "safe-audit",
+      "scenario": "006-the-release",
+      "command": "preview",
+      "args": ["grapheme", "4", "isolate", "escape"],
+      "classification": "partial",
+      "failed": [],
+      "setup": [["prepare", "registration", "preserve"]],
+      "flags": ["plan_prepared", "preview_ready"],
+      "rows": [
+        ["accent", "CASE ", "Café", " 0002917 STATE APPROVED"],
+        ["zwj", "CASE ", "abc👩‍💻", " 0002917 STATE APPROVED"],
+        ["rtl", "CASE ", "تمت ", " 0002917 STATE APPROVED"],
+        ["override", "CASE ", "ok[U+202E]1", " 0002917 STATE APPROVED"]
+      ],
+      "points": [
+        {
+          "text": "Café",
+          "points": ["U+0043", "U+0061", "U+0066", "U+0065", "U+0301"]
+        },
+        {
+          "text": "abc👩‍💻",
+          "points": ["U+0061", "U+0062", "U+0063", "U+1F469", "U+200D", "U+1F4BB"]
+        },
+        {
+          "text": "تمت ",
+          "points": ["U+062A", "U+0645", "U+062A", "U+0020"]
+        }
+      ]
+    },
+    {
+      "id": "no-commit-before-dry-run",
+      "scenario": "006-the-release",
+      "command": "commit",
+      "args": [],
+      "classification": "trap",
+      "failed": ["verified"],
+      "setup": [
+        ["prepare", "registration", "preserve"],
+        ["preview", "grapheme", "4", "isolate", "escape"]
+      ],
+      "diagnostic": "Run a passing dry run",
+      "points": []
+    },
+    {
+      "id": "changed-preview-invalidates-dry-run",
+      "scenario": "006-the-release",
+      "command": "commit",
+      "args": [],
+      "classification": "trap",
+      "failed": ["byte-capacity", "verified"],
+      "setup": [
+        ["prepare", "registration", "preserve"],
+        ["preview", "grapheme", "4", "isolate", "escape"],
+        ["verify"],
+        ["preview", "grapheme", "5", "isolate", "escape"]
+      ],
+      "flags": ["plan_prepared"],
+      "diagnostic": "Run a passing dry run",
+      "points": []
+    },
+    {
+      "id": "rollback-unavailable",
+      "scenario": "006-the-release",
+      "command": "commit",
+      "args": [],
+      "classification": "trap",
+      "failed": ["rollback", "verified"],
+      "setup": [
+        ["prepare", "registration", "preserve"],
+        ["preview", "grapheme", "4", "isolate", "escape"],
+        ["verify"]
+      ],
+      "rollbackReady": false,
+      "diagnostic": "Rollback readiness check failed",
+      "points": []
+    },
+    {
+      "id": "verified-split",
+      "scenario": "006-the-release",
+      "command": "commit",
+      "args": [],
+      "classification": "valid",
+      "failed": [],
+      "setup": [
+        ["prepare", "registration", "preserve"],
+        ["preview", "grapheme", "4", "isolate", "escape"],
+        ["verify"]
+      ],
+      "flags": ["plan_prepared", "preview_ready", "plan_verified", "released"],
+      "handoff": "release",
+      "rows": [
+        ["8C2F", "1 → 2"],
+        ["0001842", "Mira"],
+        ["0002917", "Mіra"]
+      ],
+      "points": [
+        {
+          "text": "1 → 2",
+          "points": ["U+0031", "U+0020", "U+2192", "U+0020", "U+0032"]
+        },
+        {
+          "text": "Mіra",
+          "points": ["U+004D", "U+0456", "U+0072", "U+0061"]
+        }
+      ]
+    },
+    {
+      "id": "idempotent-commit",
+      "scenario": "006-the-release",
+      "command": "commit",
+      "args": [],
+      "classification": "valid",
+      "failed": [],
+      "setup": [
+        ["prepare", "registration", "preserve"],
+        ["preview", "grapheme", "4", "isolate", "escape"],
+        ["verify"],
+        ["commit"]
+      ],
+      "diagnostic": "Transaction already applied.",
+      "flags": ["plan_prepared", "preview_ready", "plan_verified", "released"],
+      "rows": [
+        ["0001842", "Mira"],
+        ["0002917", "Mіra"]
+      ],
+      "points": [
+        {
+          "text": "Mіra",
+          "points": ["U+004D", "U+0456", "U+0072", "U+0061"]
+        }
+      ]
+    }
+  ]
+}

@@ -14,7 +14,9 @@ import { production } from './scenario-content'
 
 describe('authoritative command metadata', () => {
   it('tags every exact command on Space, deferring partial, unknown and IME input', () => {
-    expect(new Set(commandRegistry.map((command) => command.name)).size).toBe(16)
+    expect(new Set(commandRegistry.map((command) => command.name)).size).toBe(
+      commandRegistry.length,
+    )
     for (const command of commandRegistry) {
       expect(spaceCommand(command.name + ' ')).toBe(command.name)
       expect(spaceCommand(command.name + ' ', true)).toBeUndefined()

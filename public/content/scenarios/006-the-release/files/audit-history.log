@@ -1,0 +1,5 @@
+2026-08-25 / audit 4.1: UTF-16 substring, plain concatenation
+2026-08-26 / audit 4.2 candidate: scalar cut; supplementary characters no longer split
+2026-08-27 / review: decomposed accent and ZWJ samples still split; bidirectional association unresolved
+
+Review build retains both old cut modes for comparison. Byte capacity applies to the complete UTF-8 audit line, including labels and presentation controls.

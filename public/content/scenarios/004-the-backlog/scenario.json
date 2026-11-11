@@ -1,0 +1,314 @@
+{
+  "version": 1,
+  "title": "The Backlog",
+  "introduction": "Two owners sent their original registration evidence. Support reopened their appeals under incident 8C2F.",
+  "roles": ["support-auditor"],
+  "flags": ["replay_verified", "appeals_recovered"],
+  "local": {
+    "user": "support-auditor",
+    "role": "support-auditor"
+  },
+  "initialHost": "appeals-04",
+  "recovery": {
+    "dataset": "recovery/8c2f.json",
+    "source": "scenarios/003-the-index/files/8c2f-originals.json"
+  },
+  "hosts": [
+    {
+      "id": "appeals-04",
+      "name": "MONONYM appeals queue",
+      "guest": {
+        "user": "support-auditor",
+        "role": "support-auditor"
+      },
+      "welcome": "Read-only queue audit. The review index reports fewer rows than the snapshot.",
+      "status": [
+        {
+          "label": "Incident",
+          "value": "8C2F"
+        },
+        {
+          "label": "Replay",
+          "value": "Unverified",
+          "after": {
+            "flag": "replay_verified",
+            "value": "Verified"
+          }
+        },
+        {
+          "label": "Review",
+          "value": "Pending",
+          "after": {
+            "flag": "appeals_recovered",
+            "value": "Two independent cases"
+          }
+        }
+      ],
+      "resources": [
+        {
+          "id": "readme",
+          "path": "/README",
+          "type": "file",
+          "content": "files/README.txt"
+        },
+        {
+          "id": "queue",
+          "path": "/queue",
+          "type": "directory"
+        },
+        {
+          "id": "snapshot",
+          "path": "/queue/snapshot.txt",
+          "type": "file",
+          "content": "files/snapshot.txt"
+        },
+        {
+          "id": "provenance",
+          "path": "/queue/provenance.txt",
+          "type": "file",
+          "content": "files/provenance.txt"
+        },
+        {
+          "id": "logs",
+          "path": "/logs",
+          "type": "directory"
+        },
+        {
+          "id": "deployment",
+          "path": "/logs/deployment.log",
+          "type": "file",
+          "content": "files/deployment.log"
+        },
+        {
+          "id": "tools",
+          "path": "/tools",
+          "type": "directory"
+        },
+        {
+          "id": "replay-help",
+          "path": "/tools/replay.txt",
+          "type": "file",
+          "content": "files/replay.txt"
+        },
+        {
+          "id": "outbox",
+          "path": "/outbox",
+          "type": "directory"
+        },
+        {
+          "id": "review-handoff",
+          "path": "/outbox/review-handoff.txt",
+          "type": "file",
+          "content": "files/review-handoff.txt",
+          "discover": {
+            "flag": "appeals_recovered"
+          },
+          "access": {
+            "flag": "appeals_recovered"
+          }
+        },
+        {
+          "id": "archive",
+          "path": "/mail",
+          "type": "directory"
+        },
+        {
+          "id": "01-sort-migration",
+          "path": "/mail/01-sort-migration",
+          "type": "mail",
+          "content": "mail/01-sort-migration.json"
+        },
+        {
+          "id": "02-cursor-review",
+          "path": "/mail/02-cursor-review",
+          "type": "mail",
+          "content": "mail/02-cursor-review.json"
+        },
+        {
+          "id": "03-support",
+          "path": "/mail/03-support",
+          "type": "mail",
+          "content": "mail/03-support.json"
+        }
+      ],
+      "recovery": [
+        {
+          "command": "collate",
+          "actionLabel": "Compare titles",
+          "submitLabel": "Run collate",
+          "label": "Compare titles",
+          "fields": [
+            {
+              "input": "locale",
+              "label": "Locale",
+              "initial": "en-US",
+              "kind": "text"
+            },
+            {
+              "input": "strength",
+              "label": "Strength",
+              "initial": "primary",
+              "kind": "text"
+            },
+            {
+              "input": "left",
+              "label": "Left title",
+              "initial": "Aterstallning",
+              "kind": "payload"
+            },
+            {
+              "input": "right",
+              "label": "Right title",
+              "initial": "Återställning",
+              "kind": "payload"
+            }
+          ],
+          "success": [],
+          "failure": "The host rejected this operation.",
+          "quick": true,
+          "rejected": []
+        },
+        {
+          "command": "replay",
+          "actionLabel": "Replay queue",
+          "submitLabel": "Run replay",
+          "label": "Replay queue",
+          "fields": [
+            {
+              "input": "locale",
+              "label": "Locale",
+              "initial": "en-US",
+              "kind": "text"
+            },
+            {
+              "input": "strength",
+              "label": "Strength",
+              "initial": "primary",
+              "kind": "text"
+            },
+            {
+              "input": "strategy",
+              "label": "Cursor strategy",
+              "initial": "title",
+              "kind": "text"
+            },
+            {
+              "input": "page-size",
+              "label": "Rows per page",
+              "initial": "1",
+              "kind": "text"
+            },
+            {
+              "input": "cursor",
+              "label": "Start cursor",
+              "initial": "start",
+              "kind": "text"
+            }
+          ],
+          "success": [
+            {
+              "type": "flag",
+              "flag": "replay_verified"
+            },
+            {
+              "type": "message",
+              "text": "QUEUE REPLAY VERIFIED\nComplete traversal. Each record was visited once."
+            }
+          ],
+          "failure": "The host rejected this operation.",
+          "quick": true,
+          "rejected": [
+            {
+              "check": "cursor-profile",
+              "stage": "cursor",
+              "message": "The supplied cursor does not belong to the active snapshot and sort profile."
+            },
+            {
+              "check": "no-duplicates",
+              "stage": "traversal",
+              "message": "Replay repeated a record. A page must advance past its previous boundary."
+            },
+            {
+              "check": "complete-traversal",
+              "stage": "traversal",
+              "message": "Replay skipped records at page boundaries."
+            },
+            {
+              "check": "cursor-unique",
+              "stage": "key",
+              "message": "Title weights cannot identify a unique boundary across this snapshot."
+            }
+          ]
+        },
+        {
+          "command": "recover",
+          "actionLabel": "Recover appeals",
+          "submitLabel": "Run recover",
+          "label": "Recover appeals",
+          "fields": [
+            {
+              "input": "first",
+              "label": "First appeal",
+              "initial": "",
+              "kind": "text"
+            },
+            {
+              "input": "second",
+              "label": "Second appeal",
+              "initial": "",
+              "kind": "text"
+            }
+          ],
+          "success": [
+            {
+              "type": "flag",
+              "flag": "appeals_recovered"
+            },
+            {
+              "type": "message",
+              "text": "Appeals recovered.\nIndependent review cases: 2"
+            },
+            {
+              "type": "resourceLink",
+              "resource": "review-handoff"
+            }
+          ],
+          "failure": "The host rejected this operation.",
+          "quick": true,
+          "access": {
+            "flag": "replay_verified"
+          },
+          "rejected": [
+            {
+              "check": "replay-required",
+              "message": "Both appeals must be present in the verified replay."
+            },
+            {
+              "check": "authentic-appeals",
+              "message": "Select both authentic owner appeals. Migration records are excluded."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "objective": {
+    "text": "Recover both independent appeals and read the review handoff.",
+    "read": "review-handoff",
+    "message": "Both appeals are open for independent review.",
+    "onComplete": [
+      {
+        "type": "deliverMail",
+        "message": "both-cases-open"
+      },
+      {
+        "type": "discover",
+        "scenario": "005-the-handshake"
+      }
+    ]
+  },
+  "inbox": {
+    "content": "mail/inbox.json",
+    "initial": []
+  }
+}

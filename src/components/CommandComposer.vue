@@ -16,7 +16,7 @@ import {
   type CommandName,
 } from '../lib/commands'
 import type { Action, Response } from '../lib/runtime'
-import type { PuzzleBinding } from '../lib/scenario'
+import type { OperationBinding } from '../lib/scenario'
 import { scalarSpan, type Span } from '../lib/unicode'
 
 const props = defineProps<{
@@ -25,7 +25,7 @@ const props = defineProps<{
   busy: boolean
   context: string
   suggestions: string[]
-  operations: readonly PuzzleBinding[]
+  operations: readonly OperationBinding[]
   execute: (action: Action, echo?: string) => Promise<Response | undefined>
 }>()
 const emit = defineEmits<{ action: [Action] }>()

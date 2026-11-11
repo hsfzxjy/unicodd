@@ -1,0 +1,12 @@
+{
+  "messages": [
+    {
+      "id": "routing-review",
+      "from": "Mara / MONONYM",
+      "to": "MONONYM operations",
+      "subject": "RE: Regional casing",
+      "date": "2026-08-26",
+      "body": "Please run the collision suite before changing production routing. A locale where two strings differ tells us something about those two strings.\n\nThe consent evidence is independent. Our index needs to preserve that independence on the next batch, too."
+    }
+  ]
+}

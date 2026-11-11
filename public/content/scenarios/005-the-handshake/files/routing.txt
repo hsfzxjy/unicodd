@@ -1,0 +1,9 @@
+Receipt lookup
+
+casing compares an original channel with its mapped form. lookup applies the profile to both the query and stored channel labels.
+Profiles: und (default lowercase), tr (Turkish), az (Azeri), lt (Lithuanian), fold (default case folding).
+
+Routing audit
+
+probe compares keys over all receipts, including the diagnostic shard. Available keys: registration, default-lower, turkish-lower, fold, collation (en-US primary).
+bind consumes two retrieved receipt IDs in the order of the owner slots. It checks receipt status, ownership and routing integrity together. The test shard is retained to catch changes that fix only the primary shard.

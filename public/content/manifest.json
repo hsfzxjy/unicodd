@@ -17,6 +17,24 @@
       "label": "The Index",
       "scenario": "scenarios/003-the-index/scenario.json",
       "initiallyDiscovered": false
+    },
+    {
+      "id": "004-the-backlog",
+      "label": "The Backlog",
+      "scenario": "scenarios/004-the-backlog/scenario.json",
+      "initiallyDiscovered": false
+    },
+    {
+      "id": "005-the-handshake",
+      "label": "The Handshake",
+      "scenario": "scenarios/005-the-handshake/scenario.json",
+      "initiallyDiscovered": false
+    },
+    {
+      "id": "006-the-release",
+      "label": "The Release",
+      "scenario": "scenarios/006-the-release/scenario.json",
+      "initiallyDiscovered": false
     }
   ]
 }

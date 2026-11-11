@@ -5,9 +5,16 @@ import { engine, fixtures, production, productionRoot, readProduction } from './
 
 it('loads the production scenario catalog in progression order', async () => {
   const entries = await production.manifest()
-  expect(entries.map(({ id }) => id)).toEqual(['001-the-relay', '002-dead-letter', '003-the-index'])
+  expect(entries.map(({ id }) => id)).toEqual([
+    '001-the-relay',
+    '002-dead-letter',
+    '003-the-index',
+    '004-the-backlog',
+    '005-the-handshake',
+    '006-the-release',
+  ])
   await expect(production.campaign(entries)).resolves.toHaveLength(entries.length)
-  expect(await readdir(productionRoot)).toEqual(['manifest.json', 'scenarios'])
+  expect(await readdir(productionRoot)).toEqual(['manifest.json', 'recovery', 'scenarios'])
   expect(await readdir(new URL('scenarios/', productionRoot))).toEqual(entries.map(({ id }) => id))
   const scenario = await production.scenario(entries[0])
   expect(scenario.inbox?.initial).toEqual(['favor'])
@@ -236,5 +243,61 @@ it('validates multi-field bindings and distinct commands', async () => {
   audit.hosts[0].operations.push(audit.hosts[0].operations[0])
   await expect(override(index.scenario, audit).scenario(index)).rejects.toThrow(
     /Duplicate puzzle command/,
+  )
+})
+
+it('validates recovery datasets, authoring parameters and cross-scenario handoffs', async () => {
+  const entries = await production.manifest()
+  const [, , , backlog, handshake, release] = entries
+  const datasetPath = 'recovery/8c2f.json'
+  const read = async (path: string) => JSON.parse((await readProduction(path)).toString())
+  const dataset = await read(datasetPath)
+  const original = dataset.registrations[1].name
+  dataset.registrations[1].name = 'Mira'
+  await expect(override(datasetPath, dataset).scenario(backlog)).rejects.toThrow(
+    /Recovery registrations differ from the verified original export/,
+  )
+  dataset.registrations[1].name = original
+  dataset.receipts[1].owner = dataset.receipts[0].owner
+  await expect(override(datasetPath, dataset).scenario(handshake)).rejects.toThrow(
+    /one verified receipt from its owner/,
+  )
+  dataset.receipts[1].owner = dataset.registrations[1].owner
+  dataset.cursors['deployed-v1'].record = 'absent'
+  await expect(override(datasetPath, dataset).scenario(backlog)).rejects.toThrow(
+    /Invalid queue cursor reference/,
+  )
+  delete dataset.cursors['deployed-v1'].record
+  dataset.auditSamples[0].text = '\ud800'
+  await expect(override(datasetPath, dataset).scenario(release)).rejects.toThrow(
+    /Unpaired surrogate/,
+  )
+
+  const queue = await read(backlog.scenario)
+  const [locale, strength, strategy] = queue.hosts[0].recovery[1].fields
+  for (const [field, value, issue] of [
+    [locale, 'invalid', /Choose en-US or sv-SE/],
+    [strength, 'invalid', /Choose primary, secondary, or tertiary/],
+    [strategy, 'invalid', /Choose title, composite, or inclusive/],
+  ] as const) {
+    const initial = field.initial
+    field.initial = value
+    await expect(override(backlog.scenario, queue).scenario(backlog)).rejects.toThrow(issue)
+    field.initial = initial
+  }
+  queue.hosts[0].recovery[1].rejected[0].check = 'typo'
+  await expect(override(backlog.scenario, queue).scenario(backlog)).rejects.toThrow(
+    /Unknown recovery check/,
+  )
+
+  const broker = await read(handshake.scenario)
+  broker.recovery.prior = entries[2].id
+  await expect(override(handshake.scenario, broker).campaign(entries)).rejects.toThrow(
+    /Expected an earlier recovery scenario with the same dataset/,
+  )
+  const audit = await read(release.scenario)
+  audit.objective.action = 'verify'
+  await expect(override(release.scenario, audit).scenario(release)).rejects.toThrow(
+    /Unknown recovery completion action/,
   )
 })

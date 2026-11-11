@@ -1,4 +1,5 @@
 import type { Program } from '../types.ts'
+import type { RecoveryCommand, RecoveryDataset } from './recovery.ts'
 
 export interface Identity {
   user: string
@@ -18,6 +19,7 @@ export interface PuzzleField {
   label: string
   initial: string
   fixed?: string
+  kind?: 'text' | 'payload'
 }
 
 export type ProgressEffect =
@@ -26,6 +28,7 @@ export type ProgressEffect =
 export type Effect =
   | { type: 'session'; identity: Identity }
   | { type: 'flag'; flag: string }
+  | { type: 'clearFlag'; flag: string }
   | { type: 'message'; text: string }
   | { type: 'deliverMail'; message: string }
   | { type: 'resourceLink'; resource: string }
@@ -69,6 +72,15 @@ export interface PuzzleBinding {
   rejected: { check: string; message: string; stage?: string }[]
 }
 
+export interface RecoveryBinding extends Omit<PuzzleBinding, 'command' | 'program'> {
+  command: RecoveryCommand
+  quick: boolean
+  invalidates: string[]
+}
+
+export type OperationBinding = PuzzleBinding | RecoveryBinding
+export type OperationCommand = OperationBinding['command']
+
 export interface Host {
   id: string
   name: string
@@ -77,6 +89,7 @@ export interface Host {
   discover?: string
   resources: Resource[]
   operations: PuzzleBinding[]
+  recovery?: RecoveryBinding[]
   status: { label: string; value: string; after?: { flag: string; value: string } }[]
 }
 
@@ -92,7 +105,12 @@ export interface Scenario {
   initialHost?: string
   hosts: Host[]
   inbox?: { messages: MailMessage[]; initial: string[] }
-  objective: { text: string; read: string; message: string; onComplete: ProgressEffect[] }
+  recovery?: { path: string; dataset: RecoveryDataset; source: string; prior?: string }
+  objective: ({ read: string; action?: never } | { read?: never; action: RecoveryCommand }) & {
+    text: string
+    message: string
+    onComplete: ProgressEffect[]
+  }
 }
 
 export function parentPath(path: string): string {

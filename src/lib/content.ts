@@ -1,4 +1,5 @@
 import type { Engine, EngineError, Program } from '../types.ts'
+import { recoveryArity, type RecoveryCommand, type RecoveryDataset } from './recovery.ts'
 import {
   parentPath,
   puzzleArity,
@@ -11,9 +12,10 @@ import {
   type ProgressEffect,
   type MailMessage,
   type Resource,
+  type RecoveryBinding,
   type Scenario,
 } from './scenario.ts'
-import { invalidNotation, unpairedSurrogate } from './unicode.ts'
+import { inspect, invalidNotation, unpairedSurrogate } from './unicode.ts'
 
 export interface ScenarioEntry {
   id: string
@@ -172,6 +174,15 @@ export function createContentLoader(
     return invalid(file, error.path ?? '', `${error.code} · ${error.message}`)
   }
 
+  const datasets = new Map<string, Promise<RecoveryDataset>>()
+
+  async function loadDataset(path: string): Promise<RecoveryDataset> {
+    const { value } = await json(path)
+    const validation = await engine.validateRecovery(value)
+    if (!validation.ok) engineFailure(path, validation.error)
+    return value as RecoveryDataset
+  }
+
   const loader = {
     async manifest(): Promise<ScenarioEntry[]> {
       const get = (await json('manifest.json')).object('version', 'scenarios')
@@ -204,6 +215,7 @@ export function createContentLoader(
         'hosts',
         'objective',
         'inbox',
+        'recovery',
       )
       get('version').version()
       const ids = (field: Field) => {
@@ -212,6 +224,53 @@ export function createContentLoader(
       }
       const roles = ids(get('roles'))
       const flags = ids(get('flags'))
+      const recovery = await get('recovery').optional(async (field) => {
+        const data = field.object('dataset', 'source', 'prior')
+        const path = data('dataset').asset(true)
+        if (!datasets.has(path)) {
+          datasets.set(
+            path,
+            loadDataset(path).catch((error) => {
+              datasets.delete(path)
+              throw error
+            }),
+          )
+        }
+        const dataset = await datasets.get(path)!
+        const source = data('source').asset(true)
+        const originals = (await json(source)).object(
+          'merge_event',
+          'records',
+          'canonical_identities',
+          'merge_policy',
+        )
+        if (originals('merge_event').text() !== dataset.incident)
+          data('source').fail('Original export and recovery incident differ.')
+        const records = originals('records').list((item) => {
+          const record = item.object('id', 'name', 'codepoints', 'verified')
+          const name = record('name').text()
+          if (
+            record('codepoints')
+              .list((point) => point.text())
+              .join(' ') !==
+            inspect(name)
+              .map(({ notation }) => notation)
+              .join(' ')
+          )
+            record('codepoints').fail('Code points differ from the exact original name.')
+          return { id: record('id').id(), name, verified: record('verified').bool() }
+        })
+        if (
+          records.length !== dataset.registrations.length ||
+          !dataset.registrations.every(({ id, name, verified }) =>
+            records.some(
+              (record) => record.id === id && record.name === name && record.verified === verified,
+            ),
+          )
+        )
+          data('source').fail('Recovery registrations differ from the verified original export.')
+        return { path, dataset, source, prior: data('prior').optional((item) => item.id()) }
+      })
       const inbox = await get('inbox').optional(async (field) => {
         const get = field.object('content', 'initial')
         const messages = await mailMessages(folder + get('content').asset(true))
@@ -251,6 +310,7 @@ export function createContentLoader(
             case 'session':
               return { type, identity: identity(item.object('type', 'identity')('identity')) }
             case 'flag':
+            case 'clearFlag':
               return { type, flag: item.object('type', 'flag')('flag').ref(flags, 'flag') }
             case 'message':
               return { type, text: item.object('type', 'text')('text').text() }
@@ -265,6 +325,77 @@ export function createContentLoader(
               return item.at('type', type).fail('Unsupported effect.')
           }
         })
+      }
+
+      async function recoveryBinding(field: Field): Promise<RecoveryBinding> {
+        const get = field.object(
+          'command',
+          'actionLabel',
+          'submitLabel',
+          'label',
+          'fields',
+          'access',
+          'success',
+          'failure',
+          'rejected',
+          'quick',
+          'invalidates',
+        )
+        const command = get('command').ref(
+          Object.keys(recoveryArity) as RecoveryCommand[],
+          'recovery command',
+        )
+        const dataset =
+          recovery?.dataset ?? field.fail('Declare a recovery dataset for these operations.')
+        const seen = new Set<string>()
+        const fields = get('fields').list((item) => {
+          const field = item.object('input', 'label', 'initial', 'kind')
+          return {
+            input: field('input').unique(seen),
+            label: field('label').text(),
+            initial: field('initial').text(true),
+            kind:
+              field('kind').optional((kind) =>
+                kind.ref(['text', 'payload'] as const, 'argument kind'),
+              ) ?? 'text',
+          }
+        })
+        if (fields.length !== recoveryArity[command])
+          get('fields').fail('Match the recovery command argument count.')
+        const baseline = await engine.runRecovery({
+          version: 1,
+          dataset,
+          command,
+          args: fields.map(({ initial }) => initial),
+          direct: true,
+        })
+        if (!baseline.ok) engineFailure(file, baseline.error)
+        const checks = baseline.value.declaredChecks
+        return {
+          command,
+          label: get('label').text(),
+          actionLabel: get('actionLabel').text(),
+          submitLabel: get('submitLabel').text(),
+          fields,
+          access: get('access').optional(guard),
+          success: effects(get('success')),
+          failure: get('failure').text(),
+          quick: get('quick').optional((item) => item.bool()) ?? false,
+          invalidates:
+            get('invalidates').optional((item) => item.list((flag) => flag.ref(flags, 'flag'))) ??
+            [],
+          rejected:
+            get('rejected').optional((item) =>
+              item.list((field) => {
+                const row = field.object('check', 'message', 'stage')
+                return {
+                  check: row('check').ref(checks, 'recovery check'),
+                  message: row('message').text(),
+                  stage: row('stage').optional((item) => item.id()),
+                }
+              }),
+            ) ?? [],
+        }
       }
 
       const programs = new Map<string, Promise<Program>>()
@@ -376,6 +507,7 @@ export function createContentLoader(
           'login',
           'operation',
           'operations',
+          'recovery',
           'status',
         )
         if (
@@ -490,8 +622,25 @@ export function createContentLoader(
             )
         if (new Set(operations.map(({ command }) => command)).size !== operations.length)
           get('operations').fail('Duplicate puzzle command.')
+        const recovery = await Promise.all(
+          get('recovery').optional((item) => item.list(recoveryBinding)) ?? [],
+        )
+        if (new Set(recovery.map(({ command }) => command)).size !== recovery.length)
+          get('recovery').fail('Duplicate recovery command.')
+        const recoveryCommands = new Set(recovery.map(({ command }) => command))
+        for (const [command, dependency] of [
+          ['recover', 'replay'],
+          ['bind', 'lookup'],
+          ['preview', 'prepare'],
+          ['verify', 'preview'],
+          ['commit', 'verify'],
+        ] as const) {
+          if (recoveryCommands.has(command) && !recoveryCommands.has(dependency))
+            get('recovery').fail(`${command} requires ${dependency} on the same host.`)
+        }
         for (const effect of [
           ...operations.flatMap((item) => item.success),
+          ...recovery.flatMap((item) => item.success),
           ...resources.flatMap((resource) =>
             resource.type === 'directory' ? [] : resource.onRead,
           ),
@@ -521,6 +670,7 @@ export function createContentLoader(
           discover: get('discover').optional((item) => item.ref(flags, 'flag')),
           resources,
           operations,
+          recovery,
           status,
         }
       }
@@ -529,7 +679,18 @@ export function createContentLoader(
       if (!hosts.length) get('hosts').fail('Expected at least one host.')
       if (hosts.every((host) => host.discover))
         get('hosts').fail('At least one host must be initially discoverable.')
-      const objective = get('objective').object('text', 'read', 'message', 'onComplete')
+      const objective = get('objective').object('text', 'read', 'action', 'message', 'onComplete')
+      const read = objective('read').optional((item) => item.ref(fileIds, 'file resource'))
+      const action = objective('action').optional((item) =>
+        item.ref(
+          hosts
+            .flatMap((host) => host.recovery?.map(({ command }) => command) ?? [])
+            .filter((command) => command === 'commit'),
+          'recovery completion action',
+        ),
+      )
+      if (Boolean(read) === Boolean(action))
+        get('objective').fail('Specify one read or action completion trigger.')
       const onComplete =
         objective('onComplete').optional((field) =>
           field.list((item): ProgressEffect => {
@@ -567,9 +728,10 @@ export function createContentLoader(
         ),
         hosts,
         inbox,
+        recovery,
         objective: {
           text: objective('text').text(),
-          read: objective('read').ref(fileIds, 'file resource'),
+          ...(read ? { read } : { action: action! }),
           message: objective('message').text(),
           onComplete,
         },
@@ -585,6 +747,36 @@ export function createContentLoader(
       const messages = new Set<string>()
       for (const [index, scenario] of scenarios.entries()) {
         const file = entries[index].scenario
+        const prior = scenario.recovery?.prior
+        if (prior) {
+          const predecessor = scenarios.slice(0, index).find(({ id }) => id === prior)
+          if (
+            !predecessor?.available ||
+            predecessor.recovery?.path !== scenario.recovery?.path ||
+            !predecessor.objective.onComplete.some(
+              (effect) => effect.type === 'discover' && effect.scenario === scenario.id,
+            )
+          )
+            invalid(
+              file,
+              'recovery.prior',
+              'Expected an earlier recovery scenario with the same dataset and a discovery link.',
+            )
+          const binding = scenario.hosts.flatMap((host) => host.recovery ?? [])
+          const needed = binding.some(({ command }) => command === 'bind') ? 'recover' : 'bind'
+          if (
+            !predecessor.hosts.some((host) =>
+              host.recovery?.some(({ command }) => command === needed),
+            )
+          )
+            invalid(file, 'recovery.prior', `The predecessor must produce a ${needed} handoff.`)
+        } else if (
+          scenario.hosts.some((host) =>
+            host.recovery?.some(({ command }) => command === 'bind' || command === 'prepare'),
+          )
+        ) {
+          invalid(file, 'recovery.prior', 'An earlier recovery handoff is required.')
+        }
         for (const { id } of scenario.inbox?.messages ?? []) {
           if (messages.has(id)) invalid(file, 'inbox', `Duplicate campaign message "${id}".`)
           messages.add(id)
@@ -592,7 +784,7 @@ export function createContentLoader(
         for (const effect of scenario.objective.onComplete) {
           if (effect.type !== 'discover') continue
           const target = destinations.get(effect.scenario)
-          if (!target?.available || target === scenario)
+          if (!target?.available || scenarios.indexOf(target) <= index)
             invalid(
               file,
               'objective.onComplete',

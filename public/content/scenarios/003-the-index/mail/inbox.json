@@ -13,6 +13,13 @@
       "to": "Local operator",
       "subject": "We have the records",
       "body": "I sent her the export. She laughed when I put the two names side by side. Then she asked me to send the numbered version too, so nobody could copy the wrong one into the case.\n\nSupport had been telling us one account needed to be deleted. We've sent them both verification records. We'd like to keep both accounts.\n\nThank you.\n\n- Mira"
+    },
+    {
+      "id": "reopened-both-cases",
+      "from": "Nia / User Support",
+      "to": "Local operator",
+      "subject": "I reopened both cases",
+      "body": "We received the original records. Thank you.\n\nI reopened both appeals under their original registration IDs. The database says there are two. The review queue shows one.\n\nThe queue team says nothing was deleted and the entries are sorting normally. Could you check appeals-04 before I ask these two people to explain themselves all over again?"
     }
   ]
 }

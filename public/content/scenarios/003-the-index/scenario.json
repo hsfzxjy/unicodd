@@ -254,6 +254,14 @@
       {
         "type": "deliverMail",
         "message": "we-have-the-records"
+      },
+      {
+        "type": "deliverMail",
+        "message": "reopened-both-cases"
+      },
+      {
+        "type": "discover",
+        "scenario": "004-the-backlog"
       }
     ]
   },

@@ -1,0 +1,201 @@
+{
+  "version": 1,
+  "incident": "8C2F",
+  "revision": "8c2f-r3",
+  "registrations": [
+    {
+      "id": "0001842",
+      "owner": "owner-1842",
+      "name": "Mira",
+      "verified": true
+    },
+    {
+      "id": "0002917",
+      "owner": "owner-2917",
+      "name": "Mіra",
+      "verified": true
+    }
+  ],
+  "appeals": [
+    {
+      "id": "AP-1842",
+      "title": "Aterstallning",
+      "registration": "0001842",
+      "diagnostic": false
+    },
+    {
+      "id": "AP-2917",
+      "title": "Återställning",
+      "registration": "0002917",
+      "diagnostic": false
+    },
+    {
+      "id": "AP-T001",
+      "title": "Aterstallning",
+      "registration": "TEST-01",
+      "diagnostic": true
+    },
+    {
+      "id": "AP-T002",
+      "title": "Återställning",
+      "registration": "TEST-02",
+      "diagnostic": true
+    },
+    {
+      "id": "AP-T003",
+      "title": "Åtkomst",
+      "registration": "TEST-03",
+      "diagnostic": true
+    }
+  ],
+  "receipts": [
+    {
+      "id": "RC-1842",
+      "registration": "0001842",
+      "owner": "owner-1842",
+      "channel": "IRIS",
+      "verified": true,
+      "diagnostic": false
+    },
+    {
+      "id": "RC-2917",
+      "registration": "0002917",
+      "owner": "owner-2917",
+      "channel": "iris",
+      "verified": true,
+      "diagnostic": false
+    },
+    {
+      "id": "RC-T001",
+      "registration": "TEST-1",
+      "owner": "fixture-1",
+      "channel": "I",
+      "verified": false,
+      "diagnostic": true
+    },
+    {
+      "id": "RC-T002",
+      "registration": "TEST-2",
+      "owner": "fixture-2",
+      "channel": "ı",
+      "verified": false,
+      "diagnostic": true
+    },
+    {
+      "id": "RC-T003",
+      "registration": "TEST-3",
+      "owner": "fixture-3",
+      "channel": "İ",
+      "verified": false,
+      "diagnostic": true
+    },
+    {
+      "id": "RC-T004",
+      "registration": "TEST-4",
+      "owner": "fixture-4",
+      "channel": "i",
+      "verified": false,
+      "diagnostic": true
+    },
+    {
+      "id": "RC-T005",
+      "registration": "TEST-5",
+      "owner": "fixture-5",
+      "channel": "ΟΣ",
+      "verified": false,
+      "diagnostic": true
+    },
+    {
+      "id": "RC-T006",
+      "registration": "TEST-6",
+      "owner": "fixture-6",
+      "channel": "ος",
+      "verified": false,
+      "diagnostic": true
+    },
+    {
+      "id": "RC-T007",
+      "registration": "TEST-7",
+      "owner": "fixture-7",
+      "channel": "οσ",
+      "verified": false,
+      "diagnostic": true
+    },
+    {
+      "id": "RC-T008",
+      "registration": "TEST-8",
+      "owner": "fixture-8",
+      "channel": "İ",
+      "verified": false,
+      "diagnostic": true
+    },
+    {
+      "id": "RC-T009",
+      "registration": "TEST-9",
+      "owner": "fixture-9",
+      "channel": "Í",
+      "verified": false,
+      "diagnostic": true
+    }
+  ],
+  "identityProbes": [
+    {
+      "id": "TEST-N01",
+      "owner": "fixture-name-01",
+      "name": "Mira",
+      "verified": true
+    },
+    {
+      "id": "TEST-N02",
+      "owner": "fixture-name-02",
+      "name": "Café",
+      "verified": true
+    }
+  ],
+  "auditSamples": [
+    {
+      "id": "accent",
+      "text": "Café draft",
+      "capacity": 41,
+      "prefix": "CASE ",
+      "suffix": " 0002917 STATE APPROVED",
+      "minimumClusters": 4
+    },
+    {
+      "id": "zwj",
+      "text": "abc👩‍💻!",
+      "capacity": 48,
+      "prefix": "CASE ",
+      "suffix": " 0002917 STATE APPROVED",
+      "minimumClusters": 4
+    },
+    {
+      "id": "rtl",
+      "text": "تمت الموافقة 0001842",
+      "capacity": 64,
+      "prefix": "CASE ",
+      "suffix": " 0002917 STATE APPROVED",
+      "minimumClusters": 4
+    },
+    {
+      "id": "override",
+      "text": "ok‮12",
+      "capacity": 55,
+      "prefix": "CASE ",
+      "suffix": " 0002917 STATE APPROVED",
+      "minimumClusters": 4
+    }
+  ],
+  "cursors": {
+    "deployed-v1": {
+      "profile": "icu4x-legacy-cldr-47-v1",
+      "revision": "8c2f-r3",
+      "locale": "en-US",
+      "strength": "primary",
+      "strategy": "title",
+      "pageSize": 1,
+      "key": [42, 80, 50, 76, 78, 80, 42, 64, 64, 68, 58, 68, 54]
+    }
+  },
+  "rollbackReady": true
+}

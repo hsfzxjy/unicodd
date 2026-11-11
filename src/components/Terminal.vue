@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import CommandComposer from './CommandComposer.vue'
-import type { PuzzleBinding } from '../lib/scenario'
+import type { OperationBinding } from '../lib/scenario'
 import TerminalFile from './TerminalFile.vue'
 import TerminalInspection from './TerminalInspection.vue'
 import TerminalMail from './TerminalMail.vue'
 import { commandHelp } from '../lib/commands'
 import type { Action, Link, Output } from '../lib/runtime'
-import { unpairedSurrogate } from '../lib/unicode'
+import { inspectRange, unpairedSurrogate } from '../lib/unicode'
 
 export interface Entry {
   id: number
@@ -25,7 +25,7 @@ const props = defineProps<{
   suggestions: string[]
   busy: boolean
   context: string
-  operations: readonly PuzzleBinding[]
+  operations: readonly OperationBinding[]
   execute: (action: Action, echo?: string) => Promise<import('../lib/runtime').Response | undefined>
 }>()
 const emit = defineEmits<{ action: [Action, string?] }>()
@@ -82,7 +82,7 @@ watch(
   { flush: 'post' },
 )
 
-function revealOutput(kind: 'inspection' | 'mail' | 'file', focus: boolean) {
+function revealOutput(kind: 'inspection' | 'mail' | 'file' | 'report', focus: boolean) {
   const box = scroll.value
   const selector = kind === 'inspection' ? '.inspection' : '.terminal-' + kind
   const latest = box?.lastElementChild?.querySelector<HTMLElement>(selector)
@@ -195,6 +195,45 @@ defineExpose({
               :busy="busy"
               @action="emit('action', $event)"
             />
+            <div v-else-if="row.kind === 'report'" class="terminal-report" tabindex="-1">
+              <div
+                v-for="(record, number) in row.rows"
+                :key="number"
+                class="report-row"
+                :class="{ 'audit-row': record.audit }"
+              >
+                <strong
+                  ><bdi>{{ record.label }}</bdi></strong
+                >
+                <span v-if="record.details" class="report-details">
+                  <bdi v-for="(detail, index) in record.details" :key="index">{{ detail }}</bdi>
+                </span>
+                <span class="report-fields" data-resource-text>
+                  <bdi v-for="(field, index) in record.fields" :key="index">{{ field }}</bdi>
+                </span>
+                <button
+                  v-if="record.serialized !== undefined"
+                  type="button"
+                  class="terminal-link"
+                  @click="emit('action', { type: 'copy', text: record.serialized })"
+                >
+                  Copy {{ record.audit ? 'line' : 'cursor' }}
+                </button>
+                <span v-if="record.inspect" class="report-points">
+                  <template v-for="(field, index) in record.inspect" :key="index">
+                    <button
+                      v-for="point in inspectRange(field, 0, 24)"
+                      :key="point.start"
+                      type="button"
+                      class="terminal-link"
+                      @click="emit('action', { type: 'inspect', character: point.scalar })"
+                    >
+                      {{ point.notation }}
+                    </button>
+                  </template>
+                </span>
+              </div>
+            </div>
             <div v-else-if="row.kind === 'help'" class="command-help">
               <dl>
                 <template

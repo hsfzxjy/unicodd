@@ -7,6 +7,11 @@ const quick = (page: Page, name: string) =>
   page.getByRole('group', { name: 'Quick actions' }).getByRole('button', { name, exact: true })
 const panel = (page: Page) => page.getByRole('complementary', { name: 'Session context' })
 
+async function openCampaign(page: Page, path = '/') {
+  await page.goto(path)
+  await page.getByRole('region', { name: 'Terminal', exact: true }).waitFor()
+}
+
 async function run(page: Page, text: string) {
   const tag = page.getByRole('button', { name: 'Change command', exact: true })
   if (await tag.count()) {
@@ -72,7 +77,7 @@ test('recovers Dead Letter by graphical actions from the development entry', asy
     Boolean(process.env.PLAYWRIGHT_TEST_PREVIEW),
     'Isolated development entry; full graphical production campaign is covered below',
   )
-  await page.goto('/?scenario=002-dead-letter')
+  await openCampaign(page, '/?scenario=002-dead-letter')
   await expect(panel(page)).toContainText('guest')
   await expect(panel(page)).toContainText('Quarantined')
   await recoverNotice(page, (target) => target.click())
@@ -81,7 +86,7 @@ test('recovers Dead Letter by graphical actions from the development entry', asy
 })
 
 async function openIndexGraphically(page: Page, act: Activate) {
-  await page.goto('/')
+  await openCampaign(page)
   await expect(page.getByRole('heading', { name: 'The Relay' })).toBeVisible()
   await act(link(page, 'relay-07'))
   await act(quick(page, 'Login'))
@@ -168,7 +173,7 @@ for (const [width, height] of [
       }
       if (process.env.PLAYWRIGHT_TEST_PREVIEW || width === 390 || width === 1440)
         await openIndexGraphically(page, act)
-      else await page.goto('/?scenario=003-the-index')
+      else await openCampaign(page, '/?scenario=003-the-index')
       if (width <= 830) await act(page.getByRole('button', { name: 'Session', exact: true }))
       await expect(panel(page)).toContainText('auditor')
       await capture('01-auditor')
@@ -247,7 +252,7 @@ for (const [width, height] of [
 }
 
 test('completes and replays the entire campaign with commands across reloads', async ({ page }) => {
-  await page.goto('/')
+  await openCampaign(page)
   await run(page, 'campaign')
   await expect(link(page, 'The Relay')).toBeVisible()
   await expect(link(page, 'The Index')).toHaveCount(0)
@@ -283,11 +288,40 @@ test('completes and replays the entire campaign with commands across reloads', a
   await expect(transcript(page)).toContainText('spelling differs from the verified source')
   await run(page, String.raw`reconstruct Mira M\u000456ra`)
   await run(page, 'cat /exports/8c2f-originals.json')
-  await expect(panel(page)).toContainText('Campaign complete')
+  await expect(link(page, 'The Backlog')).toBeVisible()
   await run(page, 'mail we-have-the-records')
   await expect(transcript(page)).toContainText("We'd like to keep both accounts.")
   await page.reload()
+  await run(page, 'scenario 004-the-backlog')
+  await run(page, 'replay en-US primary title 1 start')
+  await expect(transcript(page)).toContainText('Replay skipped records')
+  await run(page, 'replay en-US primary composite 2 start')
+  await run(page, 'recover AP-1842 AP-2917')
+  await run(page, 'cat /outbox/review-handoff.txt')
+  await expect(link(page, 'The Handshake')).toBeVisible()
+  await page.reload()
+  await run(page, 'scenario 005-the-handshake')
+  await run(page, 'lookup tr IRIS')
+  await run(page, 'lookup tr iris')
+  await run(page, 'bind turkish-lower RC-1842 RC-2917')
+  await expect(transcript(page)).toContainText('misroutes distinct records')
+  await run(page, 'bind registration RC-1842 RC-2917')
+  await run(page, 'cat /outbox/authorization.txt')
+  await expect(link(page, 'The Release')).toBeVisible()
+  await page.reload()
+  await run(page, 'scenario 006-the-release')
+  await run(page, 'prepare registration preserve')
+  await run(page, 'preview grapheme 4 isolate escape')
+  await run(page, 'verify')
+  await run(page, 'commit')
+  await expect(transcript(page)).toContainText('RECOVERY COMPLETE')
   await expect(panel(page)).toContainText('Campaign complete')
+  await page.reload()
+  await expect(panel(page)).toContainText('Campaign complete')
+  await run(page, 'commit')
+  await expect(transcript(page)).toContainText('Transaction already applied.')
+  await run(page, 'mail it-worked')
+  await expect(transcript(page)).toContainText('Only mine.')
   await run(page, 'scenario 001-the-relay')
   await expect(panel(page)).toContainText('local')
   await page.getByRole('button', { name: 'Reset session' }).click()
@@ -318,7 +352,7 @@ test('completes and replays the entire campaign with commands across reloads', a
 
 test('ignores development scenario entry on the built site', async ({ page }) => {
   test.skip(!process.env.PLAYWRIGHT_TEST_PREVIEW, 'Requires the production build')
-  await page.goto('/?scenario=003-the-index')
+  await openCampaign(page, '/?scenario=006-the-release')
   await expect(page.getByRole('heading', { name: 'The Relay' })).toBeVisible()
   await expect(panel(page)).toContainText('local')
 })
@@ -326,7 +360,9 @@ test('ignores development scenario entry on the built site', async ({ page }) =>
 test('keeps internal puzzle matrix files off the game server', async ({ page }) => {
   for (const path of [
     '/private/testing/puzzle-regression-matrix.md',
+    '/private/testing/recovery-regression-matrix.json',
     '/tests/fixtures/puzzle-matrix.json',
+    '/tests/fixtures/recovery-matrix.json',
   ]) {
     const response = await page.request.get(path, { headers: { Accept: 'application/json' } })
     const expected = process.env.PLAYWRIGHT_TEST_PREVIEW ? [404] : [403, 404]

@@ -1,0 +1,7 @@
+Extracted audit fields / review fixtures
+
+Café draft
+abc👩‍💻!
+تمت الموافقة 0001842
+
+The ASCII registration anchor following each field in the audit line is 0002917. It identifies the case under review. The number inside the last field is part of the original status note.

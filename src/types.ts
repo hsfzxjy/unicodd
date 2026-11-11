@@ -88,12 +88,19 @@ export interface EngineInfo {
   caseFoldingVersion: string
   skeletonVersion: string
   uts39Revision: number
+  recoveryVersion: number
+  collationProfile: string
+  casingProfile: string
+  graphemeVersion: string
+  bidiVersion: string
 }
 
 export interface Engine {
   info(): Promise<Result<EngineInfo>>
   inspectScalar(text: string): Promise<Result<ScalarDetails>>
   validate(program: unknown): Promise<Result<null>>
+  validateRecovery(dataset: unknown): Promise<Result<null>>
+  runRecovery(request: RecoveryRequest): Promise<Result<RecoveryReport>>
   evaluate(
     program: Program,
     inputs: Record<string, string>,
@@ -101,3 +108,4 @@ export interface Engine {
   ): Promise<Result<Evaluation>>
   normalize(text: string, form: Normalization): Promise<Result<string>>
 }
+import type { RecoveryReport, RecoveryRequest } from './lib/recovery.ts'

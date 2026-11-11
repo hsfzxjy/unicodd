@@ -1,0 +1,7 @@
+Support intake / incident 8C2F
+
+Registration 0001842: original verification export accepted
+Registration 0002917: original verification export accepted
+TEST-* rows: migration fixtures. They exercise the index but have no owner or review case.
+
+Recover the two appeals tied to the accepted registrations.

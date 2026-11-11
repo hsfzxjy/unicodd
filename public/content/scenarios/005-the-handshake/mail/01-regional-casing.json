@@ -1,0 +1,12 @@
+{
+  "messages": [
+    {
+      "id": "regional-casing",
+      "from": "Eli / MONONYM",
+      "to": "MONONYM operations",
+      "subject": "Regional casing",
+      "date": "2026-08-26",
+      "body": "The Turkish test shard returns separate results for IRIS and iris. This is the first time the broker has handed me both receipts.\n\nI'm tempted to enable that profile globally. The original display labels would still be on disk."
+    }
+  ]
+}

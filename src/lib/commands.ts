@@ -1,5 +1,6 @@
 import type { Action } from './runtime.ts'
-import { puzzleArity, type PuzzleCommand } from './scenario.ts'
+import { recoveryArity, type RecoveryCommand } from './recovery.ts'
+import { puzzleArity, type OperationBinding, type OperationCommand } from './scenario.ts'
 import { decodeUnicodeEscapes, readUnicodeEscape, scalarSpan, type Span } from './unicode.ts'
 
 export type ArgumentKind = 'text' | 'path' | 'host' | 'message' | 'scenario' | 'scalar' | 'payload'
@@ -17,6 +18,20 @@ const argument = (name: string, kind: ArgumentKind, required = true): CommandArg
   required,
   initial: '',
 })
+export const operationArity = { ...puzzleArity, ...recoveryArity }
+
+function recoveryCommand<T extends RecoveryCommand>(
+  name: T,
+  description: string,
+  ...fields: string[]
+) {
+  return {
+    name,
+    usage: [name, ...fields.map((field) => '<' + field + '>')].join(' '),
+    description,
+    arguments: fields.map((field) => argument(field, 'text')),
+  }
+}
 
 // Parsing, help, completion and the composer share this vocabulary. Scenario bindings
 // supply puzzle field labels, defaults and fixed context, never another input UI.
@@ -72,6 +87,45 @@ export const commandRegistry = [
     description: 'Verify both original record names.',
     arguments: [argument('name-a', 'payload'), argument('name-b', 'payload')],
   },
+  recoveryCommand(
+    'collate',
+    'Compare two titles under a locale profile.',
+    'locale',
+    'strength',
+    'left',
+    'right',
+  ),
+  recoveryCommand(
+    'replay',
+    'Replay the queue and audit traversal.',
+    'locale',
+    'strength',
+    'cursor-strategy',
+    'page-size',
+    'cursor',
+  ),
+  recoveryCommand('recover', 'Recover two appeals from a verified replay.', 'appeal-a', 'appeal-b'),
+  recoveryCommand('casing', 'Compare original and mapped channel labels.', 'profile', 'label'),
+  recoveryCommand('lookup', 'Look up a receipt by channel label.', 'profile', 'channel'),
+  recoveryCommand('probe', 'Audit a routing key against all receipt channels.', 'routing-key'),
+  recoveryCommand(
+    'bind',
+    'Bind retrieved receipts to their verified owners.',
+    'routing-key',
+    'receipt-a',
+    'receipt-b',
+  ),
+  recoveryCommand('prepare', 'Prepare the identity split.', 'identity-key', 'originals'),
+  recoveryCommand(
+    'preview',
+    'Run the audit preview samples.',
+    'units',
+    'limit',
+    'bidi',
+    'controls',
+  ),
+  recoveryCommand('verify', 'Verify the staged recovery plan.'),
+  recoveryCommand('commit', 'Apply the verified recovery transaction.'),
   {
     name: 'campaign',
     usage: 'campaign',
@@ -102,7 +156,7 @@ export function commandDefinition(name: string) {
 }
 export function composerArguments(
   name: CommandName,
-  operations: readonly import('./scenario.ts').PuzzleBinding[],
+  operations: readonly OperationBinding[],
 ): CommandArgument[] {
   const definition = commandDefinition(name)!
   const binding = operations.find((operation) => operation.command === name)
@@ -114,7 +168,7 @@ export function composerArguments(
           label: field.label,
           initial: field.initial,
           required: true,
-          kind: 'payload',
+          kind: field.kind ?? 'payload',
         }))
     : [...definition.arguments]
 }
@@ -205,7 +259,7 @@ export function parseCommand(source: string): Action | undefined {
     return { type: 'invalid', message: `Unknown command "${command}". Type help for commands.` }
   const count = args.length - 1
   const minimum =
-    Object.hasOwn(puzzleArity, command) && !count
+    Object.hasOwn(operationArity, command) && !count
       ? 0
       : definition.arguments.filter((field) => field.required).length
   if (count < minimum || count > definition.arguments.length)
@@ -217,7 +271,7 @@ export function parseCommand(source: string): Action | undefined {
 export function composerAction(
   name: CommandName,
   values: string[],
-  operations: readonly import('./scenario.ts').PuzzleBinding[],
+  operations: readonly OperationBinding[],
 ): Action {
   const fields = composerArguments(name, operations)
   const decoded: string[] = []
@@ -230,8 +284,8 @@ export function composerAction(
 }
 
 export function commandAction(command: CommandName, values: string[] = []): Action {
-  if (Object.hasOwn(puzzleArity, command))
-    return puzzleAction(command as PuzzleCommand, values.length ? values : undefined)
+  if (Object.hasOwn(operationArity, command))
+    return puzzleAction(command as OperationCommand, values.length ? values : undefined)
   const argument = values[0]
   switch (command) {
     case 'connect':
@@ -259,7 +313,7 @@ export function commandAction(command: CommandName, values: string[] = []): Acti
   }
 }
 
-export function puzzleAction(command: PuzzleCommand, values?: string[]): Action {
+export function puzzleAction(command: OperationCommand, values?: string[]): Action {
   switch (command) {
     case 'login':
       return { type: command, alias: values?.[0] }
@@ -339,6 +393,8 @@ export function actionCommand(action: Action): string | undefined {
     case 'editPayload':
       return
     default:
-      return action.type
+      return 'payloads' in action
+        ? [action.type, ...(action.payloads?.map(quote) ?? [])].join(' ')
+        : action.type
   }
 }

@@ -1,3 +1,4 @@
+pub mod dossier;
 mod evaluator;
 pub mod international;
 pub mod recovery;

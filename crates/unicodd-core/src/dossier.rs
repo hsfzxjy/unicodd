@@ -1,0 +1,222 @@
+mod search;
+mod spans;
+
+use std::collections::{BTreeMap, BTreeSet};
+
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+
+use crate::{EngineError, ErrorCode};
+
+const VERSION: u32 = 1;
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Dataset {
+    version: u32,
+    revision: String,
+    query: String,
+    approved_fields: Vec<String>,
+    records: Vec<Record>,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct Record {
+    id: String,
+    eligible: bool,
+    fields: BTreeMap<String, String>,
+}
+
+pub fn validate(dataset: &Dataset) -> Result<String, EngineError> {
+    let fields = dataset.approved_fields.iter().collect::<BTreeSet<_>>();
+    let ids = dataset
+        .records
+        .iter()
+        .map(|record| &record.id)
+        .collect::<BTreeSet<_>>();
+    if dataset.version != VERSION
+        || dataset.revision.is_empty()
+        || dataset.query.is_empty()
+        || dataset.query.len() > 128
+        || fields.is_empty()
+        || fields.len() != dataset.approved_fields.len()
+        || dataset.records.is_empty()
+        || dataset.records.len() > 32
+        || ids.len() != dataset.records.len()
+        || !dataset.records.iter().any(|record| record.eligible)
+        || dataset.records.iter().any(|record| {
+            !identifier(&record.id)
+                || !fields
+                    .iter()
+                    .all(|field| record.fields.contains_key(*field))
+                || record.fields.len() > 8
+                || record.fields.values().any(|text| text.len() > 2048)
+        })
+    {
+        return Err(EngineError::new(
+            ErrorCode::InvalidProgram,
+            "Invalid archive snapshot.",
+        ));
+    }
+    let official = search::official(dataset)?;
+    if !search::matches_ledger(dataset, &official) {
+        return Err(EngineError::new(
+            ErrorCode::InvalidProgram,
+            "Archive field matches and the eligibility ledger disagree.",
+        ));
+    }
+    Ok(digest_json(dataset))
+}
+
+fn identifier(text: &str) -> bool {
+    !text.is_empty()
+        && text.len() <= 64
+        && text
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+}
+
+fn digest(bytes: &[u8]) -> String {
+    format!("{:x}", Sha256::digest(bytes))
+}
+
+fn digest_json(value: &impl Serialize) -> String {
+    digest(&serde_json::to_vec(value).expect("typed dossier data serializes"))
+}
+
+#[derive(Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+enum Command {
+    Search,
+    Tokens,
+    Select,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct Receipt {
+    version: u32,
+    snapshot: String,
+    selection: Vec<String>,
+    digest: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Request {
+    version: u32,
+    dataset: Dataset,
+    command: Command,
+    args: Vec<String>,
+    candidate: Option<Vec<String>>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Report {
+    solved: bool,
+    checks: Vec<Check>,
+    declared_checks: &'static [&'static str],
+    rows: Vec<Row>,
+    candidate: Option<Vec<String>>,
+    handoff: Option<Receipt>,
+}
+
+#[derive(Serialize)]
+struct Check {
+    id: &'static str,
+    passed: bool,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Row {
+    label: String,
+    fields: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    details: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    inspect: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    serialized: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    copy_label: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source: Option<Source>,
+}
+
+#[derive(Serialize)]
+struct Source {
+    before: String,
+    hit: String,
+    after: String,
+    coordinates: spans::Coordinates,
+}
+
+impl Report {
+    fn row(
+        &mut self,
+        label: impl Into<String>,
+        fields: impl IntoIterator<Item = String>,
+    ) -> &mut Row {
+        self.rows.push(Row {
+            label: label.into(),
+            fields: fields.into_iter().collect(),
+            details: vec![],
+            inspect: vec![],
+            serialized: None,
+            copy_label: None,
+            source: None,
+        });
+        self.rows.last_mut().unwrap()
+    }
+
+    fn check(&mut self, id: &'static str, passed: bool) -> bool {
+        debug_assert!(self.declared_checks.contains(&id));
+        self.solved &= passed;
+        self.checks.push(Check { id, passed });
+        passed
+    }
+
+    fn reject(&mut self, id: &'static str, detail: impl Into<String>) {
+        self.check(id, false);
+        self.row("Review", [detail.into()]);
+    }
+}
+
+pub fn run(request: Request) -> Result<Report, EngineError> {
+    let Request {
+        version,
+        dataset,
+        command,
+        args,
+        candidate,
+    } = request;
+    let (arity, checks): (usize, &[_]) = match command {
+        Command::Search => (3, &["profile"]),
+        Command::Tokens => (3, &["profile"]),
+        Command::Select => (0, &["candidate", "record-set", "source-spans"]),
+    };
+    if version != VERSION || args.len() != arity || args.iter().any(|arg| arg.len() > 2048) {
+        return Err(EngineError::new(
+            ErrorCode::InvalidInput,
+            "Unsupported dossier request.",
+        ));
+    }
+    let snapshot = validate(&dataset)?;
+    let mut report = Report {
+        solved: true,
+        checks: vec![],
+        declared_checks: checks,
+        rows: vec![],
+        candidate,
+        handoff: None,
+    };
+    match command {
+        Command::Search => search::stage(&dataset, &mut report, args),
+        Command::Tokens => search::tokens(&dataset, &mut report, &args),
+        Command::Select => search::select(&dataset, &mut report, snapshot),
+    }?;
+    Ok(report)
+}

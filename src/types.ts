@@ -101,6 +101,8 @@ export interface Engine {
   validate(program: unknown): Promise<Result<null>>
   validateRecovery(dataset: unknown): Promise<Result<null>>
   runRecovery(request: RecoveryRequest): Promise<Result<RecoveryReport>>
+  validateDossier(dataset: unknown): Promise<Result<string>>
+  runDossier(request: DossierRequest): Promise<Result<DossierReport>>
   evaluate(
     program: Program,
     inputs: Record<string, string>,
@@ -109,3 +111,4 @@ export interface Engine {
   normalize(text: string, form: Normalization): Promise<Result<string>>
 }
 import type { RecoveryReport, RecoveryRequest } from './lib/recovery.ts'
+import type { DossierReport, DossierRequest } from './lib/dossier.ts'

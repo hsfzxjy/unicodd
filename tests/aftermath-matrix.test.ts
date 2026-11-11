@@ -268,7 +268,8 @@ it('rejects absent prerequisites, modified ownership, substituted captures and u
   if (ack.kind === 'accepted') ack.owner = 'owner-2917'
   expect(failed(await evaluate('mirror', reconciliation, swapped))).toEqual(['ingestion-required'])
   expect(failed(await evaluate('mirror', reconciliation))).toEqual(['ingestion-required'])
-  const dataset = structuredClone(all.at(-1)!.recovery!.dataset)
+  const boundary = all.find(({ id }) => id === '009-the-boundary')!
+  const dataset = structuredClone(boundary.recovery!.dataset)
   dataset.archive!.sources[1].archiveId = dataset.archive!.sources[0].archiveId
   expect(await engine.validateRecovery(dataset)).toMatchObject({
     ok: false,
@@ -284,7 +285,7 @@ it('rejects absent prerequisites, modified ownership, substituted captures and u
   expect(
     await engine.runRecovery({
       version: 1,
-      dataset: all.at(-1)!.recovery!.dataset,
+      dataset: boundary.recovery!.dataset,
       command: 'identifier',
       args: ['15.1', 'Ᲊ\ud800'],
     }),
@@ -360,7 +361,7 @@ it('migrates completed release saves, restores read gates, and applies each hand
       expect(campaign.delivered).toEqual(mail)
       expect(campaign.completed(releaseScenario.id)).toBe(true)
     }
-    expect(campaign.finished).toBe(true)
+    expect(campaign.selectable('010-the-needle')).toBe(true)
     const committed = extract(campaign.handoff(bridge.id), 'mirror')
     expect(
       failed(await evaluate('mirror', ['opaque', 'prefix:new_', '18.0'], ingestion, { committed })),

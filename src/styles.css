@@ -950,6 +950,18 @@ h1.terminal-scenario {
   border-bottom: 2px solid currentColor;
   font-weight: 700;
 }
+.report-source {
+  display: block;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.report-source mark {
+  color: inherit;
+  background: #304d42;
+  border-bottom: 1px solid currentColor;
+}
+
 .report-fields,
 .report-points,
 .report-details {

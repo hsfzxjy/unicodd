@@ -392,6 +392,21 @@ defineExpose({
                   <span v-else class="report-fields" data-resource-text>
                     <bdi v-for="(field, index) in record.fields" :key="index">{{ field }}</bdi>
                   </span>
+                  <template v-if="record.source">
+                    <bdi class="report-source" data-resource-text
+                      >{{ record.source.before }}<mark>{{ record.source.hit }}</mark
+                      >{{ record.source.after }}</bdi
+                    >
+                    <span class="report-details" dir="ltr">
+                      <span>UTF-8 {{ record.source.coordinates.utf8.join('–') }}</span>
+                      <span>UTF-16 {{ record.source.coordinates.utf16.join('–') }}</span>
+                      <span>Scalars {{ record.source.coordinates.scalars.join('–') }}</span>
+                      <span>
+                        Graphemes {{ record.source.coordinates.graphemes.join('–') }}
+                        {{ record.source.coordinates.exactGraphemes ? '' : '(covering)' }}
+                      </span>
+                    </span>
+                  </template>
                   <button
                     v-if="record.serialized !== undefined"
                     type="button"
@@ -399,7 +414,7 @@ defineExpose({
                     :aria-disabled="busy || undefined"
                     @click="emit('action', { type: 'copy', text: record.serialized })"
                   >
-                    Copy {{ record.audit ? 'line' : 'cursor' }}
+                    {{ record.copyLabel ?? (record.audit ? 'Copy line' : 'Copy cursor') }}
                   </button>
                   <span v-if="record.inspect" class="report-points">
                     <template v-for="(field, index) in record.inspect" :key="index">

@@ -222,6 +222,10 @@
       {
         "type": "deliverMail",
         "message": "archive-item-closed"
+      },
+      {
+        "type": "discover",
+        "scenario": "010-the-needle"
       }
     ]
   },

@@ -11,6 +11,8 @@ type Operations = Pick<
   | 'inspect_scalar'
   | 'validate_recovery_dataset'
   | 'run_recovery'
+  | 'validate_dossier_dataset'
+  | 'run_dossier'
 >
 const encoder = new TextEncoder()
 const programLimit = 13 * 1024 * 1024
@@ -102,6 +104,18 @@ export function createEngine(load: () => Promise<Operations>): Engine {
     async validateRecovery(dataset) {
       const data = jsonBytes(dataset, inputLimit, 'dataset', 'invalid_program')
       return data.ok ? call((module) => module.validate_recovery_dataset(data.value)) : data
+    },
+    async validateDossier(dataset) {
+      const data = jsonBytes(dataset, inputLimit, 'dataset', 'invalid_program')
+      return data.ok ? call((module) => module.validate_dossier_dataset(data.value)) : data
+    },
+    async runDossier(request) {
+      for (const [index, arg] of request.args.entries()) {
+        const invalid = surrogateError(arg, 'invalid_input', 'args.' + index)
+        if (invalid) return invalid
+      }
+      const data = jsonBytes(request, inputLimit, 'request', 'invalid_input')
+      return data.ok ? call((module) => module.run_dossier(data.value)) : data
     },
     async runRecovery(request) {
       for (const [index, arg] of request.args.entries()) {

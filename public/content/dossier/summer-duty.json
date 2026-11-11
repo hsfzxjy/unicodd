@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "revision": "summer-duty-2026.1",
+  "query": "été",
+  "approvedFields": ["title", "body"],
+  "records": [
+    {
+      "id": "FR-201",
+      "eligible": true,
+      "fields": {
+        "title": "ÉTÉ — service de garde",
+        "body": "Le journal d’été conserve deux accusés. 📨 En été, le client change de fuseau.",
+        "diagnostics": "collecte S14"
+      }
+    },
+    {
+      "id": "FR-202",
+      "eligible": true,
+      "fields": {
+        "title": "Horodatage du relais",
+        "body": "Le rapport été montre un décalage de 60 minutes.",
+        "diagnostics": "index d’essai"
+      }
+    },
+    {
+      "id": "FR-203",
+      "eligible": true,
+      "fields": {
+        "title": "Accusé manquant",
+        "body": "À l’été — une notification sur deux arrive après la relève.",
+        "diagnostics": "rejeu confirmé"
+      }
+    },
+    {
+      "id": "FR-204",
+      "eligible": true,
+      "fields": {
+        "title": "Table de permanence",
+        "body": "La relève d'été utilise un nouveau calendrier.",
+        "diagnostics": "capture validée"
+      }
+    },
+    {
+      "id": "FR-301",
+      "eligible": false,
+      "fields": {
+        "title": "Calendrier hétérogène",
+        "body": "Un seul appareil charge le tableau hétérogène.",
+        "diagnostics": "brouillon"
+      }
+    },
+    {
+      "id": "FR-302",
+      "eligible": false,
+      "fields": {
+        "title": "Transcription de test",
+        "body": "Le champ ete vient du clavier sans accents.",
+        "diagnostics": "jeu de saisie"
+      }
+    },
+    {
+      "id": "FR-303",
+      "eligible": false,
+      "fields": {
+        "title": "Substitution visuelle",
+        "body": "Le témoin е́tе́ contient des lettres cyrilliques.",
+        "diagnostics": "contrôle"
+      }
+    },
+    {
+      "id": "FR-304",
+      "eligible": false,
+      "fields": {
+        "title": "Rapport du poste de nuit",
+        "body": "Les accusés du poste de nuit sont arrivés.",
+        "diagnostics": "étiquette été ajoutée après import"
+      }
+    },
+    {
+      "id": "FR-305",
+      "eligible": false,
+      "fields": {
+        "title": "Largeur du terminal",
+        "body": "Le tampon contient ｅ́ｔｅ́ sur une seule ligne.",
+        "diagnostics": "test de largeur"
+      }
+    },
+    {
+      "id": "FR-306",
+      "eligible": false,
+      "fields": {
+        "title": "Fin du texte é",
+        "body": "té est le reste d’une chaîne coupée.",
+        "diagnostics": "contrôle de jointure"
+      }
+    }
+  ]
+}

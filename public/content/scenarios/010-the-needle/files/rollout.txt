@@ -1,0 +1,4 @@
+09:00 legacy ASCII edges removed from the default path
+09:16 NFC/full-fold keys deployed on both sides
+09:22 default word boundaries deployed; French annotation still pending
+09:31 comparison run returned two report IDs; no archive writes

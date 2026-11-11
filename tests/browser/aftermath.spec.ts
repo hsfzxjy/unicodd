@@ -176,7 +176,7 @@ for (const [width, height] of [
       await page.reload()
       await expect(scenario(page)).toHaveValue('009-the-boundary')
       await act(quick(page, 'campaign'))
-      await expect(last(page)).toContainText('All available scenarios complete')
+      await expect(last(page)).toContainText('The Needle')
     })
   })
 }

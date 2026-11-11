@@ -1,5 +1,6 @@
 import type { Action } from './runtime.ts'
 import { recoveryArity, type RecoveryCommand } from './recovery.ts'
+import { dossierArity, type DossierCommand } from './dossier.ts'
 import { puzzleArity, type OperationBinding, type OperationCommand } from './scenario.ts'
 import { decodeUnicodeEscapes, readUnicodeEscape, scalarSpan, type Span } from './unicode.ts'
 
@@ -18,9 +19,9 @@ const argument = (name: string, kind: ArgumentKind, required = true): CommandArg
   required,
   initial: '',
 })
-export const operationArity = { ...puzzleArity, ...recoveryArity }
+export const operationArity = { ...puzzleArity, ...recoveryArity, ...dossierArity }
 
-function recoveryCommand<T extends RecoveryCommand>(
+function recoveryCommand<T extends RecoveryCommand | DossierCommand>(
   name: T,
   description: string,
   ...fields: string[]
@@ -163,6 +164,21 @@ export const commandRegistry = [
     'handle-policy',
     'search-version',
   ),
+  recoveryCommand(
+    'search',
+    'Search the catalog and stage its original occurrences.',
+    'query',
+    'profile',
+    'scope',
+  ),
+  recoveryCommand(
+    'tokens',
+    'Inspect boundaries and comparison keys in a source field.',
+    'record',
+    'field',
+    'profile',
+  ),
+  recoveryCommand('select', 'Reconcile the staged catalog search against the review ledger.'),
   {
     name: 'campaign',
     usage: 'campaign',
@@ -211,7 +227,7 @@ export function composerArguments(
 }
 export function spaceCommand(source: string, composing = false): CommandName | undefined {
   if (composing) return
-  const match = /^([a-z]+) $/u.exec(source)
+  const match = /^([a-z-]+) $/u.exec(source)
   return match ? commandDefinition(match[1])?.name : undefined
 }
 

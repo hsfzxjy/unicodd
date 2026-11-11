@@ -74,6 +74,32 @@ pub fn engine_info() -> String {
 }
 
 #[wasm_bindgen]
+pub fn validate_dossier_dataset(dataset: &[u8]) -> String {
+    respond(
+        parse(
+            dataset,
+            MAX_INPUT_WIRE_BYTES,
+            ErrorCode::InvalidProgram,
+            "dataset",
+        )
+        .and_then(|dataset| core::dossier::validate(&dataset)),
+    )
+}
+
+#[wasm_bindgen]
+pub fn run_dossier(request: &[u8]) -> String {
+    respond(
+        parse(
+            request,
+            MAX_INPUT_WIRE_BYTES,
+            ErrorCode::InvalidInput,
+            "request",
+        )
+        .and_then(core::dossier::run),
+    )
+}
+
+#[wasm_bindgen]
 pub fn validate_recovery_dataset(dataset: &[u8]) -> String {
     respond(
         parse(

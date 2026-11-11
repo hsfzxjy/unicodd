@@ -1,5 +1,6 @@
 import type { Program } from '../types.ts'
 import type { ArchiveStage, RecoveryCommand, RecoveryDataset } from './recovery.ts'
+import type { DossierCommand, DossierStage } from './dossier.ts'
 import type { Action } from './runtime.ts'
 
 export interface Identity {
@@ -75,7 +76,7 @@ export interface PuzzleBinding {
 }
 
 export interface RecoveryBinding extends Omit<PuzzleBinding, 'command' | 'program'> {
-  command: RecoveryCommand
+  command: RecoveryCommand | DossierCommand
   quick: boolean
   invalidates: string[]
 }
@@ -120,10 +121,11 @@ export interface Scenario {
     prior?: string
     archive?: string
   }
+  dossier?: { path: string; dataset: unknown; snapshot: string; prior?: string }
   outputTiming?: Partial<Record<Action['type'], OutputPause[]>>
   objective: (
-    | { read: string; handoff?: ArchiveStage; action?: never }
-    | { read?: never; handoff?: never; action: RecoveryCommand }
+    | { read: string; handoff?: ArchiveStage; dossier?: DossierStage; action?: never }
+    | { read?: never; handoff?: never; dossier?: never; action: RecoveryCommand }
   ) & {
     text: string
     message: string

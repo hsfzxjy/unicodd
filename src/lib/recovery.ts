@@ -152,6 +152,19 @@ export interface RecoveryRow {
   fields: string[]
   details?: string[]
   serialized?: string
+  copyLabel?: string
+  source?: {
+    before: string
+    hit: string
+    after: string
+    coordinates: {
+      utf8: [number, number]
+      utf16: [number, number]
+      scalars: [number, number]
+      graphemes: [number, number]
+      exactGraphemes: boolean
+    }
+  }
   inspect?: string[]
   audit?: boolean
   hex?: { offset: number; bytes: number[]; chunkStart: boolean; highlight?: [number, number] }

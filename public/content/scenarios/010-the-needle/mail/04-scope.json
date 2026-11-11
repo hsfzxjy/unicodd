@@ -1,0 +1,12 @@
+{
+  "messages": [
+    {
+      "id": "04-scope",
+      "from": "Mara",
+      "to": "Catalog review",
+      "subject": "What I need for review",
+      "body": "Send the occurrence ranges in report text, including repeat mentions. I can review a source reference against the archived field. A match in an import label has a different purpose.",
+      "date": "2026-09-03"
+    }
+  ]
+}

@@ -15,9 +15,15 @@ it('loads the production scenario catalog in progression order', async () => {
     '007-the-other-side',
     '008-the-fragments',
     '009-the-boundary',
+    '010-the-needle',
   ])
   await expect(production.campaign(entries)).resolves.toHaveLength(entries.length)
-  expect(await readdir(productionRoot)).toEqual(['manifest.json', 'recovery', 'scenarios'])
+  expect(await readdir(productionRoot)).toEqual([
+    'dossier',
+    'manifest.json',
+    'recovery',
+    'scenarios',
+  ])
   expect(await readdir(new URL('scenarios/', productionRoot))).toEqual(entries.map(({ id }) => id))
   const scenario = await production.scenario(entries[0])
   expect(scenario.inbox?.initial).toEqual(['favor'])

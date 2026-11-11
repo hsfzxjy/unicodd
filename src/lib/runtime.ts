@@ -9,6 +9,14 @@ import {
 import { createCampaign, validHandoff } from './campaign.ts'
 import { actionCommand, commandHelp, operationArity } from './commands.ts'
 import {
+  dossierStages,
+  isDossierCommand,
+  validArguments,
+  validDossierReceipt,
+  type DossierCommand,
+  type DossierReceipt,
+} from './dossier.ts'
+import {
   archiveRows,
   type Handoff,
   type RecoveryCommand,
@@ -39,7 +47,7 @@ export type Action =
   | { type: 'login'; alias?: string }
   | { type: 'reconcile'; payload?: string }
   | { type: 'route' | 'reconstruct'; payloads?: string[] }
-  | { type: RecoveryCommand; payloads?: string[] }
+  | { type: RecoveryCommand | DossierCommand; payloads?: string[] }
   | { type: 'scenario'; id: string }
   | { type: 'inspect'; character?: string }
   | { type: 'copy'; text: string }
@@ -82,6 +90,13 @@ export interface Session {
   visitedHosts: readonly string[]
   readResources: readonly string[]
   recovery?: Readonly<Record<string, { context: RecoveryContext; handoff?: Handoff }>>
+  dossier?: Readonly<Record<string, DossierDraft>>
+}
+
+interface DossierDraft {
+  snapshot: string
+  candidate?: string[]
+  receipt?: DossierReceipt
 }
 
 export interface RuntimeSnapshot {
@@ -90,6 +105,7 @@ export interface RuntimeSnapshot {
   flags: readonly string[]
   completed: boolean
   recovery?: Session['recovery']
+  dossier?: Session['dossier']
   dataset?: { incident: string; revision: string }
 }
 
@@ -128,7 +144,7 @@ export function createRuntime(
     const released = kind === 'release'
     const final = host?.recovery?.find(({ command }) => command === scenario.objective.action)
     const archiveReport =
-      kind && kind === scenario.objective.handoff
+      (kind && kind === scenario.objective.handoff) || campaign.dossierReceipt(scenario.id)
         ? scenario.hosts
             .flatMap(({ resources }) => resources)
             .find(({ id }) => id === scenario.objective.read)
@@ -196,8 +212,31 @@ export function createRuntime(
             ({ user, role }) => user === saved.identity?.user && role === saved.identity.role,
           ) ?? guest,
         flags: saved.flags.filter((flag) => scenario.flags.includes(flag)),
-        completed: saved.completed,
+        completed: scenario.dossier ? campaign.completed(scenario.id) : saved.completed,
         recovery,
+        dossier:
+          scenario.dossier &&
+          Object.fromEntries(
+            scenario.hosts.flatMap(({ id }) => {
+              const draft = saved.dossier?.[id]
+              if (draft?.snapshot !== scenario.dossier!.snapshot) return []
+              return [
+                [
+                  id,
+                  {
+                    snapshot: draft.snapshot,
+                    candidate: validArguments(draft.candidate, 3) ? draft.candidate : undefined,
+                    receipt: validDossierReceipt(draft.receipt, draft.snapshot)
+                      ? draft.receipt
+                      : undefined,
+                  },
+                ],
+              ]
+            }),
+          ),
+      }
+      if (scenario.dossier && campaign.completed(scenario.id)) {
+        state = { ...state, flags: [...new Set([...state.flags, ...start(true).flags])] }
       }
     }
   }
@@ -387,14 +426,14 @@ export function createRuntime(
     }
   }
 
-  function completeObjective(output: Output[], handoff?: Handoff) {
+  function completeObjective(output: Output[], handoff?: Handoff, receipt?: DossierReceipt) {
     if (state.completed) {
       if (handoff) campaign.complete(scenario.id, handoff)
       return
     }
     state = { ...state, completed: true }
     output.push({ kind: 'objective', text: scenario.objective.message })
-    const { destinations, newMail } = campaign.complete(scenario.id, handoff)
+    const { destinations, newMail } = campaign.complete(scenario.id, handoff, receipt)
     if (newMail) {
       syncInbox()
       output.push({ kind: 'mailNotice' })
@@ -407,7 +446,9 @@ export function createRuntime(
       })
   }
 
-  function resourceAction(action: Extract<Action, { type: 'ls' | 'cat' }>): Response {
+  async function resourceAction(
+    action: Extract<Action, { type: 'ls' | 'cat' }>,
+  ): Promise<Response> {
     const host = state.host
     if (!host) return error('Connect to a host first.')
     const raw = action.path ?? '/'
@@ -444,6 +485,34 @@ export function createRuntime(
     const handoff = campaign.handoff(scenario.id) ?? state.recovery?.[host.id]?.handoff
     if (objective && scenario.objective.handoff && handoff?.kind !== scenario.objective.handoff)
       return error(resource.denied ?? 'Run the verification operation to produce this report.')
+    let dossierReport: Extract<Output, { kind: 'report' }> | undefined
+    let receipt: DossierReceipt | undefined
+    if (objective && scenario.objective.dossier && scenario.dossier) {
+      const stored = campaign.dossierReceipt(scenario.id) ?? state.dossier?.[host.id]?.receipt
+      if (!stored) return error(resource.denied ?? 'Verify the dossier before opening this report.')
+      const before = state
+      pending = before
+      try {
+        const checked = await engine.runDossier({
+          version: 1,
+          dataset: scenario.dossier.dataset,
+          command: dossierStages[scenario.objective.dossier],
+          args: [],
+          candidate: stored.selection,
+        })
+        if (state !== before) return {}
+        if (!checked.ok)
+          return { ...error(checked.error.message), transient: isTransient(checked.error.code) }
+        if (checked.value.handoff?.digest !== stored.digest)
+          return error(
+            'The stored review does not match this archive snapshot. Run verification again.',
+          )
+        receipt = checked.value.handoff
+        dossierReport = { kind: 'report', rows: checked.value.rows }
+      } finally {
+        if (pending === before) pending = undefined
+      }
+    }
     if (campaign.markResourceRead(resourceKey(host, resource)))
       state = { ...state, readResources: campaign.readResources }
     const output: Output[] = [
@@ -461,7 +530,8 @@ export function createRuntime(
     if (objective) {
       if (scenario.objective.handoff && handoff)
         output.push({ kind: 'report', rows: archiveRows(handoff) })
-      completeObjective(output, handoff)
+      if (dossierReport) output.push(dossierReport)
+      completeObjective(output, handoff, receipt)
     }
     return { output }
   }
@@ -542,6 +612,9 @@ export function createRuntime(
       case 'capture':
       case 'deframe':
       case 'identifier':
+      case 'search':
+      case 'tokens':
+      case 'select':
       case 'mirror': {
         const binding = availableOperations().find(({ command }) => command === action.type)
         if (!binding) return error(`${action.type} is unavailable with the current access.`)
@@ -565,21 +638,31 @@ export function createRuntime(
         const hostId = before.host!.id
         const staged = state.recovery?.[hostId]
         const recovery = scenario.recovery
+        const draft = state.dossier?.[hostId]
+        const dossier = scenario.dossier
         pending = before
         try {
           const result =
             'program' in binding
               ? await engine.evaluate(binding.program, inputs)
-              : await engine.runRecovery({
-                  version: 1,
-                  dataset: recovery!.dataset,
-                  command: binding.command,
-                  args: values,
-                  context: staged?.context,
-                  prior: recovery?.prior ? campaign.handoff(recovery.prior) : undefined,
-                  committed: campaign.handoff(scenario.id),
-                  direct: campaign.direct(scenario.id),
-                })
+              : isDossierCommand(binding.command)
+                ? await engine.runDossier({
+                    version: 1,
+                    dataset: dossier!.dataset,
+                    command: binding.command,
+                    args: values,
+                    candidate: draft?.candidate,
+                  })
+                : await engine.runRecovery({
+                    version: 1,
+                    dataset: recovery!.dataset,
+                    command: binding.command,
+                    args: values,
+                    context: staged?.context,
+                    prior: recovery?.prior ? campaign.handoff(recovery.prior) : undefined,
+                    committed: campaign.handoff(scenario.id),
+                    direct: campaign.direct(scenario.id),
+                  })
           if (state !== before) return {}
           if (!result.ok) {
             const { error: issue } = result
@@ -598,7 +681,28 @@ export function createRuntime(
           }
           const output: Output[] = []
           let handoff: Handoff | undefined
-          if ('rows' in result.value) {
+          if ('candidate' in result.value) {
+            const { rows, candidate, handoff } = result.value
+            state = {
+              ...state,
+              dossier: {
+                ...state.dossier,
+                [hostId]: {
+                  snapshot: dossier!.snapshot,
+                  candidate: candidate ?? undefined,
+                  receipt: handoff ?? (action.type === 'tokens' ? draft?.receipt : undefined),
+                },
+              },
+              flags:
+                'invalidates' in binding
+                  ? state.flags.filter(
+                      (flag) =>
+                        !binding.invalidates.includes(flag) || campaign.completed(scenario.id),
+                    )
+                  : state.flags,
+            }
+            if (rows.length) output.push({ kind: 'report', rows })
+          } else if ('rows' in result.value) {
             const { rows, context, handoff: next } = result.value
             handoff = next
             state = {
@@ -708,6 +812,7 @@ export function createRuntime(
         flags: state.flags,
         completed: state.completed,
         recovery: state.recovery,
+        dossier: state.dossier,
         dataset: dataset && { incident: dataset.incident, revision: dataset.revision },
       }
     },

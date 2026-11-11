@@ -53,6 +53,12 @@
       "label": "The Boundary",
       "scenario": "scenarios/009-the-boundary/scenario.json",
       "initiallyDiscovered": false
+    },
+    {
+      "id": "010-the-needle",
+      "label": "The Needle",
+      "scenario": "scenarios/010-the-needle/scenario.json",
+      "initiallyDiscovered": false
     }
   ]
 }

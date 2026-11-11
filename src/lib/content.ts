@@ -1,5 +1,6 @@
 import type { Engine, EngineError, Program } from '../types.ts'
 import { commandRegistry } from './commands.ts'
+import { dossierArity, dossierStages, isDossierCommand, type DossierStage } from './dossier.ts'
 import {
   archiveStages,
   recoveryArity,
@@ -234,6 +235,7 @@ export function createContentLoader(
         'objective',
         'inbox',
         'recovery',
+        'dossier',
         'outputTiming',
       )
       get('version').version()
@@ -331,6 +333,19 @@ export function createContentLoader(
         )
         return { messages, initial }
       })
+      const dossier = await get('dossier').optional(async (field) => {
+        const get = field.object('dataset', 'prior')
+        const path = get('dataset').asset(true)
+        const { value: dataset } = await json(path)
+        const snapshot = await engine.validateDossier(dataset)
+        if (!snapshot.ok) engineFailure(path, snapshot.error)
+        return {
+          path,
+          dataset,
+          snapshot: snapshot.value,
+          prior: get('prior').optional((item) => item.id()),
+        }
+      })
       const inboxIds = inbox?.messages.map(({ id }) => id) ?? []
 
       function identity(field: Field): Identity {
@@ -392,11 +407,12 @@ export function createContentLoader(
           'invalidates',
         )
         const command = get('command').ref(
-          Object.keys(recoveryArity) as RecoveryCommand[],
-          'recovery command',
+          [
+            ...(Object.keys(recoveryArity) as RecoveryCommand[]),
+            ...Object.keys(dossierArity).filter(isDossierCommand),
+          ],
+          'dataset command',
         )
-        const dataset =
-          recovery?.dataset ?? field.fail('Declare a recovery dataset for these operations.')
         const seen = new Set<string>()
         const fields = get('fields').list((item) => {
           const field = item.object('input', 'label', 'initial', 'kind')
@@ -410,15 +426,23 @@ export function createContentLoader(
               ) ?? 'text',
           }
         })
-        if (fields.length !== recoveryArity[command])
-          get('fields').fail('Match the recovery command argument count.')
-        const baseline = await engine.runRecovery({
-          version: 1,
-          dataset,
-          command,
-          args: fields.map(({ initial }) => initial),
-          direct: true,
-        })
+        const args = fields.map(({ initial }) => initial)
+        const arity = isDossierCommand(command) ? dossierArity[command] : recoveryArity[command]
+        if (fields.length !== arity) get('fields').fail('Match the command argument count.')
+        const baseline = isDossierCommand(command)
+          ? await engine.runDossier({
+              version: 1,
+              dataset: dossier?.dataset ?? field.fail('Declare a dossier snapshot.'),
+              command,
+              args,
+            })
+          : await engine.runRecovery({
+              version: 1,
+              dataset: recovery?.dataset ?? field.fail('Declare a recovery dataset.'),
+              command,
+              args,
+              direct: true,
+            })
         if (!baseline.ok) engineFailure(file, baseline.error)
         const checks = baseline.value.declaredChecks
         return {
@@ -734,12 +758,16 @@ export function createContentLoader(
         'read',
         'action',
         'handoff',
+        'dossier',
         'message',
         'onComplete',
       )
       const read = objective('read').optional((item) => item.ref(fileIds, 'file resource'))
       const handoff = objective('handoff').optional((item) =>
         item.ref(Object.keys(archiveStages) as ArchiveStage[], 'archive handoff'),
+      )
+      const stage = objective('dossier').optional((item) =>
+        item.ref(Object.keys(dossierStages) as DossierStage[], 'dossier stage'),
       )
       const action = objective('action').optional((item) =>
         item.ref(
@@ -751,6 +779,20 @@ export function createContentLoader(
       )
       if (Boolean(read) === Boolean(action))
         get('objective').fail('Specify one read or action completion trigger.')
+      if (stage) {
+        const host = hosts.find(({ resources }) => resources.some(({ id }) => id === read))
+        const gate = host?.resources.find(({ id }) => id === read)?.access?.flag
+        const operation = host?.recovery?.find(({ command }) => command === dossierStages[stage])
+        if (
+          !dossier ||
+          handoff ||
+          !gate ||
+          !operation?.success.some((effect) => effect.type === 'flag' && effect.flag === gate)
+        )
+          objective('dossier').fail(
+            'Expected a read gate opened by the matching dossier operation.',
+          )
+      }
       if (handoff) {
         const host = hosts.find(({ resources }) => resources.some(({ id }) => id === read))
         const resource = host?.resources.find(({ id }) => id === read)
@@ -806,10 +848,11 @@ export function createContentLoader(
         hosts,
         inbox,
         recovery,
+        dossier,
         outputTiming,
         objective: {
           text: objective('text').text(),
-          ...(read ? { read, handoff } : { action: action! }),
+          ...(read ? { read, handoff, dossier: stage } : { action: action! }),
           message: objective('message').text(),
           onComplete,
         },

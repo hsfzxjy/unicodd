@@ -1,0 +1,12 @@
+{
+  "messages": [
+    {
+      "id": "02-boundaries",
+      "from": "Rowan",
+      "to": "Catalog review",
+      "subject": "Apostrophes in the export",
+      "body": "Compare the scheduling row to the notification row. The duty desk typed a straight apostrophe, and the notification writer used the curved one. Both use French elision. Keep the field text intact when you mark a match.",
+      "date": "2026-09-03"
+    }
+  ]
+}

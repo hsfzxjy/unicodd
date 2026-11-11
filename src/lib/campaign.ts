@@ -1,5 +1,6 @@
 import type { MailMessage, Scenario } from './scenario.ts'
 import type { Handoff } from './recovery.ts'
+import { validDossierReceipt, type DossierReceipt } from './dossier.ts'
 import type { LevelSave } from './workspace.ts'
 
 export const campaignKey = 'unicodd.campaign'
@@ -14,6 +15,7 @@ export interface CampaignSnapshot {
   visitedHosts?: string[]
   readResources?: string[]
   handoffs?: Record<string, Handoff>
+  dossierReceipts?: Record<string, DossierReceipt>
 }
 
 interface Save extends CampaignSnapshot {
@@ -187,6 +189,7 @@ export function createCampaign(
   const visitedHosts = new Set<string>()
   const readResources = new Set<string>()
   const handoffs = new Map<string, Handoff>()
+  const dossierReceipts = new Map<string, DossierReceipt>()
   const levels = new Map<string, LevelSave>()
   let current = ''
   let restoring = true
@@ -207,6 +210,7 @@ export function createCampaign(
     visitedHosts.clear()
     readResources.clear()
     handoffs.clear()
+    dossierReceipts.clear()
     levels.clear()
     for (const scenario of available) {
       if (scenario.initiallyDiscovered) discovered.add(scenario.id)
@@ -224,6 +228,7 @@ export function createCampaign(
       visitedHosts: [...visitedHosts],
       readResources: [...readResources],
       handoffs: Object.fromEntries(handoffs),
+      ...(dossierReceipts.size ? { dossierReceipts: Object.fromEntries(dossierReceipts) } : {}),
     }
   }
 
@@ -255,15 +260,18 @@ export function createCampaign(
     return true
   }
 
-  function complete(id: string, handoff?: Handoff) {
+  function complete(id: string, handoff?: Handoff, receipt?: DossierReceipt) {
     const scenario = byId.get(id)
     const destinations: Scenario[] = []
     let newMail = false
     if (scenario?.objective.handoff && handoff?.kind !== scenario.objective.handoff)
       return { destinations, newMail }
+    if (scenario?.objective.dossier && !validDossierReceipt(receipt, scenario.dossier!.snapshot))
+      return { destinations, newMail }
     if (scenario && !completed.has(id)) {
       completed.add(id)
       if (handoff) handoffs.set(id, handoff)
+      if (receipt) dossierReceipts.set(id, receipt)
       for (const effect of scenario.objective.onComplete) {
         if (effect.type === 'deliverMail') {
           if (!(restoring && effect.liveOnly) && deliver(effect.message)) newMail = true
@@ -300,6 +308,10 @@ export function createCampaign(
       for (const scenario of available) {
         const { id, recovery } = scenario
         if (!selectable(id) || !saved.completed.includes(id)) continue
+        if (scenario.objective.dossier) {
+          complete(id, undefined, saved.dossierReceipts?.[id])
+          continue
+        }
         const handoff = saved.handoffs?.[id]
         if (
           validHandoff(handoff) &&
@@ -378,6 +390,7 @@ export function createCampaign(
     selectable,
     direct: isDirect,
     handoff: (id: string) => handoffs.get(id),
+    dossierReceipt: (id: string) => dossierReceipts.get(id),
     completed: (id: string) => completed.has(id),
     destinations: () => available.filter(({ id }) => selectable(id)),
     enter,

@@ -1,0 +1,3 @@
+Client index contract
+Title and body are reviewed report text. Diagnostics are internal annotations and may be searched for troubleshooting only. Each field is an independent text unit. Record IDs are lookup references, never report text.
+FR-201 appears in more than one field. A ledger row represents a report, not an occurrence.

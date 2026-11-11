@@ -1,0 +1,223 @@
+{
+  "version": 1,
+  "title": "The Needle",
+  "introduction": "The client team needs a small French regression corpus. The duty ledger and the catalog search disagree.",
+  "roles": ["catalog-reviewer"],
+  "flags": ["selection_verified"],
+  "local": {
+    "user": "catalog-reviewer",
+    "role": "catalog-reviewer"
+  },
+  "initialHost": "catalog-15",
+  "dossier": {
+    "dataset": "dossier/summer-duty.json"
+  },
+  "hosts": [
+    {
+      "id": "catalog-15",
+      "name": "MONONYM incident catalog",
+      "guest": {
+        "user": "catalog-reviewer",
+        "role": "catalog-reviewer"
+      },
+      "welcome": "Read-only archive. Candidate searches are staged in this workspace.",
+      "status": [
+        {
+          "label": "Catalog review",
+          "value": "Search pending",
+          "after": {
+            "flag": "selection_verified",
+            "value": "Occurrences verified"
+          }
+        }
+      ],
+      "resources": [
+        {
+          "id": "registry",
+          "path": "/registry",
+          "type": "directory"
+        },
+        {
+          "id": "archive",
+          "path": "/archive",
+          "type": "directory"
+        },
+        {
+          "id": "logs",
+          "path": "/logs",
+          "type": "directory"
+        },
+        {
+          "id": "tools",
+          "path": "/tools",
+          "type": "directory"
+        },
+        {
+          "id": "mail",
+          "path": "/mail",
+          "type": "directory"
+        },
+        {
+          "id": "reports",
+          "path": "/reports",
+          "type": "directory"
+        },
+        {
+          "id": "readme",
+          "path": "/README",
+          "type": "file",
+          "content": "files/readme.txt"
+        },
+        {
+          "id": "ledger",
+          "path": "/registry/shifts.txt",
+          "type": "file",
+          "content": "files/shifts.txt"
+        },
+        {
+          "id": "fields",
+          "path": "/archive/fields.txt",
+          "type": "file",
+          "content": "files/fields.txt"
+        },
+        {
+          "id": "rollout",
+          "path": "/logs/search-rollout.log",
+          "type": "file",
+          "content": "files/rollout.txt"
+        },
+        {
+          "id": "catalog-tools",
+          "path": "/tools/catalog.txt",
+          "type": "file",
+          "content": "files/tools.txt"
+        },
+        {
+          "id": "final-report",
+          "path": "/reports/selection.txt",
+          "type": "file",
+          "content": "files/selection.txt",
+          "access": {
+            "flag": "selection_verified"
+          },
+          "denied": "Reconcile the staged search before reading the selection report."
+        },
+        {
+          "id": "01-gap",
+          "path": "/mail/01-gap",
+          "type": "mail",
+          "content": "mail/01-gap.json"
+        },
+        {
+          "id": "02-boundaries",
+          "path": "/mail/02-boundaries",
+          "type": "mail",
+          "content": "mail/02-boundaries.json"
+        },
+        {
+          "id": "03-index",
+          "path": "/mail/03-index",
+          "type": "mail",
+          "content": "mail/03-index.json"
+        },
+        {
+          "id": "04-scope",
+          "path": "/mail/04-scope",
+          "type": "mail",
+          "content": "mail/04-scope.json"
+        }
+      ],
+      "recovery": [
+        {
+          "command": "search",
+          "actionLabel": "Search catalog",
+          "submitLabel": "Run search",
+          "label": "Search catalog",
+          "fields": [
+            {
+              "input": "query",
+              "label": "Query",
+              "initial": "été",
+              "kind": "payload"
+            },
+            {
+              "input": "profile",
+              "label": "Search profile",
+              "initial": "default/nfc/fold",
+              "kind": "text"
+            },
+            {
+              "input": "scope",
+              "label": "Field scope",
+              "initial": "approved",
+              "kind": "text"
+            }
+          ],
+          "success": [],
+          "failure": "The catalog could not reconcile this attempt.",
+          "quick": true,
+          "invalidates": ["selection_verified"]
+        },
+        {
+          "command": "tokens",
+          "actionLabel": "Inspect source tokens",
+          "submitLabel": "Run tokens",
+          "label": "Inspect source tokens",
+          "fields": [
+            {
+              "input": "record",
+              "label": "Record",
+              "initial": "FR-203",
+              "kind": "text"
+            },
+            {
+              "input": "field",
+              "label": "Field",
+              "initial": "body",
+              "kind": "text"
+            },
+            {
+              "input": "profile",
+              "label": "Search profile",
+              "initial": "default/nfc/fold",
+              "kind": "text"
+            }
+          ],
+          "success": [],
+          "failure": "The catalog could not reconcile this attempt.",
+          "quick": true
+        },
+        {
+          "command": "select",
+          "actionLabel": "Reconcile selection",
+          "submitLabel": "Run select",
+          "label": "Reconcile selection",
+          "fields": [],
+          "success": [
+            {
+              "type": "flag",
+              "flag": "selection_verified"
+            },
+            {
+              "type": "resourceLink",
+              "resource": "final-report"
+            }
+          ],
+          "failure": "The catalog could not reconcile this attempt.",
+          "quick": true,
+          "invalidates": ["selection_verified"]
+        }
+      ]
+    }
+  ],
+  "objective": {
+    "text": "Reconcile the authorized summer-duty matches and read the selection report.",
+    "read": "final-report",
+    "dossier": "selection",
+    "message": "The summer-duty source selection is filed for disclosure review."
+  },
+  "inbox": {
+    "content": "mail/inbox.json",
+    "initial": ["dossier-assignment"]
+  }
+}

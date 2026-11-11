@@ -1,0 +1,5 @@
+Independent ACK correlation / sweep 8C2F
+GW-1842 · 0001842 · owner-1842 · add55155df34d456558b28a66d5c6eee8c6a8e0969a0b956e3c05aa69e953552
+GW-2917 · 0002917 · owner-2917 · 1ca5e9061a25ecc3029e611367cccf949b1a110c3f1cb7155be855e35fc0e229
+
+The sender's ledger hashes the application payload, without the two-byte prefix. The ACK is a receiver record tied to the original audit receipt; its digest is separate from the receipt's own digest.

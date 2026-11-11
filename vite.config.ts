@@ -50,6 +50,7 @@ export default defineConfig({
         '.npmrc',
         '.yarnrc.yml',
         '**/.git/**',
+        '**/.codex-remote-attachments/**',
         '**/private/**',
         '**/tests/**',
       ],

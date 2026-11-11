@@ -1,0 +1,451 @@
+{
+  "version": 1,
+  "profiles": {
+    "idna": "15.1.0",
+    "legacy": "15.1.0",
+    "modern": "18.0.0"
+  },
+  "cases": [
+    {
+      "id": "literal-ascii-host",
+      "command": "resolve",
+      "args": ["nontransitional", "GW-1842", "https://strasse.trace.test/archive/GW-1842"],
+      "failed": [],
+      "rows": [
+        ["A-label", "strasse.trace.test"],
+        ["Virtual transport", "VAULT-1842", "202 Accepted"]
+      ]
+    },
+    {
+      "id": "historical-mapping-crosses-endpoints",
+      "command": "resolve",
+      "args": ["transitional", "GW-2917", "https://straße.trace.test/archive/GW-2917/Café"],
+      "failed": ["route-authorized"],
+      "rows": [
+        ["Mapped host", "strasse.trace.test"],
+        ["A-label", "strasse.trace.test"],
+        ["Virtual transport", "VAULT-1842", "202 Accepted"]
+      ],
+      "diagnostic": "did not establish"
+    },
+    {
+      "id": "current-preserves-sharp-s",
+      "command": "resolve",
+      "args": ["nontransitional", "GW-2917", "https://straße.trace.test/archive/GW-2917/Café"],
+      "failed": [],
+      "rows": [
+        ["Parsed host", "straße.trace.test"],
+        ["Mapped host", "straße.trace.test"],
+        ["A-label", "xn--strae-oqa.trace.test"]
+      ]
+    },
+    {
+      "id": "a-label-round-trip",
+      "command": "resolve",
+      "args": [
+        "nontransitional",
+        "GW-2917",
+        "https://xn--strae-oqa.trace.test/archive/GW-2917/Café"
+      ],
+      "failed": [],
+      "rows": [
+        ["Mapped host", "xn--strae-oqa.trace.test"],
+        ["Unicode host", "straße.trace.test"]
+      ]
+    },
+    {
+      "id": "mapped-dot-separators",
+      "command": "resolve",
+      "args": ["nontransitional", "GW-2917", "https://straße。trace．test｡/archive/GW-2917/Café"],
+      "failed": [],
+      "rows": [
+        ["Mapped host", "straße.trace.test."],
+        ["A-label", "xn--strae-oqa.trace.test"]
+      ]
+    },
+    {
+      "id": "alternate-percent-and-port",
+      "command": "resolve",
+      "args": [
+        "nontransitional",
+        "GW-2917",
+        "HTTPS://stra%C3%9Fe.trace.test:443/archive/%47W-2917/Cafe%CC%81"
+      ],
+      "failed": [],
+      "rows": [
+        ["Resource path", "/archive/GW-2917/Café"],
+        ["A-label", "xn--strae-oqa.trace.test"]
+      ]
+    },
+    {
+      "id": "malformed-a-label",
+      "command": "resolve",
+      "args": ["nontransitional", "GW-2917", "https://xn--.trace.test/archive/GW-2917/Café"],
+      "failed": ["route-authorized"],
+      "rows": [
+        ["IDNA rejected", "A-label validation failed. Check Punycode, round-trip, and label rules."]
+      ]
+    },
+    {
+      "id": "disallowed-joiner",
+      "command": "resolve",
+      "args": ["nontransitional", "GW-2917", "https://stra‍ße.trace.test/archive/GW-2917/Café"],
+      "failed": ["route-authorized"],
+      "rows": [
+        ["IDNA rejected", "Label validation failed. Joiners require a valid ContextJ sequence."]
+      ]
+    },
+    {
+      "id": "legacy-joiner-removal",
+      "command": "resolve",
+      "args": ["transitional", "GW-1842", "https://stra‍sse.trace.test/archive/GW-1842"],
+      "failed": [],
+      "rows": [["Mapped host", "strasse.trace.test"]]
+    },
+    {
+      "id": "final-sigma-historical",
+      "command": "resolve",
+      "args": ["transitional", "GW-1842", "https://βόλος.test/"],
+      "failed": ["route-authorized"],
+      "rows": [
+        ["Mapped host", "βόλοσ.test"],
+        ["A-label", "xn--nxasmq6b.test"]
+      ]
+    },
+    {
+      "id": "wrong-path",
+      "command": "resolve",
+      "args": ["nontransitional", "GW-2917", "https://straße.trace.test/archive/GW-1842"],
+      "failed": ["route-authorized"],
+      "rows": [["Authorization", "GW-2917", "resource path differs from its receipt binding"]]
+    },
+    {
+      "id": "nfc-rewrites-path",
+      "command": "resolve",
+      "args": ["nontransitional", "GW-2917", "https://straße.trace.test/archive/GW-2917/Café"],
+      "failed": ["route-authorized"],
+      "rows": [["Resource path", "/archive/GW-2917/Café"]]
+    },
+    {
+      "id": "escaped-separator",
+      "command": "resolve",
+      "args": [
+        "nontransitional",
+        "GW-2917",
+        "https://straße.trace.test/archive%2fGW-2917/Cafe%CC%81"
+      ],
+      "failed": ["route-authorized"],
+      "rows": [
+        ["Path rejected", "A resource segment cannot contain a dot segment, separator, or control."]
+      ]
+    },
+    {
+      "id": "unauthorized-valid-label",
+      "command": "resolve",
+      "args": [
+        "nontransitional",
+        "GW-2917",
+        "https://outside.trace.test/archive/GW-2917/Cafe%CC%81"
+      ],
+      "failed": ["route-authorized"],
+      "rows": [["Registry", "No virtual endpoint for this A-label."]]
+    },
+    {
+      "id": "authority-userinfo",
+      "command": "resolve",
+      "args": [
+        "nontransitional",
+        "GW-2917",
+        "https://strasse.trace.test@straße.trace.test/archive/GW-2917/Cafe%CC%81"
+      ],
+      "failed": ["route-authorized"],
+      "rows": [["URL rejected", "Use a DNS host and optional default port, without credentials."]]
+    },
+    {
+      "id": "http-policy",
+      "command": "resolve",
+      "args": ["nontransitional", "GW-1842", "http://strasse.trace.test/archive/GW-1842"],
+      "failed": ["route-authorized"],
+      "rows": [["URL rejected", "Only HTTPS is enabled in this gateway profile."]]
+    },
+    {
+      "id": "swapped-receipts",
+      "command": "dispatch",
+      "args": [
+        "nontransitional",
+        "https://straße.trace.test/archive/GW-2917/Café",
+        "https://strasse.trace.test/archive/GW-1842"
+      ],
+      "failed": ["route-authorized"],
+      "rows": [],
+      "diagnostic": "Check the endpoint owner"
+    },
+    {
+      "id": "historical-two-transport-successes",
+      "command": "dispatch",
+      "args": [
+        "transitional",
+        "https://strasse.trace.test/archive/GW-1842",
+        "https://straße.trace.test/archive/GW-2917/Café"
+      ],
+      "failed": ["routing-profile", "route-authorized", "distinct-endpoints"],
+      "rows": [["Virtual transport", "VAULT-1842", "202 Accepted"]],
+      "diagnostic": "Both transport requests resolved to the same endpoint."
+    },
+    {
+      "id": "both-authorized",
+      "command": "dispatch",
+      "args": [
+        "nontransitional",
+        "https://strasse.trace.test/archive/GW-1842",
+        "https://straße.trace.test/archive/GW-2917/Café"
+      ],
+      "failed": [],
+      "rows": [
+        ["Dispatch confirmed", "Two authorized destinations · application ingestion pending"]
+      ]
+    },
+    {
+      "id": "equivalent-current-dispatch",
+      "command": "dispatch",
+      "args": [
+        "nontransitional",
+        "HTTPS://STRASSE.TRACE.TEST.:443/archive/GW-1842",
+        "https://xn--strae-oqa.trace.test/archive/GW-2917/Cafe%CC%81"
+      ],
+      "failed": [],
+      "rows": []
+    },
+    {
+      "id": "inspect-full-capture",
+      "command": "capture",
+      "args": ["0", "64"],
+      "failed": [],
+      "rows": [["Capture range", "0..49 of 49 bytes · network received"]]
+    },
+    {
+      "id": "out-of-range",
+      "command": "capture",
+      "args": ["0x0031", "16"],
+      "failed": ["capture-range"],
+      "rows": [["Capture EOF", "49 bytes received"]],
+      "diagnostic": "Start within"
+    },
+    {
+      "id": "bad-chunk-decoding",
+      "command": "deframe",
+      "args": ["be", "chunks", "stop", "raw", "network"],
+      "failed": ["authoritative-bytes", "complete-framing", "ack-integrity"],
+      "rows": [],
+      "diagnostic": "Replacement decoding is diagnostic only"
+    },
+    {
+      "id": "replacement-diagnostic",
+      "command": "deframe",
+      "args": ["be", "replacement", "quarantine", "raw", "network"],
+      "failed": ["authoritative-bytes"],
+      "rows": [
+        ["Diagnostic replacement", "��"],
+        ["Diagnostic replacement", "�XY"]
+      ]
+    },
+    {
+      "id": "wrong-endian",
+      "command": "deframe",
+      "args": ["le", "strict", "quarantine", "raw", "network"],
+      "failed": ["complete-framing", "ack-integrity"],
+      "rows": [["Frame length rejected", "offset 0 · 3840 bytes exceeds 256"]]
+    },
+    {
+      "id": "counting-scalars",
+      "command": "deframe",
+      "args": ["scalars", "strict", "quarantine", "raw", "whole"],
+      "failed": ["complete-framing", "ack-integrity"],
+      "rows": []
+    },
+    {
+      "id": "premature-stop",
+      "command": "deframe",
+      "args": ["be", "strict", "stop", "raw", "whole"],
+      "failed": ["complete-framing", "isolated-errors", "ack-integrity"],
+      "rows": [["Stopped at malformed frame", "Later frames have not been evaluated."]]
+    },
+    {
+      "id": "nfc-digest",
+      "command": "deframe",
+      "args": ["be", "strict", "quarantine", "nfc", "network"],
+      "failed": ["ack-integrity"],
+      "rows": [
+        ["ACK rejected", "Original payload digest, receipt binding or single use did not match."]
+      ]
+    },
+    {
+      "id": "verified-stream",
+      "command": "deframe",
+      "args": ["be", "strict", "quarantine", "raw", "network"],
+      "failed": [],
+      "rows": [
+        ["Invalid UTF-8", "bytes 19..20 · frame resumes at 21"],
+        ["Invalid UTF-8", "bytes 23..25 · frame resumes at 27"],
+        ["Heartbeat", "zero-length frame"],
+        ["Verified ACK", "GW-2917", "0002917", "owner-2917"]
+      ]
+    },
+    {
+      "id": "different-chunk-boundaries",
+      "command": "deframe",
+      "args": ["be", "strict", "quarantine", "raw", "2,4,16,17,18,24,29,30,47,48"],
+      "failed": [],
+      "rows": []
+    },
+    {
+      "id": "whole-buffer",
+      "command": "deframe",
+      "args": ["be", "strict", "quarantine", "raw", "whole"],
+      "failed": [],
+      "rows": []
+    },
+    {
+      "id": "legacy-unassigned-valid-utf8",
+      "command": "identifier",
+      "args": ["15.1", "Ᲊora"],
+      "failed": [],
+      "rows": [
+        ["Original UTF-8", "Ᲊora", "E1 B2 89 6F 72 61"],
+        ["U+1C89", "Ᲊ", "Cn", "unassigned", "XID_Start false · XID_Continue false"],
+        ["Default full fold", "Ᲊora"]
+      ]
+    },
+    {
+      "id": "modern-assigned-and-folded",
+      "command": "identifier",
+      "args": ["18.0", "Ᲊora"],
+      "failed": [],
+      "rows": [
+        ["U+1C89", "Ᲊ", "Lu", "assigned", "XID_Start true · XID_Continue true"],
+        ["Default full fold", "ᲊora"]
+      ]
+    },
+    {
+      "id": "modern-lowercase",
+      "command": "identifier",
+      "args": ["18.0", "ᲊora"],
+      "failed": [],
+      "rows": [["U+1C8A", "ᲊ", "Ll", "assigned", "XID_Start true · XID_Continue true"]]
+    },
+    {
+      "id": "native-label-legacy",
+      "command": "mirror",
+      "args": ["identifier", "labels", "15.1"],
+      "failed": ["opaque-labels", "legacy-queryable"],
+      "rows": [
+        [
+          "Legacy label rejected",
+          "AR-4101",
+          "The label is outside the legacy identifier repertoire."
+        ]
+      ]
+    },
+    {
+      "id": "native-label-modern-cannot-upgrade-legacy",
+      "command": "mirror",
+      "args": ["opaque", "labels", "18.0"],
+      "failed": ["legacy-queryable"],
+      "rows": [["AR-4101", "Ᲊora", "Ᲊora", "owner-4101", "15.1 XID rejected", "18.0 XID ✓"]]
+    },
+    {
+      "id": "replacement-storage",
+      "command": "mirror",
+      "args": ["ascii", "ascii", "18.0"],
+      "failed": ["original-bytes", "opaque-labels", "legacy-queryable", "unique-handles"],
+      "rows": [["Handle collision", "AR-4101", "AR-4102", "_ora"]]
+    },
+    {
+      "id": "nfc-storage",
+      "command": "mirror",
+      "args": ["nfc", "id", "18.0"],
+      "failed": ["original-bytes", "opaque-labels"],
+      "rows": []
+    },
+    {
+      "id": "casefold-handles",
+      "command": "mirror",
+      "args": ["opaque", "fold", "18.0"],
+      "failed": ["legacy-queryable", "unique-handles"],
+      "rows": [["Handle collision", "AR-4101", "AR-4102", "ᲊora"]]
+    },
+    {
+      "id": "nfkc-handles",
+      "command": "mirror",
+      "args": ["opaque", "nfkc", "18.0"],
+      "failed": ["legacy-queryable"],
+      "rows": []
+    },
+    {
+      "id": "confusable-handles",
+      "command": "mirror",
+      "args": ["opaque", "skeleton", "18.0"],
+      "failed": ["legacy-queryable", "unique-handles"],
+      "rows": []
+    },
+    {
+      "id": "opaque-label-in-auth",
+      "command": "mirror",
+      "args": ["authorization", "id", "18.0"],
+      "failed": ["opaque-labels"],
+      "rows": [
+        [
+          "Authorization rejected",
+          "AR-1842",
+          "An opaque label cannot select an owner or grant access."
+        ]
+      ]
+    },
+    {
+      "id": "shard-suffix-collision",
+      "command": "mirror",
+      "args": ["opaque", "suffix", "18.0"],
+      "failed": ["unique-handles"],
+      "rows": [["Handle collision", "AR-1842", "AR-EU-1842", "R_1842"]]
+    },
+    {
+      "id": "case-insensitive-handle-reuse",
+      "command": "mirror",
+      "args": [
+        "opaque",
+        "map:AR-1842=A,AR-2917=a,AR-4101=third,AR-4102=fourth,AR-EU-1842=fifth",
+        "18.0"
+      ],
+      "failed": ["unique-handles"],
+      "rows": []
+    },
+    {
+      "id": "verified-mirror",
+      "command": "mirror",
+      "args": ["opaque", "id", "18.0"],
+      "failed": [],
+      "rows": [
+        ["18.0.0 search collision", "ᲊora", "AR-4101", "AR-4102"],
+        ["Archive reconciliation", "5 verified and queryable records"]
+      ]
+    },
+    {
+      "id": "alternate-handles",
+      "command": "mirror",
+      "args": [
+        "opaque",
+        "map:AR-4102=Fourth,AR-1842=First,AR-2917=Second,AR-4101=Third,AR-EU-1842=Fifth",
+        "15.1"
+      ],
+      "failed": [],
+      "rows": []
+    },
+    {
+      "id": "alternate-handle-prefix",
+      "command": "mirror",
+      "args": ["opaque", "prefix:vault_", "18.0"],
+      "failed": [],
+      "rows": []
+    }
+  ]
+}

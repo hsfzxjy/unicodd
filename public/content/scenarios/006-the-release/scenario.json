@@ -3,10 +3,24 @@
   "title": "The Release",
   "introduction": "Both owners approved a limited repair for incident 8C2F. The audit job is blocked on verification.",
   "outputTiming": {
-    "verify": [{ "afterRows": 0, "minMs": 160, "maxMs": 300 }],
+    "verify": [
+      {
+        "afterRows": 0,
+        "minMs": 160,
+        "maxMs": 300
+      }
+    ],
     "commit": [
-      { "afterRows": 0, "minMs": 160, "maxMs": 300 },
-      { "afterRows": 1, "minMs": 180, "maxMs": 340 }
+      {
+        "afterRows": 0,
+        "minMs": 160,
+        "maxMs": 300
+      },
+      {
+        "afterRows": 1,
+        "minMs": 180,
+        "maxMs": 340
+      }
     ]
   },
   "roles": ["recovery-operator"],
@@ -19,7 +33,8 @@
   "recovery": {
     "dataset": "recovery/8c2f.json",
     "source": "scenarios/003-the-index/files/8c2f-originals.json",
-    "prior": "005-the-handshake"
+    "prior": "005-the-handshake",
+    "archive": "recovery/archive-8c2f.json"
   },
   "hosts": [
     {
@@ -450,11 +465,22 @@
     "onComplete": [
       {
         "type": "deliverMail",
-        "message": "it-worked"
+        "message": "it-worked",
+        "liveOnly": true
       },
       {
         "type": "deliverMail",
-        "message": "thank-you"
+        "message": "thank-you",
+        "liveOnly": true
+      },
+      {
+        "type": "deliverMail",
+        "message": "audit-receipts-queued",
+        "liveOnly": true
+      },
+      {
+        "type": "discover",
+        "scenario": "007-the-other-side"
       }
     ]
   },

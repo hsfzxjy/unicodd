@@ -1,0 +1,12 @@
+{
+  "messages": [
+    {
+      "id": "capture-review",
+      "from": "Rowan / MONONYM",
+      "to": "Local operator",
+      "subject": "Keep the wire capture",
+      "date": "2026-08-29",
+      "body": "The link recorded the original bytes before the text buffer touched them. One invalid payload has ordinary ASCII after the bad sequence. If a bounded frame is bad, keep its exact bytes for review and check the next prefix."
+    }
+  ]
+}

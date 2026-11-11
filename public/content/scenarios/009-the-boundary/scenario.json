@@ -1,0 +1,232 @@
+{
+  "version": 1,
+  "title": "The Boundary",
+  "introduction": "Both receivers have the verified source evidence. Their identifier profiles disagree on what can be indexed.",
+  "roles": ["bridge-reviewer"],
+  "flags": ["mirror_verified"],
+  "local": {
+    "user": "bridge-reviewer",
+    "role": "bridge-reviewer"
+  },
+  "initialHost": "bridge-14",
+  "recovery": {
+    "dataset": "recovery/8c2f.json",
+    "source": "scenarios/003-the-index/files/8c2f-originals.json",
+    "archive": "recovery/archive-8c2f.json",
+    "prior": "008-the-fragments"
+  },
+  "hosts": [
+    {
+      "id": "bridge-14",
+      "name": "MONONYM archive bridge",
+      "guest": {
+        "user": "bridge-reviewer",
+        "role": "bridge-reviewer"
+      },
+      "welcome": "Archive exchange review. Source rows and owner assignments are read-only.",
+      "status": [
+        {
+          "label": "Archive exchange",
+          "value": "Legacy import pending",
+          "after": {
+            "flag": "mirror_verified",
+            "value": "Both indexes queryable"
+          }
+        }
+      ],
+      "resources": [
+        {
+          "id": "audit",
+          "path": "/audit",
+          "type": "directory"
+        },
+        {
+          "id": "logs",
+          "path": "/logs",
+          "type": "directory"
+        },
+        {
+          "id": "tools",
+          "path": "/tools",
+          "type": "directory"
+        },
+        {
+          "id": "mail",
+          "path": "/mail",
+          "type": "directory"
+        },
+        {
+          "id": "reports",
+          "path": "/reports",
+          "type": "directory"
+        },
+        {
+          "id": "readme",
+          "path": "/README",
+          "type": "file",
+          "content": "files/readme.txt"
+        },
+        {
+          "id": "batch",
+          "path": "/audit/batch.txt",
+          "type": "file",
+          "content": "files/batch.txt",
+          "inspectNotation": true
+        },
+        {
+          "id": "legacy-import",
+          "path": "/logs/legacy-import.log",
+          "type": "file",
+          "content": "files/legacy-import.txt"
+        },
+        {
+          "id": "exchange",
+          "path": "/tools/exchange.txt",
+          "type": "file",
+          "content": "files/exchange.txt"
+        },
+        {
+          "id": "01-native-keys",
+          "path": "/mail/01-native-keys",
+          "type": "mail",
+          "content": "mail/01-native-keys.json"
+        },
+        {
+          "id": "02-exchange-boundary",
+          "path": "/mail/02-exchange-boundary",
+          "type": "mail",
+          "content": "mail/02-exchange-boundary.json"
+        },
+        {
+          "id": "03-binding-review",
+          "path": "/mail/03-binding-review",
+          "type": "mail",
+          "content": "mail/03-binding-review.json"
+        },
+        {
+          "id": "final-report",
+          "path": "/reports/reconciliation.txt",
+          "type": "file",
+          "content": "files/final-report.txt",
+          "access": {
+            "flag": "mirror_verified"
+          },
+          "denied": "Verify the full batch on both readers before reading the reconciliation."
+        }
+      ],
+      "recovery": [
+        {
+          "command": "identifier",
+          "actionLabel": "Inspect versioned label",
+          "submitLabel": "Run identifier",
+          "label": "Inspect versioned label",
+          "fields": [
+            {
+              "input": "version",
+              "label": "Unicode version",
+              "initial": "15.1"
+            },
+            {
+              "input": "label",
+              "label": "Original label",
+              "initial": "",
+              "kind": "payload"
+            }
+          ],
+          "success": [],
+          "failure": "The current attempt did not pass verification.",
+          "quick": true,
+          "rejected": []
+        },
+        {
+          "command": "mirror",
+          "actionLabel": "Reconcile archive",
+          "submitLabel": "Run mirror",
+          "label": "Reconcile archive",
+          "fields": [
+            {
+              "input": "storage",
+              "label": "Label storage",
+              "initial": "identifier"
+            },
+            {
+              "input": "handles",
+              "label": "Legacy handle policy",
+              "initial": "labels"
+            },
+            {
+              "input": "version",
+              "label": "Search version",
+              "initial": "18.0"
+            }
+          ],
+          "success": [
+            {
+              "type": "flag",
+              "flag": "mirror_verified"
+            },
+            {
+              "type": "resourceLink",
+              "resource": "final-report"
+            }
+          ],
+          "failure": "The current attempt did not pass verification.",
+          "quick": true,
+          "rejected": [
+            {
+              "check": "ingestion-required",
+              "stage": "ingestion-required",
+              "message": "Verified ingestion and its original gateway evidence are required."
+            },
+            {
+              "check": "original-bytes",
+              "stage": "original-bytes",
+              "message": "At least one label changed bytes in the proposed exchange."
+            },
+            {
+              "check": "opaque-labels",
+              "stage": "opaque-labels",
+              "message": "Store original labels as opaque data separate from identifiers and authorization."
+            },
+            {
+              "check": "legacy-queryable",
+              "stage": "legacy-queryable",
+              "message": "At least one reference is outside the legacy handle contract."
+            },
+            {
+              "check": "unique-handles",
+              "stage": "unique-handles",
+              "message": "At least two records share a handle in the legacy index."
+            },
+            {
+              "check": "stable-handles",
+              "stage": "stable-handles",
+              "message": "Keep the reference already issued to each record."
+            },
+            {
+              "check": "stable-index",
+              "stage": "stable-index",
+              "message": "The completed batch already has a recorded search index profile."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "objective": {
+    "text": "Reconcile the full batch across both Unicode profiles and read the archive report.",
+    "read": "final-report",
+    "handoff": "mirror",
+    "message": "The archive exchange is reconciled and the work item is closed.",
+    "onComplete": [
+      {
+        "type": "deliverMail",
+        "message": "archive-item-closed"
+      }
+    ]
+  },
+  "inbox": {
+    "content": "mail/inbox.json",
+    "initial": ["bridge-shift"]
+  }
+}

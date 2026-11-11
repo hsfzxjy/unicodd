@@ -1,0 +1,9 @@
+resolve PROFILE RECEIPT URL
+Profiles: transitional (archived compatibility trace), nontransitional (registry policy).
+Use an absolute HTTPS URL. The default port may be explicit. No credentials, query or fragment.
+Hosts are validated as DNS labels. Path segments use their exact UTF-8 after percent decoding.
+Dots and percent escapes in an authority are interpreted independently from the resource path.
+
+dispatch PROFILE FIRST-URL SECOND-URL
+Supply the URL for GW-1842 first, then the URL for GW-2917.
+The batch is accepted only when each receipt is bound to its registered endpoint and exact resource.

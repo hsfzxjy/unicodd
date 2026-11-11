@@ -1,0 +1,20 @@
+{
+  "messages": [
+    {
+      "id": "bridge-shift",
+      "from": "Mara / MONONYM",
+      "to": "Local operator",
+      "subject": "Five records in scope",
+      "date": "2026-08-30",
+      "body": "Please verify the full exchange batch before we put the legacy reader back on the schedule. The ingestion report has the evidence for the first two rows."
+    },
+    {
+      "id": "archive-item-closed",
+      "from": "Nia / MONONYM",
+      "to": "Local operator",
+      "subject": "Archive work item closed",
+      "date": "2026-08-31",
+      "body": "Mara signed off on this exchange. Helena says both desks can now ask for the same record, even if their searches return different results. I’ve closed the archival item and filed the two confirmations with Support."
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+2026-08-28 18:10 UTC · gateway process startup
+profile loaded from compatibility migration: transitional
+current registry revision: split-vault-4
+
+2026-08-29 01:02 UTC · archival sweep 8C2F
+GW-1842 · strasse.trace.test · VAULT-1842 · 202
+GW-2917 · strasse.trace.test · VAULT-1842 · 202
+
+2026-08-29 06:30 UTC · receipt reconciliation
+VAULT-1842 confirmed GW-1842
+VAULT-2917 has no dispatch for GW-2917

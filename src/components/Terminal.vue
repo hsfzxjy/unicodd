@@ -34,6 +34,10 @@ const following = ref(true)
 const selectedScalar = ref<string>()
 const collapsed = reactive(new Set<number>())
 
+function hexadecimal(value: number, width: number) {
+  return value.toString(16).toUpperCase().padStart(width, '0')
+}
+
 function echoText(value: string) {
   if (value.length <= 512) return value
   const limit =
@@ -351,7 +355,40 @@ defineExpose({
                   <span v-if="record.details" class="report-details">
                     <bdi v-for="(detail, index) in record.details" :key="index">{{ detail }}</bdi>
                   </span>
-                  <span class="report-fields" data-resource-text>
+                  <span v-if="record.hex" class="report-hex" dir="ltr">
+                    <span v-if="record.hex.chunkStart" class="report-chunk">chunk</span>
+                    <button
+                      v-for="(byte, index) in record.hex.bytes"
+                      :key="index"
+                      type="button"
+                      class="terminal-link"
+                      :class="{
+                        'report-invalid-byte':
+                          record.hex.highlight &&
+                          record.hex.offset + index >= record.hex.highlight[0] &&
+                          record.hex.offset + index < record.hex.highlight[1],
+                      }"
+                      :aria-label="
+                        'Use offset 0x' +
+                        hexadecimal(record.hex.offset + index, 4) +
+                        ' for byte ' +
+                        hexadecimal(byte, 2)
+                      "
+                      :aria-disabled="busy || !composer?.canInsert || undefined"
+                      @click="
+                        !busy &&
+                        composer?.canInsert &&
+                        emit('action', {
+                          type: 'editPayload',
+                          mode: composer.canReplace ? 'replace' : 'insert',
+                          text: '0x' + hexadecimal(record.hex.offset + index, 4),
+                        })
+                      "
+                    >
+                      {{ hexadecimal(byte, 2) }}
+                    </button>
+                  </span>
+                  <span v-else class="report-fields" data-resource-text>
                     <bdi v-for="(field, index) in record.fields" :key="index">{{ field }}</bdi>
                   </span>
                   <button

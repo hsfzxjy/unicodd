@@ -1,0 +1,11 @@
+8C2F / outbound audit outbox
+Source receipts are immutable. Two queued records.
+
+GW-1842 · registration 0001842 · owner-1842
+Authorized endpoint VAULT-1842
+Original destination https://strasse.trace.test/archive/GW-1842
+
+GW-2917 · registration 0002917 · owner-2917
+Authorized endpoint VAULT-2917
+Original destination https://straße.trace.test/archive/GW-2917/Café
+Final path segment ends U+0065 U+0301.

@@ -8,7 +8,13 @@ import {
 } from '../types.ts'
 import { createCampaign, validHandoff } from './campaign.ts'
 import { actionCommand, commandHelp, operationArity } from './commands.ts'
-import type { Handoff, RecoveryCommand, RecoveryContext, RecoveryRow } from './recovery.ts'
+import {
+  archiveRows,
+  type Handoff,
+  type RecoveryCommand,
+  type RecoveryContext,
+  type RecoveryRow,
+} from './recovery.ts'
 import {
   parentPath,
   type Effect,
@@ -118,15 +124,24 @@ export function createRuntime(
   const start = (completed: boolean): Session => {
     const host = scenario.hosts.find(({ id }) => id === scenario.initialHost)
     if (host) campaign.visitHost(hostKey(host))
-    const released = campaign.handoff(scenario.id)?.kind === 'release'
+    const kind = campaign.handoff(scenario.id)?.kind
+    const released = kind === 'release'
     const final = host?.recovery?.find(({ command }) => command === scenario.objective.action)
+    const archiveReport =
+      kind && kind === scenario.objective.handoff
+        ? scenario.hosts
+            .flatMap(({ resources }) => resources)
+            .find(({ id }) => id === scenario.objective.read)
+        : undefined
     return {
       host,
       identity: host?.guest ?? scenario.local,
       flags: released
         ? (final?.success.flatMap((effect) => (effect.type === 'flag' ? [effect.flag] : [])) ?? [])
-        : [],
-      completed: completed || released,
+        : [archiveReport?.access?.flag, archiveReport?.discover?.flag].filter(
+            (flag): flag is string => Boolean(flag),
+          ),
+      completed: completed || released || Boolean(archiveReport),
       deliveredMail: campaign.delivered,
       readMail: campaign.read,
       visitedHosts: campaign.visitedHosts,
@@ -425,6 +440,10 @@ export function createRuntime(
     }
 
     if (!resource || resource.type === 'directory') return error(`Expected a file: ${path}`)
+    const objective = scenario.objective.read === resource.id
+    const handoff = campaign.handoff(scenario.id) ?? state.recovery?.[host.id]?.handoff
+    if (objective && scenario.objective.handoff && handoff?.kind !== scenario.objective.handoff)
+      return error(resource.denied ?? 'Run the verification operation to produce this report.')
     if (campaign.markResourceRead(resourceKey(host, resource)))
       state = { ...state, readResources: campaign.readResources }
     const output: Output[] = [
@@ -439,8 +458,11 @@ export function createRuntime(
           },
     ]
     apply(resource.onRead, output, 'message')
-    if (scenario.objective.read === resource.id)
-      completeObjective(output, state.recovery?.[host.id]?.handoff)
+    if (objective) {
+      if (scenario.objective.handoff && handoff)
+        output.push({ kind: 'report', rows: archiveRows(handoff) })
+      completeObjective(output, handoff)
+    }
     return { output }
   }
 
@@ -465,7 +487,9 @@ export function createRuntime(
           output: [
             {
               kind: 'listing',
-              title: campaign.finished ? 'Campaign complete' : 'Discovered destinations',
+              title: campaign.finished
+                ? 'All available scenarios complete'
+                : 'Discovered destinations',
               links: [
                 ...destinationLinks(campaign.destinations()),
                 { label: 'Reset campaign…', action: { type: 'resetCampaign' } },
@@ -512,7 +536,13 @@ export function createRuntime(
       case 'prepare':
       case 'preview':
       case 'verify':
-      case 'commit': {
+      case 'commit':
+      case 'resolve':
+      case 'dispatch':
+      case 'capture':
+      case 'deframe':
+      case 'identifier':
+      case 'mirror': {
         const binding = availableOperations().find(({ command }) => command === action.type)
         if (!binding) return error(`${action.type} is unavailable with the current access.`)
         const payload =

@@ -12,6 +12,9 @@ it('loads the production scenario catalog in progression order', async () => {
     '004-the-backlog',
     '005-the-handshake',
     '006-the-release',
+    '007-the-other-side',
+    '008-the-fragments',
+    '009-the-boundary',
   ])
   await expect(production.campaign(entries)).resolves.toHaveLength(entries.length)
   expect(await readdir(productionRoot)).toEqual(['manifest.json', 'recovery', 'scenarios'])

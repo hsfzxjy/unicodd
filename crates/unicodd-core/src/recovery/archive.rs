@@ -5,7 +5,7 @@ use sha2::{Digest, Sha256};
 
 use super::{
     bad_input, case_fold, distinct, identifier, invalid, normalize, number, option, skeleton,
-    valid_release, Dataset, EngineError, Evidence, Form, Operation, Report, RestoredIdentity,
+    valid_release, Dataset, EngineError, Evidence, Form, Operation, Report, RestoredIdentity, Row,
 };
 
 mod frames;
@@ -77,6 +77,13 @@ pub(super) struct Mirror {
 
 fn digest(payload: &[u8]) -> String {
     format!("{:x}", Sha256::digest(payload))
+}
+
+fn inspect_non_ascii(row: &mut Row, text: &str) {
+    let scalars: String = text.chars().filter(|scalar| !scalar.is_ascii()).collect();
+    if !scalars.is_empty() {
+        row.inspect.push(scalars);
+    }
 }
 
 impl Archive {

@@ -1,0 +1,10 @@
+identifier VERSION LABEL
+Pinned profiles: 15.1 and 18.0. The identifier grammar uses XID_Start then XID_Continue.
+
+mirror LABEL-STORAGE HANDLE-POLICY SEARCH-VERSION
+Storage: opaque, nfc, ascii, identifier, authorization.
+Handles: labels, fold, nfkc, ascii, skeleton, suffix, id, prefix:TEXT or map:ID=handle,ID=handle.
+A custom mapping must name every source ID once. Handles must be ASCII XID identifiers, at most 64 bytes.
+The legacy reference lookup compares ASCII handles without case distinctions. Previously issued handles are stable.
+The archive associates each handle to one verified ID and owner.
+The search version selects a full-fold index. Each key can point to multiple records.

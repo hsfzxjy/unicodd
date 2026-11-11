@@ -435,7 +435,9 @@ async function dispatch(action: Action, command?: string) {
                   }}</span>
                 </div>
                 <p dir="auto">{{ scenario.objective.text }}</p>
-                <p v-if="campaignFinished" class="objective-done">Campaign complete</p>
+                <p v-if="campaignFinished" class="objective-done">
+                  All available scenarios complete
+                </p>
               </div>
             </div>
           </div>

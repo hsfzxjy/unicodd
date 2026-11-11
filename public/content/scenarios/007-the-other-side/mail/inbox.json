@@ -1,0 +1,20 @@
+{
+  "messages": [
+    {
+      "id": "gateway-daily-sweep",
+      "from": "Rowan / MONONYM",
+      "to": "Local operator",
+      "subject": "One empty destination slot",
+      "date": "2026-08-29",
+      "body": "The overnight sweep got two 202s. Compare the registry with the gateway’s trace before we close the archival item. The split itself was confirmed yesterday."
+    },
+    {
+      "id": "receiver-capture",
+      "from": "Rowan / MONONYM",
+      "to": "Local operator",
+      "subject": "Transport capture at spool-13",
+      "date": "2026-08-29",
+      "body": "I have the bytes from the corrected dispatch. The application log doesn’t account for them yet. I left the receiver capture and its parser history at spool-13."
+    }
+  ]
+}

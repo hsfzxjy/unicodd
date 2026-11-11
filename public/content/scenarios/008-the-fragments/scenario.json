@@ -1,0 +1,250 @@
+{
+  "version": 1,
+  "title": "The Fragments",
+  "introduction": "The receiver retained the entire transport capture. Its application log dropped part of the sweep.",
+  "roles": ["spool-reviewer"],
+  "flags": ["ingestion_verified"],
+  "local": {
+    "user": "spool-reviewer",
+    "role": "spool-reviewer"
+  },
+  "initialHost": "spool-13",
+  "recovery": {
+    "dataset": "recovery/8c2f.json",
+    "source": "scenarios/003-the-index/files/8c2f-originals.json",
+    "archive": "recovery/archive-8c2f.json",
+    "prior": "007-the-other-side"
+  },
+  "hosts": [
+    {
+      "id": "spool-13",
+      "name": "MONONYM archive receiver",
+      "guest": {
+        "user": "spool-reviewer",
+        "role": "spool-reviewer"
+      },
+      "welcome": "Receiver replay access. The original link capture is read-only.",
+      "status": [
+        {
+          "label": "Receiver",
+          "value": "Capture retained",
+          "after": {
+            "flag": "ingestion_verified",
+            "value": "Application records verified"
+          }
+        }
+      ],
+      "resources": [
+        {
+          "id": "captures",
+          "path": "/captures",
+          "type": "directory"
+        },
+        {
+          "id": "tools",
+          "path": "/tools",
+          "type": "directory"
+        },
+        {
+          "id": "logs",
+          "path": "/logs",
+          "type": "directory"
+        },
+        {
+          "id": "audit",
+          "path": "/audit",
+          "type": "directory"
+        },
+        {
+          "id": "mail",
+          "path": "/mail",
+          "type": "directory"
+        },
+        {
+          "id": "reports",
+          "path": "/reports",
+          "type": "directory"
+        },
+        {
+          "id": "readme",
+          "path": "/README",
+          "type": "file",
+          "content": "files/readme.txt"
+        },
+        {
+          "id": "link-07",
+          "path": "/captures/link-07.txt",
+          "type": "file",
+          "content": "files/link-07.txt"
+        },
+        {
+          "id": "wire",
+          "path": "/tools/framing.txt",
+          "type": "file",
+          "content": "files/wire.txt"
+        },
+        {
+          "id": "parser",
+          "path": "/logs/parser.log",
+          "type": "file",
+          "content": "files/parser.txt"
+        },
+        {
+          "id": "ack-ledger",
+          "path": "/audit/ack-ledger.txt",
+          "type": "file",
+          "content": "files/ack-ledger.txt"
+        },
+        {
+          "id": "01-text-buffer",
+          "path": "/mail/01-text-buffer",
+          "type": "mail",
+          "content": "mail/01-text-buffer.json"
+        },
+        {
+          "id": "02-capture-review",
+          "path": "/mail/02-capture-review",
+          "type": "mail",
+          "content": "mail/02-capture-review.json"
+        },
+        {
+          "id": "final-report",
+          "path": "/reports/ingestion.txt",
+          "type": "file",
+          "content": "files/final-report.txt",
+          "access": {
+            "flag": "ingestion_verified"
+          },
+          "denied": "Verify both application ACKs and isolate malformed frames before reading this report."
+        }
+      ],
+      "recovery": [
+        {
+          "command": "capture",
+          "actionLabel": "Show captured bytes",
+          "submitLabel": "Run capture",
+          "label": "Show captured bytes",
+          "fields": [
+            {
+              "input": "offset",
+              "label": "Byte offset",
+              "initial": "0"
+            },
+            {
+              "input": "count",
+              "label": "Byte count",
+              "initial": "64"
+            }
+          ],
+          "success": [],
+          "failure": "The current attempt did not pass verification.",
+          "quick": true,
+          "rejected": [
+            {
+              "check": "dispatch-required",
+              "stage": "dispatch-required",
+              "message": "A verified gateway dispatch is required before a capture can be opened."
+            },
+            {
+              "check": "capture-range",
+              "stage": "capture-range",
+              "message": "Start within the captured byte range."
+            }
+          ]
+        },
+        {
+          "command": "deframe",
+          "actionLabel": "Replay frame decoder",
+          "submitLabel": "Run deframe",
+          "label": "Replay frame decoder",
+          "fields": [
+            {
+              "input": "framing",
+              "label": "Length interpretation",
+              "initial": "be"
+            },
+            {
+              "input": "decoder",
+              "label": "UTF-8 decoder",
+              "initial": "chunks"
+            },
+            {
+              "input": "errors",
+              "label": "Invalid frame policy",
+              "initial": "stop"
+            },
+            {
+              "input": "integrity",
+              "label": "Digest input",
+              "initial": "raw"
+            },
+            {
+              "input": "chunks",
+              "label": "Chunk boundaries",
+              "initial": "network"
+            }
+          ],
+          "success": [
+            {
+              "type": "flag",
+              "flag": "ingestion_verified"
+            },
+            {
+              "type": "resourceLink",
+              "resource": "final-report"
+            }
+          ],
+          "failure": "The current attempt did not pass verification.",
+          "quick": true,
+          "rejected": [
+            {
+              "check": "dispatch-required",
+              "stage": "dispatch-required",
+              "message": "Read the verified gateway reconciliation to bring its capture into this session."
+            },
+            {
+              "check": "authoritative-bytes",
+              "stage": "authoritative-bytes",
+              "message": "Replacement decoding is diagnostic only. It cannot authenticate original bytes."
+            },
+            {
+              "check": "complete-framing",
+              "stage": "complete-framing",
+              "message": "The decoder did not consume the original capture as complete bounded frames."
+            },
+            {
+              "check": "isolated-errors",
+              "stage": "isolated-errors",
+              "message": "An invalid frame prevented processing later framed records."
+            },
+            {
+              "check": "ack-integrity",
+              "stage": "ack-integrity",
+              "message": "Both original owner-bound ACK payloads must match the independent ledger."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "objective": {
+    "text": "Verify the byte-framed application records and read the ingestion report.",
+    "read": "final-report",
+    "handoff": "ingestion",
+    "message": "Both application records are stored with their original payload bytes.",
+    "onComplete": [
+      {
+        "type": "deliverMail",
+        "message": "bridge-import-review"
+      },
+      {
+        "type": "discover",
+        "scenario": "009-the-boundary"
+      }
+    ]
+  },
+  "inbox": {
+    "content": "mail/inbox.json",
+    "initial": ["receiver-shift"]
+  }
+}

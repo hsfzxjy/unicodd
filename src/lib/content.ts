@@ -1,6 +1,12 @@
 import type { Engine, EngineError, Program } from '../types.ts'
 import { commandRegistry } from './commands.ts'
-import { recoveryArity, type RecoveryCommand, type RecoveryDataset } from './recovery.ts'
+import {
+  archiveStages,
+  recoveryArity,
+  type ArchiveStage,
+  type RecoveryCommand,
+  type RecoveryDataset,
+} from './recovery.ts'
 import {
   parentPath,
   puzzleArity,
@@ -185,10 +191,13 @@ export function createContentLoader(
 
   const datasets = new Map<string, Promise<RecoveryDataset>>()
 
-  async function loadDataset(path: string): Promise<RecoveryDataset> {
-    const { value } = await json(path)
+  async function loadDataset(path: string, archive?: string): Promise<RecoveryDataset> {
+    const data = await json(path)
+    const value = archive
+      ? { ...(data.value as object), archive: (await json(archive)).value }
+      : data.value
     const validation = await engine.validateRecovery(value)
-    if (!validation.ok) engineFailure(path, validation.error)
+    if (!validation.ok) engineFailure(archive ?? path, validation.error)
     return value as RecoveryDataset
   }
 
@@ -258,18 +267,20 @@ export function createContentLoader(
       const roles = ids(get('roles'))
       const flags = ids(get('flags'))
       const recovery = await get('recovery').optional(async (field) => {
-        const data = field.object('dataset', 'source', 'prior')
+        const data = field.object('dataset', 'source', 'prior', 'archive')
         const path = data('dataset').asset(true)
-        if (!datasets.has(path)) {
+        const archive = data('archive').optional((item) => item.asset(true))
+        const key = JSON.stringify([path, archive])
+        if (!datasets.has(key)) {
           datasets.set(
-            path,
-            loadDataset(path).catch((error) => {
-              datasets.delete(path)
+            key,
+            loadDataset(path, archive).catch((error) => {
+              datasets.delete(key)
               throw error
             }),
           )
         }
-        const dataset = await datasets.get(path)!
+        const dataset = await datasets.get(key)!
         const source = data('source').asset(true)
         const originals = (await json(source)).object(
           'merge_event',
@@ -302,7 +313,13 @@ export function createContentLoader(
           )
         )
           data('source').fail('Recovery registrations differ from the verified original export.')
-        return { path, dataset, source, prior: data('prior').optional((item) => item.id()) }
+        return {
+          path,
+          dataset,
+          source,
+          archive,
+          prior: data('prior').optional((item) => item.id()),
+        }
       })
       const inbox = await get('inbox').optional(async (field) => {
         const get = field.object('content', 'initial')
@@ -712,8 +729,18 @@ export function createContentLoader(
       if (!hosts.length) get('hosts').fail('Expected at least one host.')
       if (hosts.every((host) => host.discover))
         get('hosts').fail('At least one host must be initially discoverable.')
-      const objective = get('objective').object('text', 'read', 'action', 'message', 'onComplete')
+      const objective = get('objective').object(
+        'text',
+        'read',
+        'action',
+        'handoff',
+        'message',
+        'onComplete',
+      )
       const read = objective('read').optional((item) => item.ref(fileIds, 'file resource'))
+      const handoff = objective('handoff').optional((item) =>
+        item.ref(Object.keys(archiveStages) as ArchiveStage[], 'archive handoff'),
+      )
       const action = objective('action').optional((item) =>
         item.ref(
           hosts
@@ -724,21 +751,38 @@ export function createContentLoader(
       )
       if (Boolean(read) === Boolean(action))
         get('objective').fail('Specify one read or action completion trigger.')
+      if (handoff) {
+        const host = hosts.find(({ resources }) => resources.some(({ id }) => id === read))
+        const resource = host?.resources.find(({ id }) => id === read)
+        const gate = resource?.access?.flag
+        const operation = host?.recovery?.find(({ command }) => command === archiveStages[handoff])
+        if (
+          !recovery?.archive ||
+          !gate ||
+          !operation?.success.some((effect) => effect.type === 'flag' && effect.flag === gate)
+        )
+          objective('handoff').fail(
+            'Expected a read gate opened by the matching archive operation.',
+          )
+      }
       const onComplete =
         objective('onComplete').optional((field) =>
           field.list((item): ProgressEffect => {
-            const type = item.object('type', 'message', 'scenario')('type')
+            const type = item.object('type', 'message', 'scenario', 'liveOnly')('type')
             switch (type.value) {
               case 'discover':
                 return {
                   type: 'discover',
                   scenario: item.object('type', 'scenario')('scenario').id(),
                 }
-              case 'deliverMail':
+              case 'deliverMail': {
+                const mail = item.object('type', 'message', 'liveOnly')
                 return {
                   type: 'deliverMail',
-                  message: item.object('type', 'message')('message').ref(inboxIds, 'inbox message'),
+                  message: mail('message').ref(inboxIds, 'inbox message'),
+                  liveOnly: mail('liveOnly').optional((field) => field.bool()),
                 }
+              }
               default:
                 return type.fail('Unsupported completion effect.')
             }
@@ -765,7 +809,7 @@ export function createContentLoader(
         outputTiming,
         objective: {
           text: objective('text').text(),
-          ...(read ? { read } : { action: action! }),
+          ...(read ? { read, handoff } : { action: action! }),
           message: objective('message').text(),
           onComplete,
         },
@@ -797,7 +841,26 @@ export function createContentLoader(
               'Expected an earlier recovery scenario with the same dataset and a discovery link.',
             )
           const binding = scenario.hosts.flatMap((host) => host.recovery ?? [])
-          const needed = binding.some(({ command }) => command === 'bind') ? 'recover' : 'bind'
+          const stage = scenario.objective.handoff
+          const needed =
+            stage === 'dispatch'
+              ? 'commit'
+              : stage === 'ingestion'
+                ? 'dispatch'
+                : stage === 'mirror'
+                  ? 'deframe'
+                  : binding.some(({ command }) => command === 'bind')
+                    ? 'recover'
+                    : 'bind'
+          if (
+            stage &&
+            (predecessor.recovery?.archive !== scenario.recovery?.archive ||
+              (stage === 'dispatch' && predecessor.objective.action !== 'commit') ||
+              (stage === 'ingestion' && predecessor.objective.handoff !== 'dispatch') ||
+              (stage === 'mirror' && predecessor.objective.handoff !== 'ingestion'))
+          ) {
+            invalid(file, 'recovery.prior', 'Expected the preceding stage of this archive.')
+          }
           if (
             !predecessor.hosts.some((host) =>
               host.recovery?.some(({ command }) => command === needed),
@@ -805,6 +868,7 @@ export function createContentLoader(
           )
             invalid(file, 'recovery.prior', `The predecessor must produce a ${needed} handoff.`)
         } else if (
+          scenario.objective.handoff ||
           scenario.hosts.some((host) =>
             host.recovery?.some(({ command }) => command === 'bind' || command === 'prepare'),
           )

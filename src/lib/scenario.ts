@@ -1,5 +1,5 @@
 import type { Program } from '../types.ts'
-import type { RecoveryCommand, RecoveryDataset } from './recovery.ts'
+import type { ArchiveStage, RecoveryCommand, RecoveryDataset } from './recovery.ts'
 import type { Action } from './runtime.ts'
 
 export interface Identity {
@@ -24,7 +24,8 @@ export interface PuzzleField {
 }
 
 export type ProgressEffect =
-  { type: 'discover'; scenario: string } | { type: 'deliverMail'; message: string }
+  | { type: 'discover'; scenario: string }
+  | { type: 'deliverMail'; message: string; liveOnly?: boolean }
 
 export type Effect =
   | { type: 'session'; identity: Identity }
@@ -112,9 +113,18 @@ export interface Scenario {
   initialHost?: string
   hosts: Host[]
   inbox?: { messages: MailMessage[]; initial: string[] }
-  recovery?: { path: string; dataset: RecoveryDataset; source: string; prior?: string }
+  recovery?: {
+    path: string
+    dataset: RecoveryDataset
+    source: string
+    prior?: string
+    archive?: string
+  }
   outputTiming?: Partial<Record<Action['type'], OutputPause[]>>
-  objective: ({ read: string; action?: never } | { read?: never; action: RecoveryCommand }) & {
+  objective: (
+    | { read: string; handoff?: ArchiveStage; action?: never }
+    | { read?: never; handoff?: never; action: RecoveryCommand }
+  ) & {
     text: string
     message: string
     onComplete: ProgressEffect[]

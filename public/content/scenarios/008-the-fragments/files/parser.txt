@@ -1,0 +1,8 @@
+2026-08-29 09:13 UTC · receiver socket
+read boundaries: 0 1 10 15 30 38 48 49
+captured: 49 bytes
+
+2026-08-29 09:13 UTC · application
+legacy chunk decoder: substitutions at buffer boundaries
+frame reader: reported length exceeds configured maximum
+durable ACK rows: 0

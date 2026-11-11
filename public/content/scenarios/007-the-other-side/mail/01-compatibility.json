@@ -1,0 +1,12 @@
+{
+  "messages": [
+    {
+      "id": "compatibility",
+      "from": "Eli / MONONYM",
+      "to": "Local operator",
+      "subject": "Gateway migration setting",
+      "date": "2025-03-18",
+      "body": "I left the compatibility mapping enabled during the move. It got older sender spellings into the same vault without anyone having to retype their addresses.\n\nWe only have one assignment for that vault this quarter. Revisit the profile when the registry begins making independent assignments."
+    }
+  ]
+}

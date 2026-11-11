@@ -1,0 +1,3 @@
+GATEWAY RECONCILIATION / 8C2F
+
+Each source receipt has its own verified destination and resource. The receiver has a transport capture for this sweep. Application ingestion is pending.

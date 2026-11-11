@@ -1,0 +1,11 @@
+Receiver protocol spool/2
+Each frame starts with a two-byte unsigned length, most significant byte first.
+Length counts payload octets; the prefix itself is excluded. Maximum payload is 256 bytes.
+A zero length is a heartbeat. Incomplete prefix or payload at EOF and oversized lengths are transport errors.
+
+deframe FRAMING DECODER ERRORS INTEGRITY CHUNKS
+FRAMING: be, le, scalars. DECODER: strict, chunks, replacement.
+ERRORS: stop, quarantine. INTEGRITY: raw, nfc.
+CHUNKS: network, whole, or comma-separated interior byte offsets.
+
+The older modes are retained for local comparison. A trusted length establishes the next frame boundary even if the current payload fails UTF-8 validation. The transport offsets are independent of the wire lengths.

@@ -1,0 +1,12 @@
+{
+  "messages": [
+    {
+      "id": "exchange-boundary",
+      "from": "Helena / MONONYM",
+      "to": "Local operator",
+      "subject": "What the readers actually share",
+      "date": "2026-08-30",
+      "body": "The old node can carry UTF-8 label fields. Its constraint is on the reference it uses for lookup. I’m fine with the new search returning two rows for one spelling. The record reference needs to resolve to exactly one owner every time."
+    }
+  ]
+}

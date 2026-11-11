@@ -1,0 +1,20 @@
+{
+  "messages": [
+    {
+      "id": "receiver-shift",
+      "from": "Rowan / MONONYM",
+      "to": "Local operator",
+      "subject": "Use the captured link offsets",
+      "date": "2026-08-29",
+      "body": "The gateway report and the receiver agree on the sweep. Start from the capture bytes; the application line offsets were counted after the legacy decoder changed the buffer."
+    },
+    {
+      "id": "bridge-import-review",
+      "from": "Mara / MONONYM",
+      "to": "Local operator",
+      "subject": "Legacy archive import review",
+      "date": "2026-08-30",
+      "body": "Ingestion is signed off. The next job combines these records with three other verified sources. The legacy archive refused some identifiers. Its batch and the import trace are at bridge-14."
+    }
+  ]
+}

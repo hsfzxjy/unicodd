@@ -1,0 +1,239 @@
+{
+  "version": 1,
+  "title": "The Other Side",
+  "introduction": "The local split is closed. The next morning’s gateway reconciliation found an empty destination slot.",
+  "roles": ["gateway-reviewer"],
+  "flags": ["dispatch_verified"],
+  "local": {
+    "user": "gateway-reviewer",
+    "role": "gateway-reviewer"
+  },
+  "initialHost": "gateway-12",
+  "recovery": {
+    "dataset": "recovery/8c2f.json",
+    "source": "scenarios/003-the-index/files/8c2f-originals.json",
+    "archive": "recovery/archive-8c2f.json",
+    "prior": "006-the-release"
+  },
+  "hosts": [
+    {
+      "id": "gateway-12",
+      "name": "MONONYM archival gateway",
+      "guest": {
+        "user": "gateway-reviewer",
+        "role": "gateway-reviewer"
+      },
+      "welcome": "Gateway review. The virtual registry and outbound receipts are in scope.",
+      "status": [
+        {
+          "label": "Dispatch",
+          "value": "Reconciliation pending",
+          "after": {
+            "flag": "dispatch_verified",
+            "value": "Both destinations confirmed"
+          }
+        }
+      ],
+      "resources": [
+        {
+          "id": "outbox",
+          "path": "/outbox",
+          "type": "directory"
+        },
+        {
+          "id": "registry",
+          "path": "/registry",
+          "type": "directory"
+        },
+        {
+          "id": "logs",
+          "path": "/logs",
+          "type": "directory"
+        },
+        {
+          "id": "tools",
+          "path": "/tools",
+          "type": "directory"
+        },
+        {
+          "id": "mail",
+          "path": "/mail",
+          "type": "directory"
+        },
+        {
+          "id": "reports",
+          "path": "/reports",
+          "type": "directory"
+        },
+        {
+          "id": "readme",
+          "path": "/README",
+          "type": "file",
+          "content": "files/readme.txt"
+        },
+        {
+          "id": "contracts",
+          "path": "/outbox/contracts.txt",
+          "type": "file",
+          "content": "files/contracts.txt",
+          "inspectNotation": true
+        },
+        {
+          "id": "endpoints",
+          "path": "/registry/endpoints.txt",
+          "type": "file",
+          "content": "files/endpoints.txt"
+        },
+        {
+          "id": "gateway-log",
+          "path": "/logs/gateway.log",
+          "type": "file",
+          "content": "files/gateway-log.txt"
+        },
+        {
+          "id": "gateway-tools",
+          "path": "/tools/destinations.txt",
+          "type": "file",
+          "content": "files/gateway-tools.txt"
+        },
+        {
+          "id": "01-compatibility",
+          "path": "/mail/01-compatibility",
+          "type": "mail",
+          "content": "mail/01-compatibility.json"
+        },
+        {
+          "id": "02-registry-review",
+          "path": "/mail/02-registry-review",
+          "type": "mail",
+          "content": "mail/02-registry-review.json"
+        },
+        {
+          "id": "final-report",
+          "path": "/reports/gateway.txt",
+          "type": "file",
+          "content": "files/final-report.txt",
+          "access": {
+            "flag": "dispatch_verified"
+          },
+          "denied": "Confirm both source-bound destinations before reading the gateway reconciliation."
+        }
+      ],
+      "recovery": [
+        {
+          "command": "resolve",
+          "actionLabel": "Trace destination",
+          "submitLabel": "Run resolve",
+          "label": "Trace destination",
+          "fields": [
+            {
+              "input": "profile",
+              "label": "Host profile",
+              "initial": "transitional"
+            },
+            {
+              "input": "receipt",
+              "label": "Receipt ID",
+              "initial": "GW-2917"
+            },
+            {
+              "input": "url",
+              "label": "Destination URL",
+              "initial": "",
+              "kind": "payload"
+            }
+          ],
+          "success": [],
+          "failure": "The current attempt did not pass verification.",
+          "quick": true,
+          "rejected": [
+            {
+              "check": "route-authorized",
+              "stage": "route-authorized",
+              "message": "This trace did not establish an authorized receipt destination."
+            }
+          ]
+        },
+        {
+          "command": "dispatch",
+          "actionLabel": "Verify dispatch",
+          "submitLabel": "Run dispatch",
+          "label": "Verify dispatch",
+          "fields": [
+            {
+              "input": "profile",
+              "label": "Host profile",
+              "initial": "transitional"
+            },
+            {
+              "input": "first",
+              "label": "GW-1842 URL",
+              "initial": "",
+              "kind": "payload"
+            },
+            {
+              "input": "second",
+              "label": "GW-2917 URL",
+              "initial": "",
+              "kind": "payload"
+            }
+          ],
+          "success": [
+            {
+              "type": "flag",
+              "flag": "dispatch_verified"
+            },
+            {
+              "type": "resourceLink",
+              "resource": "final-report"
+            }
+          ],
+          "failure": "The current attempt did not pass verification.",
+          "quick": true,
+          "rejected": [
+            {
+              "check": "release-required",
+              "stage": "release-required",
+              "message": "The committed split and its two outbox receipts are required."
+            },
+            {
+              "check": "routing-profile",
+              "stage": "routing-profile",
+              "message": "The historical profile is for trace comparisons. Dispatch uses the current registry profile."
+            },
+            {
+              "check": "route-authorized",
+              "stage": "route-authorized",
+              "message": "Check the endpoint owner and exact resource path for each receipt."
+            },
+            {
+              "check": "distinct-endpoints",
+              "stage": "distinct-endpoints",
+              "message": "Both transport requests resolved to the same endpoint."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "objective": {
+    "text": "Confirm the authorized destinations and read the gateway reconciliation.",
+    "read": "final-report",
+    "handoff": "dispatch",
+    "message": "The archival receipts reached their separate authorized destinations.",
+    "onComplete": [
+      {
+        "type": "deliverMail",
+        "message": "receiver-capture"
+      },
+      {
+        "type": "discover",
+        "scenario": "008-the-fragments"
+      }
+    ]
+  },
+  "inbox": {
+    "content": "mail/inbox.json",
+    "initial": ["gateway-daily-sweep"]
+  }
+}

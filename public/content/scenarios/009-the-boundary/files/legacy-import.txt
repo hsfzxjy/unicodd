@@ -1,0 +1,5 @@
+2026-08-30 06:21 UTC · native label import
+modern reader · Unicode 18.0 · input label XID check accepted for all records
+legacy reader · Unicode 15.1 · native identifier rejected for AR-4101 and AR-4102
+
+Both readers retained the original UTF-8 data. Neither reported a transport encoding failure.

@@ -1,0 +1,5 @@
+Link 07 / archival sweep 8C2F
+49 bytes received. The recorded network buffer starts are 0, 1, 10, 15, 30, 38 and 48.
+
+Use capture OFFSET COUNT to read original bytes. Offsets are zero-based. Hexadecimal offsets use a 0x prefix.
+The byte-range display follows the capture boundaries. An offset can be placed in a selected command field.

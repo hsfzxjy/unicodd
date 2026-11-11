@@ -1,0 +1,3 @@
+ARCHIVE EXCHANGE / RECONCILIATION
+
+Mara approved this exchange path. Both readers resolve the same verified record IDs through the assigned references. Original labels, owner associations and source evidence are retained.

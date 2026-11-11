@@ -4,3 +4,4 @@ target/
 src/lib/wasm/pkg/
 playwright-report/
 test-results/
+/.codex-remote-attachments/

@@ -1,0 +1,5 @@
+Virtual registry / verified assignments
+VAULT-1842 · owner-1842 · strasse.trace.test · resource GW-1842
+VAULT-2917 · owner-2917 · xn--strae-oqa.trace.test · resource GW-2917
+
+The front desk may accept a transport request before the vault verifies its receipt and resource binding.

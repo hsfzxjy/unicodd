@@ -1,0 +1,9 @@
+Verified archival batch
+AR-1842    0001842  owner-1842     Mira
+AR-2917    0002917  owner-2917     Mіra
+AR-4101    0004101  owner-4101     Ᲊora
+AR-4102    0004102  owner-4102     ᲊora
+AR-EU-1842 EU-1842  owner-eu-1842  Café
+
+The first two source records carry the receiver and gateway evidence. The last three have independent verified owners.
+The first scalar in the two 410x labels is U+1C89 and U+1C8A respectively. AR-EU-1842 ends U+0065 U+0301.

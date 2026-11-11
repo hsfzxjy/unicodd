@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use super::{
-    bad_input, digest, normalize, number, option, Archive, Dispatch, EngineError, Form, Report,
-    Source,
+    bad_input, digest, inspect_non_ascii, normalize, number, option, Archive, Dispatch,
+    EngineError, Form, Report, Source,
 };
 
 const MAX_CAPTURE: usize = 4096;
@@ -358,8 +358,7 @@ fn evaluate(
                     Disposition::Heartbeat
                 }
                 Ok(text) => {
-                    let row = report.row("UTF-8", [text]);
-                    row.inspect.push(text.into());
+                    inspect_non_ascii(report.row("UTF-8", [text]), text);
                     let evidence_hash = match options.integrity {
                         Integrity::Raw => hash.clone(),
                         Integrity::Nfc => digest(normalize(text, Form::NFC)?.as_bytes()),

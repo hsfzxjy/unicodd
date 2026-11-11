@@ -227,13 +227,16 @@ it('continues a pre-Recovery save and persists evidence through the atomic relea
   ])
   expect(first.output?.some(({ kind }) => kind === 'objective')).toBe(true)
   expect(concurrent.output).toEqual([{ kind: 'error', text: 'An action is in progress.' }])
-  expect(campaign.finished).toBe(true)
+  expect(campaign.finished).toBe(false)
+  expect(campaign.completed(release.id)).toBe(true)
+  expect(campaign.selectable('007-the-other-side')).toBe(true)
   const committed = campaign.handoff(release.id)
   expect(committed?.kind).toBe('release')
 
   campaign = createCampaign(all, disk)
   expect(campaign.handoff(release.id)).toEqual(committed)
-  expect(campaign.finished).toBe(true)
+  expect(campaign.finished).toBe(false)
+  expect(campaign.completed(release.id)).toBe(true)
   const restored = await play(release.id, ['mail it-worked', 'commit'])
   expect(restored.state.completed).toBe(true)
   await restored.dispatch({ type: 'reset' })
@@ -269,7 +272,7 @@ it('requires real handoffs outside isolated developer entry', async () => {
 
 it('rechecks rollback readiness at commit and applies neither identity on failure', async () => {
   const all = await scenarios
-  const release = structuredClone(all.at(-1)!)
+  const release = structuredClone(all.find(({ id }) => id === '006-the-release')!)
   const campaign = createCampaign(all, undefined, release.id)
   const runtime = createRuntime(release, engine, campaign)
   for (const command of [

@@ -1,0 +1,12 @@
+{
+  "messages": [
+    {
+      "id": "text-buffer",
+      "from": "Eli / MONONYM",
+      "to": "Local operator",
+      "subject": "Receiver buffer update",
+      "date": "2025-11-10",
+      "body": "The old receiver logged a text line for every socket read. I reused that buffer when we switched to counted records. It made the logs look familiar, but the test export was all ASCII."
+    }
+  ]
+}

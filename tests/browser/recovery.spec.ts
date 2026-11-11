@@ -211,12 +211,12 @@ for (const [width, height] of [
       await expect(last(page)).toContainText('Only mine.')
       await act(quick(page, 'Mail'))
       await act(link(page, 'Thank you'))
-      await expect(last(page)).toContainText('Except the name, apparently.')
+      await expect(last(page)).toContainText('Please tell Support both cases can close.')
       await capture('04-ending')
       await page.reload()
       if (width <= 830) await act(page.getByRole('button', { name: 'Session', exact: true }))
       await expect(page.getByRole('complementary', { name: 'Session context' })).toContainText(
-        'Campaign complete',
+        'Complete',
       )
       if (width <= 830) await act(page.getByRole('button', { name: 'Session', exact: true }))
       await act(quick(page, 'Mail'))

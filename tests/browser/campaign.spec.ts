@@ -323,13 +323,37 @@ test('completes and replays the entire campaign with commands across reloads', a
   await run(page, 'verify')
   await run(page, 'commit')
   await expect(transcript(page)).toContainText('RECOVERY COMPLETE')
-  await expect(panel(page)).toContainText('Campaign complete')
+  await expect(panel(page).getByText('Complete', { exact: true })).toBeVisible()
+  await expect(link(page, 'The Other Side')).toBeVisible()
   await page.reload()
-  await expect(panel(page)).toContainText('Campaign complete')
+  await expect(panel(page).getByText('Complete', { exact: true })).toBeVisible()
   await run(page, 'commit')
   await expect(transcript(page)).toContainText('Transaction already applied.')
   await run(page, 'mail it-worked')
   await expect(transcript(page)).toContainText('Only mine.')
+  await run(page, 'scenario 007-the-other-side')
+  await expect(panel(page)).toContainText('gateway-12')
+  await run(
+    page,
+    'dispatch nontransitional https://strasse.trace.test/archive/GW-1842 https://straße.trace.test/archive/GW-2917/Cafe\u0301',
+  )
+  await expect(transcript(page)).toContainText('Dispatch confirmed')
+  await page.reload()
+  await run(page, 'cat /reports/gateway.txt')
+  await expect(link(page, 'The Fragments')).toBeVisible()
+  await run(page, 'scenario 008-the-fragments')
+  await run(page, 'deframe be strict quarantine raw network')
+  await expect(transcript(page)).toContainText('Both owner-bound ACKs verified.')
+  await run(page, 'cat /reports/ingestion.txt')
+  await expect(link(page, 'The Boundary')).toBeVisible()
+  await page.reload()
+  await run(page, 'scenario 009-the-boundary')
+  await run(page, 'mirror opaque id 18.0')
+  await expect(transcript(page)).toContainText('5 verified and queryable records')
+  await run(page, 'cat /reports/reconciliation.txt')
+  await expect(panel(page)).toContainText('All available scenarios complete')
+  await page.reload()
+  await expect(panel(page)).toContainText('All available scenarios complete')
   await run(page, 'scenario 001-the-relay')
   await expect(panel(page)).toContainText('maintenance')
   await page.getByRole('button', { name: 'Reset session' }).click()
@@ -369,8 +393,11 @@ test('keeps internal puzzle matrix files off the game server', async ({ page }) 
   for (const path of [
     '/private/testing/puzzle-regression-matrix.md',
     '/private/testing/recovery-regression-matrix.json',
+    '/private/testing/aftermath-regression-matrix.json',
+    '/private/plans/007-aftermath.md',
     '/tests/fixtures/puzzle-matrix.json',
     '/tests/fixtures/recovery-matrix.json',
+    '/tests/fixtures/aftermath-matrix.json',
   ]) {
     const response = await page.request.get(path, { headers: { Accept: 'application/json' } })
     const expected = process.env.PLAYWRIGHT_TEST_PREVIEW ? [404] : [403, 404]

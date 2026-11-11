@@ -29,6 +29,65 @@ export function validHandoff(handoff: Handoff | undefined): handoff is Handoff {
     ['registration', 'owner', 'receipt'].every((key) =>
       text((value as Record<string, unknown>)[key]),
     )
+  const identities = (value: Extract<Handoff, { kind: 'release' }>['identities']) =>
+    Array.isArray(value) &&
+    value.length === 2 &&
+    value.every(
+      (entry) => entry && text(entry.canonical) && text(entry.name) && approval(entry.approval),
+    )
+  const outbox = (value: Extract<Handoff, { kind: 'release' }>['outbox']) =>
+    Array.isArray(value) &&
+    value.length === 2 &&
+    value.every(
+      (receipt) =>
+        receipt &&
+        receipt.status === 'QUEUED' &&
+        [
+          'id',
+          'registration',
+          'owner',
+          'archiveId',
+          'payload',
+          'digest',
+          'endpoint',
+          'path',
+          'ackMarker',
+          'ackDigest',
+        ].every((key) => text(receipt[key as keyof typeof receipt])),
+    )
+  const bytes = (value: unknown) =>
+    Array.isArray(value) &&
+    value.length <= 4096 &&
+    value.every((byte) => Number.isInteger(byte) && byte >= 0 && byte <= 255)
+  const dispatch = (value: Extract<Handoff, { kind: 'dispatch' }>['evidence']) =>
+    value?.release &&
+    identities(value.release.identities) &&
+    outbox(value.release.outbox) &&
+    bytes(value.capture) &&
+    text(value.captureDigest) &&
+    Array.isArray(value.routes) &&
+    value.routes.length === 2 &&
+    value.routes.every(
+      (route) =>
+        route &&
+        text(route.receipt) &&
+        text(route.endpoint) &&
+        text(route.host) &&
+        text(route.path) &&
+        route.status === 202,
+    )
+  const ingestion = (value: Extract<Handoff, { kind: 'ingestion' }>['evidence']) =>
+    dispatch(value?.dispatch) &&
+    Array.isArray(value.frames) &&
+    value.frames.length <= 24 &&
+    value.frames.every(
+      (frame) =>
+        frame &&
+        Number.isInteger(frame.offset) &&
+        bytes(frame.payload) &&
+        text(frame.digest) &&
+        ['accepted', 'heartbeat', 'quarantined'].includes(frame.disposition?.kind),
+    )
   switch (handoff.kind) {
     case 'appeals':
       return Array.isArray(handoff.records) && handoff.records.every(text)
@@ -36,13 +95,57 @@ export function validHandoff(handoff: Handoff | undefined): handoff is Handoff {
       return Array.isArray(handoff.approvals) && handoff.approvals.every(approval)
     case 'release':
       return (
-        Array.isArray(handoff.identities) &&
-        handoff.identities.every(
-          (entry) => entry && text(entry.canonical) && text(entry.name) && approval(entry.approval),
+        identities(handoff.identities) && (handoff.outbox === undefined || outbox(handoff.outbox))
+      )
+    case 'dispatch':
+      return Boolean(dispatch(handoff.evidence))
+    case 'ingestion':
+      return Boolean(ingestion(handoff.evidence))
+    case 'mirror':
+      return (
+        Boolean(ingestion(handoff.evidence?.ingestion)) &&
+        Array.isArray(handoff.evidence.records) &&
+        handoff.evidence.records.length <= 26 &&
+        handoff.evidence.records.every(
+          (record) =>
+            record &&
+            text(record.id) &&
+            text(record.handle) &&
+            text(record.displayLabel) &&
+            text(record.owner),
         )
       )
     default:
       return false
+  }
+}
+
+function restoreRelease(scenario: Scenario, previous?: Handoff): Handoff | undefined {
+  const dataset = scenario.recovery?.dataset
+  if (scenario.objective.action !== 'commit' || !dataset?.archive) return previous
+  if (previous?.kind === 'release' && previous.outbox) return previous
+  const identities =
+    previous?.kind === 'release'
+      ? previous.identities
+      : dataset.registrations.flatMap(({ id, name, owner }) => {
+          const approval = dataset.receipts.find(
+            (entry) =>
+              entry.registration === id &&
+              entry.owner === owner &&
+              entry.verified &&
+              !entry.diagnostic,
+          )
+          return approval
+            ? [{ canonical: id, name, approval: { registration: id, owner, receipt: approval.id } }]
+            : []
+        })
+  return {
+    kind: 'release',
+    version: 1,
+    incident: dataset.incident,
+    revision: dataset.revision,
+    identities,
+    outbox: dataset.archive.sources,
   }
 }
 
@@ -148,12 +251,14 @@ export function createCampaign(
     const scenario = byId.get(id)
     const destinations: Scenario[] = []
     let newMail = false
+    if (scenario?.objective.handoff && handoff?.kind !== scenario.objective.handoff)
+      return { destinations, newMail }
     if (scenario && !completed.has(id)) {
       completed.add(id)
       if (handoff) handoffs.set(id, handoff)
       for (const effect of scenario.objective.onComplete) {
         if (effect.type === 'deliverMail') {
-          if (deliver(effect.message)) newMail = true
+          if (!(restoring && effect.liveOnly) && deliver(effect.message)) newMail = true
         } else {
           const destination = byId.get(effect.scenario)
           if (destination && !discovered.has(destination.id)) {
@@ -184,7 +289,8 @@ export function createCampaign(
     const saved = decode(replay ? JSON.stringify(replay) : (raw ?? null))
     if (saved) {
       for (const id of saved.delivered) deliver(id)
-      for (const { id, recovery } of available) {
+      for (const scenario of available) {
+        const { id, recovery } = scenario
         if (!discovered.has(id) || !saved.completed.includes(id)) continue
         const handoff = saved.handoffs?.[id]
         if (
@@ -193,9 +299,9 @@ export function createCampaign(
           handoff.incident === recovery.dataset.incident &&
           handoff.revision === recovery.dataset.revision
         ) {
-          complete(id, handoff)
+          complete(id, restoreRelease(scenario, handoff))
         } else {
-          complete(id)
+          complete(id, restoreRelease(scenario))
         }
       }
       for (const id of saved.read) if (delivered.has(id)) read.add(id)

@@ -35,6 +35,24 @@
       "label": "The Release",
       "scenario": "scenarios/006-the-release/scenario.json",
       "initiallyDiscovered": false
+    },
+    {
+      "id": "007-the-other-side",
+      "label": "The Other Side",
+      "scenario": "scenarios/007-the-other-side/scenario.json",
+      "initiallyDiscovered": false
+    },
+    {
+      "id": "008-the-fragments",
+      "label": "The Fragments",
+      "scenario": "scenarios/008-the-fragments/scenario.json",
+      "initiallyDiscovered": false
+    },
+    {
+      "id": "009-the-boundary",
+      "label": "The Boundary",
+      "scenario": "scenarios/009-the-boundary/scenario.json",
+      "initiallyDiscovered": false
     }
   ]
 }

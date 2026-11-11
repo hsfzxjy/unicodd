@@ -921,6 +921,24 @@ h1.terminal-scenario {
 .report-row strong {
   color: var(--muted);
 }
+.report-hex {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.15rem 0.3rem;
+  font-variant-numeric: tabular-nums;
+  user-select: text;
+}
+.report-hex button {
+  padding-inline: 0.2rem;
+}
+.report-chunk {
+  color: var(--muted);
+}
+.report-hex .report-invalid-byte {
+  border-bottom: 2px solid currentColor;
+  font-weight: 700;
+}
 .report-fields,
 .report-points,
 .report-details {

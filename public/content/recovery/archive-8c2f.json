@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "id": "GW-1842",
+      "registration": "0001842",
+      "owner": "owner-1842",
+      "archiveId": "AR-1842",
+      "payload": "GW-1842|0001842|owner-1842|Mira",
+      "digest": "68a6617e801f8ffaeedef14010edfdd8916589d6858aca9b902371fd94afb21e",
+      "endpoint": "VAULT-1842",
+      "path": "/archive/GW-1842",
+      "status": "QUEUED",
+      "ackMarker": "✓",
+      "ackDigest": "add55155df34d456558b28a66d5c6eee8c6a8e0969a0b956e3c05aa69e953552"
+    },
+    {
+      "id": "GW-2917",
+      "registration": "0002917",
+      "owner": "owner-2917",
+      "archiveId": "AR-2917",
+      "payload": "GW-2917|0002917|owner-2917|Mіra",
+      "digest": "7b00f113502914be48d222299b3d37cf2a45edec0b7c9d90f7d6980cc9500281",
+      "endpoint": "VAULT-2917",
+      "path": "/archive/GW-2917/Café",
+      "status": "QUEUED",
+      "ackMarker": "Café",
+      "ackDigest": "1ca5e9061a25ecc3029e611367cccf949b1a110c3f1cb7155be855e35fc0e229"
+    }
+  ],
+  "endpoints": [
+    {
+      "id": "VAULT-1842",
+      "owner": "owner-1842",
+      "host": "strasse.trace.test"
+    },
+    {
+      "id": "VAULT-2917",
+      "owner": "owner-2917",
+      "host": "xn--strae-oqa.trace.test"
+    }
+  ],
+  "frames": [
+    {
+      "ack": "GW-1842"
+    },
+    {
+      "raw": [192, 175]
+    },
+    {
+      "raw": [226, 130, 88, 89]
+    },
+    {
+      "raw": []
+    },
+    {
+      "ack": "GW-2917"
+    }
+  ],
+  "chunkEdges": [1, 10, 15, 30, 38, 48],
+  "independent": [
+    {
+      "id": "AR-4101",
+      "registration": "0004101",
+      "owner": "owner-4101",
+      "label": "Ᲊora",
+      "digest": "aba36b80ad5cc5727ceb7e8535e297bd98f08dc58757e53753415a7f333770dd",
+      "verified": true
+    },
+    {
+      "id": "AR-4102",
+      "registration": "0004102",
+      "owner": "owner-4102",
+      "label": "ᲊora",
+      "digest": "70d3436d865bfc001507406935cad2d135e1ed2166cf5b863bfd7d36ad885c0e",
+      "verified": true
+    },
+    {
+      "id": "AR-EU-1842",
+      "registration": "EU-1842",
+      "owner": "owner-eu-1842",
+      "label": "Café",
+      "digest": "c42cc7a1ca08364b6fd859fa50d2454730a8236290a423373cc630da77c6d711",
+      "verified": true
+    }
+  ]
+}

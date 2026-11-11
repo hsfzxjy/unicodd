@@ -3,7 +3,7 @@ use idna::uts46::{AsciiDenyList, DnsLength, Hyphens, Uts46};
 use percent_encoding::percent_decode_str;
 use serde::{Deserialize, Serialize};
 
-use super::{Archive, Report, Source};
+use super::{inspect_non_ascii, Archive, Report, Source};
 
 pub(super) const PROFILE: &str = "UTS #46 · Unicode 15.1 · STD3 / Bidi / ContextJ";
 
@@ -155,10 +155,7 @@ pub(super) fn resolve(
         }
     };
     report.row("Authority", [authority]);
-    report
-        .row("Parsed host", [&host])
-        .inspect
-        .push(host.clone());
+    inspect_non_ascii(report.row("Parsed host", [&host]), &host);
     report.row("Raw path", [path]);
     let path = match resource_path(path) {
         Ok(value) => value,
@@ -167,10 +164,7 @@ pub(super) fn resolve(
             return None;
         }
     };
-    report
-        .row("Resource path", [&path])
-        .inspect
-        .push(path.clone());
+    inspect_non_ascii(report.row("Resource path", [&path]), &path);
     let input = match profile {
         Profile::Nontransitional => host,
         Profile::Transitional => transitional(&host),
@@ -188,10 +182,7 @@ pub(super) fn resolve(
     );
     let mapper = Uts46Mapper::new();
     let mapped: String = mapper.map_normalize(input.chars()).collect();
-    report
-        .row("Mapped host", [&mapped])
-        .inspect
-        .push(mapped.clone());
+    report.row("Mapped host", [&mapped]);
     let Ok(host) = ascii(&input) else {
         report.row("IDNA rejected", [if mapped.contains(['\u{200C}', '\u{200D}']) {
             "Label validation failed. Joiners require a valid ContextJ sequence."
@@ -211,10 +202,10 @@ pub(super) fn resolve(
         );
         return None;
     }
-    report
-        .row("Unicode host", [&unicode])
-        .inspect
-        .push(unicode.into_owned());
+    let unicode_row = report.row("Unicode host", [&unicode]);
+    if unicode != mapped {
+        inspect_non_ascii(unicode_row, &unicode);
+    }
     report.row("A-label", [&host]);
     let Some(endpoint) = archive
         .endpoints

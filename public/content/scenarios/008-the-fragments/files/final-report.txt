@@ -1,0 +1,3 @@
+APPLICATION INGESTION / LINK 07
+
+The application stored both correlated ACKs and retained malformed frames in quarantine. The source receipts and dispatch evidence are attached to the archival batch.

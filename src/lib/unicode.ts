@@ -78,7 +78,7 @@ export function readUnicodeEscape(
   if (!source.startsWith('\\u', offset)) return
   const end = offset + 8
   const digits = source.slice(offset + 2, end)
-  if (!/^[0-9a-fA-F]{6}$/u.test(digits)) return
+  if (!/^[0-9a-fA-F]{1,6}$/u.test(digits)) return
   const value = Number.parseInt(digits, 16)
   if (value > 0x10ffff || (value >= 0xd800 && value <= 0xdfff))
     return { error: 'Not a Unicode scalar: ' + source.slice(offset, end), end }

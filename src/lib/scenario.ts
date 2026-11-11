@@ -1,5 +1,6 @@
 import type { Program } from '../types.ts'
 import type { RecoveryCommand, RecoveryDataset } from './recovery.ts'
+import type { Action } from './runtime.ts'
 
 export interface Identity {
   user: string
@@ -81,6 +82,12 @@ export interface RecoveryBinding extends Omit<PuzzleBinding, 'command' | 'progra
 export type OperationBinding = PuzzleBinding | RecoveryBinding
 export type OperationCommand = OperationBinding['command']
 
+export interface OutputPause {
+  afterRows: number
+  minMs: number
+  maxMs: number
+}
+
 export interface Host {
   id: string
   name: string
@@ -106,6 +113,7 @@ export interface Scenario {
   hosts: Host[]
   inbox?: { messages: MailMessage[]; initial: string[] }
   recovery?: { path: string; dataset: RecoveryDataset; source: string; prior?: string }
+  outputTiming?: Partial<Record<Action['type'], OutputPause[]>>
   objective: ({ read: string; action?: never } | { read?: never; action: RecoveryCommand }) & {
     text: string
     message: string

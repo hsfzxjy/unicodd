@@ -2,6 +2,13 @@
   "version": 1,
   "title": "The Release",
   "introduction": "Both owners approved a limited repair for incident 8C2F. The audit job is blocked on verification.",
+  "outputTiming": {
+    "verify": [{ "afterRows": 0, "minMs": 160, "maxMs": 300 }],
+    "commit": [
+      { "afterRows": 0, "minMs": 160, "maxMs": 300 },
+      { "afterRows": 1, "minMs": 180, "maxMs": 340 }
+    ]
+  },
   "roles": ["recovery-operator"],
   "flags": ["plan_prepared", "preview_ready", "plan_verified", "released"],
   "local": {

@@ -15,6 +15,7 @@ export interface Entry {
   prompt?: string
   connected?: boolean
   output: Output[]
+  waiting?: boolean
 }
 
 const props = defineProps<{
@@ -82,7 +83,12 @@ watch(
   { flush: 'post' },
 )
 
-function revealOutput(kind: 'inspection' | 'mail' | 'file' | 'report', focus: boolean) {
+function revealOutput(
+  kind: 'inspection' | 'mail' | 'file' | 'report',
+  focus: boolean,
+  followOnly = false,
+) {
+  if (followOnly && !following.value) return
   const box = scroll.value
   const selector = kind === 'inspection' ? '.inspection' : '.terminal-' + kind
   const latest = box?.lastElementChild?.querySelector<HTMLElement>(selector)
@@ -155,7 +161,12 @@ defineExpose({
               <p v-if="!row.links.length" class="meta">{{ row.empty ?? 'Empty directory.' }}</p>
               <ul v-else>
                 <li v-for="link in row.links" :key="link.label">
-                  <button type="button" class="terminal-link" @click="emit('action', link.action)">
+                  <button
+                    type="button"
+                    class="terminal-link"
+                    :aria-disabled="busy || undefined"
+                    @click="emit('action', link.action)"
+                  >
                     <bdi>{{ link.label }}</bdi>
                   </button>
                   <span v-if="link.detail" class="listing-detail"
@@ -170,6 +181,7 @@ defineExpose({
               :text="row.text"
               :inspect-lines="row.inspectLines"
               :inspect-notation="row.inspectNotation"
+              :busy="busy"
               @action="emit('action', $event)"
             />
             <TerminalMail
@@ -182,6 +194,7 @@ defineExpose({
               type="button"
               class="terminal-link mail-notice"
               aria-label="New mail, open inbox"
+              :aria-disabled="busy || undefined"
               @click="emit('action', { type: 'mail' })"
             >
               NEW MAIL
@@ -215,6 +228,7 @@ defineExpose({
                   v-if="record.serialized !== undefined"
                   type="button"
                   class="terminal-link"
+                  :aria-disabled="busy || undefined"
                   @click="emit('action', { type: 'copy', text: record.serialized })"
                 >
                   Copy {{ record.audit ? 'line' : 'cursor' }}
@@ -226,6 +240,7 @@ defineExpose({
                       :key="point.start"
                       type="button"
                       class="terminal-link"
+                      :aria-disabled="busy || undefined"
                       @click="emit('action', { type: 'inspect', character: point.scalar })"
                     >
                       {{ point.notation }}
@@ -257,6 +272,14 @@ defineExpose({
             <p v-else :class="['terminal-line', row.kind]" dir="auto">{{ row.text }}</p>
           </template>
         </div>
+        <p
+          v-if="entry.waiting"
+          class="output-wait meta"
+          role="status"
+          aria-label="Waiting for output"
+        >
+          …
+        </p>
       </article>
     </div>
     <div class="terminal-controls">

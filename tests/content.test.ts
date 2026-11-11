@@ -67,6 +67,20 @@ it('reports invalid UTF-8, malformed JSON, and missing assets by path', async ()
 
 it.each([
   [
+    'reversed output timing range',
+    (body) => {
+      body.outputTiming.cat[0].maxMs = 20
+    },
+    /outputTiming\.cat\[0\]\.maxMs.*integer from 70 to 2000/,
+  ],
+  [
+    'duplicate output timing boundary',
+    (body) => {
+      body.outputTiming.cat[1].afterRows = 0
+    },
+    /outputTiming\.cat\[1\]\.afterRows.*Duplicate/,
+  ],
+  [
     'version',
     (body) => {
       body.version = 2

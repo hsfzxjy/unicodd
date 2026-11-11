@@ -46,6 +46,21 @@ The game reads the manifest and UTF-8 content files at runtime. Publish the cont
 
 Use stable ASCII IDs and safe relative asset paths. Published resources are public static assets, including files that require access in the game. Keep real secrets out of content. The versioned browser save retains discovered destinations, objective completion, the selected scenario, and inbox state. Reset session starts the current scenario again. Reset campaign, available from Campaign, clears campaign progress and starts at the first destination. Session identity, access flags, drafts, and the transcript live in memory. In development, open `/?scenario=<id>` for an isolated direct entry.
 
+### Output timing
+
+Set `outputTiming` in `scenario.json` to pace selected commands. Each command maps to an array of pauses.
+
+```json
+{
+  "outputTiming": {
+    "connect": [{ "afterRows": 0, "minMs": 160, "maxMs": 320 }],
+    "cat": [{ "afterRows": 1, "minMs": 160, "maxMs": 280 }]
+  }
+}
+```
+
+`afterRows: 0` pauses after the command echo and before the first result. `afterRows: 1` pauses between the first and second structured output rows. A whole listing, file, or report counts as one row. Each boundary can appear once and is used only when another row follows. Each wait samples an inclusive range of whole milliseconds from 0 to 2000. The terminal skips simulated waits for players who prefer reduced motion.
+
 ### Recovery datasets and commands
 
 For record-set operations, declare `recovery.dataset` and `recovery.source` as paths relative to `content/`. The version-1 dataset defines the incident, snapshot revision, exact registrations and owners, appeals, receipt channels, diagnostic records, audit samples and archived cursors. The source points to the verified original export. Validation compares the incident, registration IDs, exact names and their scalar notation against the dataset. Verified receipt metadata is authored evidence.

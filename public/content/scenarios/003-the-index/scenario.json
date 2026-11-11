@@ -2,6 +2,10 @@
   "version": 1,
   "title": "The Index",
   "introduction": "The delivery record identifies index-09 as the source of merge event 8C2F.",
+  "outputTiming": {
+    "reconcile": [{ "afterRows": 0, "minMs": 100, "maxMs": 220 }],
+    "reconstruct": [{ "afterRows": 0, "minMs": 150, "maxMs": 300 }]
+  },
   "roles": ["auditor"],
   "flags": ["bucket_found", "export_ready"],
   "local": {

@@ -22,6 +22,7 @@ async function typed(page: Page, text: string) {
 async function relay(page: Page) {
   await page.goto('/')
   await page.getByRole('button', { name: 'relay-07', exact: true }).click()
+  await expect(log(page).getByText('Guest session opened.', { exact: true })).toBeVisible()
 }
 async function select(page: Page, name: string) {
   await tag(page).click()
@@ -73,6 +74,93 @@ test('tags all 16 commands, expands required input, leaves unknown text alone an
   await expect(field(page, 'Account alias')).toHaveValue('  🧪é​  ')
   await expect(page.locator('.alias-editor')).toHaveCount(0)
   await expect(page.getByRole('form')).toHaveCount(1)
+})
+
+test('shows exact draft lengths and keeps the insertion point visible in the Unicode inspector', async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 390, height: 435 })
+  await relay(page)
+  await quick(page, 'Login').click()
+  const alias = field(page, 'Account alias')
+  const stats = page.locator('.argument-lengths')
+  const caret = page.locator('.argument-caret')
+  await alias.fill('a🧪é\u200b')
+  await expect(stats).toContainText('5 code points')
+  await expect(stats).toContainText('UTF-8 11 B')
+  await expect(stats).toContainText('UTF-16 6 units')
+  await selection(alias, 3, 3)
+  await expect(caret).toHaveCount(0)
+  await page.getByRole('button', { name: 'Code points', exact: true }).click()
+  const inspector = page.getByRole('region', { name: 'Account alias Unicode inspector' })
+  await expect(inspector).toBeVisible()
+  await expect(caret).toBeVisible()
+  await page.screenshot({ path: info.outputPath('blurred-argument-inspector.png') })
+  const afterEmoji = (await caret.boundingBox())!.x
+  await inspector.getByRole('button', { name: /^1\. U\+0061/ }).click()
+  await inspector.getByRole('button', { name: 'Caret before' }).click()
+  await expect(caret).toBeVisible()
+  expect((await caret.boundingBox())!.x).toBeLessThan(afterEmoji)
+  await alias.focus()
+  await expect(caret).toHaveCount(0)
+  await alias.fill('\\u01D40CAINT')
+  await expect(stats).toContainText('UTF-8 12 B')
+  await expect(stats).toContainText('UTF-16 12 units')
+  await alias.fill('مرحبا')
+  await selection(alias, 5, 5)
+  await inspector.getByRole('button', { name: /^1\. U\+0645/ }).focus()
+  await expect(caret).toBeVisible()
+  const rtlEnd = (await caret.boundingBox())!.x
+  await alias.focus()
+  await selection(alias, 0, 0)
+  await inspector.getByRole('button', { name: /^1\. U\+0645/ }).focus()
+  expect((await caret.boundingBox())!.x).toBeGreaterThan(rtlEnd)
+  await alias.fill('a🧪é\u200b'.repeat(100))
+  await alias.press('End')
+  expect(await alias.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0)
+  await selection(alias, 0, 0)
+  await inspector.getByRole('button', { name: /^1\. U\+0061/ }).focus()
+  await expect(caret).toBeVisible()
+  expect(await alias.evaluate((element) => element.scrollLeft)).toBeLessThan(8)
+})
+
+test('reveals timed command output at its configured boundaries', async ({ page }) => {
+  await page.route('**/001-the-relay/scenario.json', async (route) => {
+    const scenario = await (await route.fetch()).json()
+    scenario.outputTiming = {
+      cat: [
+        { afterRows: 0, minMs: 700, maxMs: 800 },
+        { afterRows: 1, minMs: 700, maxMs: 800 },
+      ],
+    }
+    await route.fulfill({ json: scenario })
+  })
+  await relay(page)
+  await typed(page, 'login \\u01D40CAINT')
+  await page.evaluate(() => {
+    Math.random = () => 0.999
+  })
+  const now = Date.now()
+  await page.clock.install({ time: now })
+  await page.clock.pauseAt(now + 1000)
+  await typed(page, 'cat /queue/8c2f.msg')
+  const entry = log(page).locator('.terminal-entry').last()
+  const output = entry.locator('.entry-output')
+  const file = entry.getByRole('region', { name: 'File /queue/8c2f.msg' })
+  await expect(entry.locator('.command-echo')).toContainText('cat /queue/8c2f.msg')
+  await expect(output).toHaveCount(0)
+  await expect(quick(page, 'Help')).toBeDisabled()
+  await page.clock.runFor(799)
+  await expect(output).toHaveCount(0)
+  await page.clock.runFor(1)
+  await expect(file).toBeVisible()
+  await expect(output.locator('> *')).toHaveCount(1)
+  await page.clock.runFor(800)
+  await expect(output.locator('.objective')).toBeVisible()
+  await expect(quick(page, 'Help')).toBeEnabled()
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await typed(page, 'cat /README')
+  await expect(entry.getByRole('region', { name: 'File /README' })).toBeVisible()
 })
 
 test('switches commands without execution, navigates the menu and restores scoped drafts and UTF-16 selections', async ({

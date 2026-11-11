@@ -8,6 +8,7 @@ const props = defineProps<{
   path: string
   inspectLines: number[]
   inspectNotation: boolean
+  busy: boolean
 }>()
 const emit = defineEmits<{ action: [Action] }>()
 const tokens = computed(() => {
@@ -48,6 +49,7 @@ const lines = computed(() =>
       v-if="token.inspect"
       type="button"
       class="terminal-link notation-link"
+      :aria-disabled="busy || undefined"
       :aria-label="'Inspect ' + token.text"
       @click="emit('action', { type: 'inspect', character: token.text })"
     >{{ token.text }}</button><template v-else>{{ token.text }}</template></template></pre>
@@ -66,6 +68,7 @@ const lines = computed(() =>
             :key="position"
             type="button"
             class="terminal-link scalar-link"
+            :aria-disabled="busy || undefined"
             :aria-label="'Inspect ' + point.notation + ', ' + point.glyph"
             @click="emit('action', { type: 'inspect', character: point.scalar })"
           >

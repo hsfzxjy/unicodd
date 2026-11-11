@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch, watchPostEffect } from 'vue'
 import {
   applyNativeEdit,
   editorText,
@@ -9,6 +9,7 @@ import {
   rawOffset,
   readUnicodeEscape,
   scalarSpan,
+  unpairedSurrogate,
   type Span,
 } from '../lib/unicode'
 
@@ -31,6 +32,9 @@ const emit = defineEmits<{
 }>()
 const id = useId()
 const control = ref<HTMLTextAreaElement>()
+const mirror = ref<HTMLDivElement>()
+const drawnCaret = ref<HTMLSpanElement>()
+const focused = ref(false)
 const expanded = ref(false)
 const selection = ref<Span>({ start: 0, end: 0 })
 const page = ref(0)
@@ -64,6 +68,17 @@ const count = computed(() => {
   return total
 })
 const pages = computed(() => Math.max(1, Math.ceil(count.value / pageSize.value)))
+const encoder = new TextEncoder()
+const utf8Length = computed(() =>
+  unpairedSurrogate(props.modelValue) === undefined
+    ? encoder.encode(props.modelValue).length
+    : undefined,
+)
+const mirroredText = computed(() => {
+  const text = editorText(props.modelValue)
+  // Give an empty final line a measurable text position.
+  return !text || text.endsWith('\n') ? text + '\u200b' : text
+})
 const visible = computed(() =>
   expanded.value ? inspectRange(props.modelValue, page.value * pageSize.value, pageSize.value) : [],
 )
@@ -84,6 +99,45 @@ function resize() {
   field.style.height = 'auto'
   field.style.height = Math.min(96, Math.max(36, field.scrollHeight)) + 'px'
 }
+
+function positionCaret(reveal = false) {
+  const field = control.value
+  const layout = mirror.value
+  const caret = drawnCaret.value
+  const text = layout?.firstChild
+  if (!field || !layout || !caret || !text) return
+  layout.style.width = field.clientWidth + 'px'
+  layout.style.direction = getComputedStyle(field).direction
+  const range = document.createRange()
+  range.setStart(text, editorText(props.modelValue.slice(0, selection.value.start)).length)
+  range.collapse(true)
+  const rect = range.getBoundingClientRect()
+  const origin = layout.getBoundingClientRect()
+  const left = rect.left - origin.left
+  const top = rect.top - origin.top
+  if (reveal) {
+    const x = left - field.scrollLeft
+    const y = top - field.scrollTop
+    if (x < 1) field.scrollLeft += x - 1
+    else if (x > field.clientWidth - 2) field.scrollLeft += x - field.clientWidth + 2
+    if (y < 0) field.scrollTop += y
+    else if (y + rect.height > field.clientHeight)
+      field.scrollTop += y + rect.height - field.clientHeight
+  }
+  const x = left - field.scrollLeft
+  const y = top - field.scrollTop
+  caret.hidden =
+    !rect.height ||
+    x < 0 ||
+    x > field.clientWidth ||
+    y + rect.height <= 0 ||
+    y >= field.clientHeight
+  caret.style.left = Math.min(x, field.clientWidth - 2) + field.clientLeft + 'px'
+  caret.style.top = y + field.clientTop + 'px'
+  caret.style.height = rect.height + 'px'
+}
+watchPostEffect(() => positionCaret())
+
 function updatePageSize() {
   const first = page.value * pageSize.value
   pageSize.value = narrow.matches ? 16 : 48
@@ -96,6 +150,7 @@ const resizeObserver = new ResizeObserver((entries) => {
     lastWidth = width
     resize()
   }
+  positionCaret()
 })
 onMounted(() => {
   syncControl()
@@ -132,6 +187,17 @@ function readSelection(reveal = true, raw = props.modelValue) {
     const index = pointIndex(raw, selection.value.start)
     page.value = Math.min(pages.value - 1, Math.floor(index / pageSize.value))
   }
+}
+
+function onFocus() {
+  focused.value = true
+  emit('activate')
+}
+
+function onBlur() {
+  readSelection()
+  focused.value = false
+  void nextTick(() => positionCaret(true))
 }
 
 function remember(event: InputEvent) {
@@ -174,6 +240,7 @@ function focusAt(span: Span, focus = true) {
   field.setSelectionRange(start, end)
   projection = { raw, start, end }
   selection.value = span
+  if (!focus) void nextTick(() => positionCaret(true))
 }
 
 function apply(span: Span, text: string, focus = true) {
@@ -226,37 +293,50 @@ defineExpose({ apply, focusAt, context: () => ({ ...selection.value }) })
 <template>
   <div class="composer-argument" :class="{ 'active-argument': active }">
     <label :for="id">{{ label }}</label>
-    <textarea
-      :id="id"
-      ref="control"
-      dir="auto"
-      spellcheck="false"
-      autocapitalize="off"
-      autocomplete="off"
-      autocorrect="off"
-      rows="1"
-      :placeholder="inline ? label : undefined"
-      :wrap="inline ? 'off' : 'soft'"
-      :readonly="disabled"
-      :enterkeyhint="last ? 'go' : 'next'"
-      @keydown="emit('key', $event)"
-      @focus="emit('activate')"
-      @select="readSelection()"
-      @keyup="readSelection()"
-      @pointerdown="projection = undefined"
-      @pointerup="readSelection()"
-      @blur="readSelection()"
-      @beforeinput="remember"
-      @input="nativeInput"
-      @compositionstart="startComposition"
-      @compositionend="endComposition"
-      @paste="paste"
-      @copy="copySelection"
-      @cut="copySelection"
-    />
-    <div v-if="unicode" v-show="active" class="toolbar payload-tools">
-      <span class="meta">{{ count }} code {{ count === 1 ? 'point' : 'points' }}</span>
+    <div class="argument-editor">
+      <textarea
+        :id="id"
+        ref="control"
+        dir="auto"
+        spellcheck="false"
+        autocapitalize="off"
+        autocomplete="off"
+        autocorrect="off"
+        rows="1"
+        :placeholder="inline ? label : undefined"
+        :wrap="inline ? 'off' : 'soft'"
+        :readonly="disabled"
+        :enterkeyhint="last ? 'go' : 'next'"
+        @keydown="emit('key', $event)"
+        @focus="onFocus"
+        @select="readSelection()"
+        @keyup="readSelection()"
+        @pointerdown="projection = undefined"
+        @pointerup="readSelection()"
+        @blur="onBlur"
+        @scroll="positionCaret()"
+        @beforeinput="remember"
+        @input="nativeInput"
+        @compositionstart="startComposition"
+        @compositionend="endComposition"
+        @paste="paste"
+        @copy="copySelection"
+        @cut="copySelection"
+      />
+      <div v-if="active && !focused" class="argument-overlay" aria-hidden="true">
+        <div ref="mirror" class="argument-mirror" v-text="mirroredText"></div>
+        <span ref="drawnCaret" class="argument-caret"></span>
+      </div>
+    </div>
+    <div v-show="active" class="toolbar payload-tools">
+      <span class="meta argument-lengths">
+        <span v-if="unicode">{{ count }} code {{ count === 1 ? 'point' : 'points' }}</span>
+        <span v-if="utf8Length !== undefined">UTF-8 {{ utf8Length }} B</span>
+        <span v-else title="Unpaired surrogate">UTF-8 unavailable</span>
+        <span>UTF-16 {{ modelValue.length }} units</span>
+      </span>
       <button
+        v-if="unicode"
         type="button"
         class="disclosure"
         :aria-expanded="expanded"
@@ -266,6 +346,7 @@ defineExpose({ apply, focusAt, context: () => ({ ...selection.value }) })
         <span aria-hidden="true">{{ expanded ? '▾' : '▸' }}</span> Code points
       </button>
       <button
+        v-if="unicode"
         type="button"
         :disabled="selectedScalar === undefined"
         @click="selectedScalar !== undefined && emit('inspect', selectedScalar)"
@@ -273,7 +354,14 @@ defineExpose({ apply, focusAt, context: () => ({ ...selection.value }) })
         Inspect
       </button>
     </div>
-    <div v-show="unicode && active && expanded" :id="id + '-points'" class="point-view">
+    <div
+      v-if="unicode"
+      v-show="active && expanded"
+      :id="id + '-points'"
+      class="point-view"
+      role="region"
+      :aria-label="label + ' Unicode inspector'"
+    >
       <div v-if="pages > 1" class="toolbar pagination">
         <button type="button" :disabled="page === 0" @click="page--">Previous</button>
         <span class="meta" role="status">Page {{ page + 1 }} of {{ pages }}</span>

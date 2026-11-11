@@ -2,6 +2,9 @@
   "version": 1,
   "title": "The Backlog",
   "introduction": "Two owners sent their original registration evidence. Support reopened their appeals under incident 8C2F.",
+  "outputTiming": {
+    "replay": [{ "afterRows": 0, "minMs": 150, "maxMs": 300 }]
+  },
   "roles": ["support-auditor"],
   "flags": ["replay_verified", "appeals_recovered"],
   "local": {

@@ -2,6 +2,9 @@
   "version": 1,
   "title": "Dead Letter",
   "introduction": "Delivery notice 2917 was handed to postbox-03.",
+  "outputTiming": {
+    "route": [{ "afterRows": 0, "minMs": 100, "maxMs": 220 }]
+  },
   "roles": ["guest"],
   "flags": ["released"],
   "local": {

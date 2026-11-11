@@ -2,6 +2,9 @@
   "version": 1,
   "title": "The Handshake",
   "introduction": "The recovery broker has both owner confirmations. Its channel index groups them together.",
+  "outputTiming": {
+    "lookup": [{ "afterRows": 0, "minMs": 100, "maxMs": 220 }]
+  },
   "roles": ["recovery-auditor"],
   "flags": ["consent_verified"],
   "local": {

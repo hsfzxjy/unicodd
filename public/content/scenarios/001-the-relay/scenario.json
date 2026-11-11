@@ -2,6 +2,14 @@
   "version": 1,
   "title": "The Relay",
   "introduction": "Local session open.",
+  "outputTiming": {
+    "connect": [{ "afterRows": 0, "minMs": 160, "maxMs": 320 }],
+    "cat": [
+      { "afterRows": 0, "minMs": 70, "maxMs": 160 },
+      { "afterRows": 1, "minMs": 160, "maxMs": 280 }
+    ],
+    "login": [{ "afterRows": 0, "minMs": 100, "maxMs": 220 }]
+  },
   "roles": ["guest", "maintenance"],
   "flags": [],
   "local": {

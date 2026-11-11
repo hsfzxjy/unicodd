@@ -1,4 +1,5 @@
 import type { Engine, EngineError, Program } from '../types.ts'
+import { commandRegistry } from './commands.ts'
 import { recoveryArity, type RecoveryCommand, type RecoveryDataset } from './recovery.ts'
 import {
   parentPath,
@@ -28,6 +29,7 @@ export interface ScenarioEntry {
 const identifier = /^[a-zA-Z0-9_-]{1,64}$/
 const assetPath = /^(?:[a-zA-Z0-9_-]+\/)*[a-zA-Z0-9_-]+\.[a-zA-Z0-9]+$/
 const virtualPath = /^\/(?:[^/\\\u0000-\u001f\u007f]+\/)*[^/\\\u0000-\u001f\u007f]+$/u
+const timedCommands = commandRegistry.map(({ name }) => name).filter((name) => name !== 'clear')
 
 function invalid(file: string, field: string, message: string): never {
   throw new Error(`${file}${field ? ` · ${field}` : ''} — ${message}`)
@@ -107,6 +109,13 @@ class Field {
 
   bool(): boolean {
     return typeof this.value === 'boolean' ? this.value : this.fail('Expected true or false.')
+  }
+
+  integer(min: number, max: number): number {
+    const value = this.value
+    if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < min || value > max)
+      return this.fail(`Expected an integer from ${min} to ${max}.`)
+    return value
   }
 
   version() {
@@ -216,8 +225,32 @@ export function createContentLoader(
         'objective',
         'inbox',
         'recovery',
+        'outputTiming',
       )
       get('version').version()
+      const outputTiming = get('outputTiming').optional((field): Scenario['outputTiming'] => {
+        const commands = field.object(...timedCommands)
+        return Object.fromEntries(
+          timedCommands.flatMap((name) => {
+            const seen = new Set<number>()
+            const pauses = commands(name).optional((value) =>
+              value
+                .list((item) => {
+                  const pause = item.object('afterRows', 'minMs', 'maxMs')
+                  const boundary = pause('afterRows')
+                  const afterRows = boundary.integer(0, Number.MAX_SAFE_INTEGER)
+                  if (seen.has(afterRows)) boundary.fail('Duplicate output pause position.')
+                  seen.add(afterRows)
+                  const minMs = pause('minMs').integer(0, 2000)
+                  const maxMs = pause('maxMs').integer(minMs, 2000)
+                  return { afterRows, minMs, maxMs }
+                })
+                .sort((a, b) => a.afterRows - b.afterRows),
+            )
+            return pauses ? [[name, pauses]] : []
+          }),
+        )
+      })
       const ids = (field: Field) => {
         const seen = new Set<string>()
         return field.list((item) => item.unique(seen))
@@ -729,6 +762,7 @@ export function createContentLoader(
         hosts,
         inbox,
         recovery,
+        outputTiming,
         objective: {
           text: objective('text').text(),
           ...(read ? { read } : { action: action! }),

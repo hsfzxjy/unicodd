@@ -57,6 +57,7 @@ onMounted(() => {
   else window.addEventListener('resize', fitViewport)
 })
 onUnmounted(() => {
+  runtime = undefined
   narrowViewport.removeEventListener('change', updateLayout)
   if (viewport) viewport.removeEventListener('resize', fitViewport)
   else window.removeEventListener('resize', fitViewport)
@@ -142,11 +143,14 @@ async function dispatch(action: Action, command?: string) {
   const id = scenarioId.value
   const before = active.state
   const from = prompt.value
+  const isCurrent = () => runtime === active && scenarioId.value === id
+  let delayed = false
+  let focusBeforePause: Element | null = null
   busy.value = true
   let response
   try {
     response = await active.dispatch(action)
-    if (runtime !== active || scenarioId.value !== id) return
+    if (!isCurrent()) return
     if (response.transfer?.type === 'copy') {
       try {
         await copyText(response.transfer.text)
@@ -159,10 +163,43 @@ async function dispatch(action: Action, command?: string) {
     } else if (response.transfer?.type === 'editPayload') {
       terminal.value?.applyText(response.transfer.mode, response.transfer.text)
     }
+    if (!isCurrent()) return
+    const echo = response.compose ? undefined : (command ?? actionCommand(action))
+    if (response.clear) {
+      transcript.value = response.output ? [{ id: sequence++, output: response.output }] : []
+      terminal.value?.scrollToEnd()
+    } else if (response.enter === undefined && (echo || response.output)) {
+      const output = response.output ?? []
+      const entry: Entry = {
+        id: sequence++,
+        echo: echo === undefined ? undefined : echoText(echo),
+        prompt: from,
+        connected: Boolean(before.host),
+        output,
+      }
+      const history = transcript.value.slice(-79)
+      const pauses = matchMedia('(prefers-reduced-motion: reduce)').matches
+        ? []
+        : (scenario.value?.outputTiming?.[action.type] ?? [])
+      for (const { afterRows, minMs, maxMs } of pauses) {
+        if (afterRows >= output.length) break
+        const ms = minMs + Math.floor(Math.random() * (maxMs - minMs + 1))
+        if (!ms) continue
+        if (!delayed) focusBeforePause = document.activeElement
+        delayed = true
+        transcript.value = [
+          ...history,
+          { ...entry, output: output.slice(0, afterRows), waiting: true },
+        ]
+        await new Promise<void>((resolve) => window.setTimeout(resolve, ms))
+        if (!isCurrent()) return
+      }
+      transcript.value = [...history, entry]
+    }
   } finally {
     if (runtime === active) busy.value = false
   }
-  if (runtime !== active || scenarioId.value !== id) return
+  if (!isCurrent()) return
   if (response.enter !== undefined) {
     if (response.enter !== scenarioId.value) scenarioId.value = response.enter
     else if (action.type === 'resetCampaign') attempt.value++
@@ -181,22 +218,6 @@ async function dispatch(action: Action, command?: string) {
       action.type === 'connect')
   )
     contextVersion.value++
-  const echo = response.compose ? undefined : (command ?? actionCommand(action))
-  if (response.clear) {
-    transcript.value = response.output ? [{ id: sequence++, output: response.output }] : []
-    terminal.value?.scrollToEnd()
-  } else if (echo || response.output) {
-    transcript.value = [
-      ...transcript.value.slice(-79),
-      {
-        id: sequence++,
-        echo: echo === undefined ? undefined : echoText(echo),
-        prompt: from,
-        connected: Boolean(before.host),
-        output: response.output ?? [],
-      },
-    ]
-  }
   if (response.compose) {
     if (narrow.value) sessionExpanded.value = false
     await nextTick()
@@ -211,7 +232,15 @@ async function dispatch(action: Action, command?: string) {
   )
   if (readable) {
     await nextTick()
-    if (runtime === active) terminal.value?.revealOutput(readable.kind, command === undefined)
+    if (isCurrent())
+      terminal.value?.revealOutput(
+        readable.kind,
+        command === undefined &&
+          (!delayed ||
+            document.activeElement === focusBeforePause ||
+            document.activeElement === document.body),
+        delayed,
+      )
   }
   return response
 }

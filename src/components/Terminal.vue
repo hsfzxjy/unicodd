@@ -7,7 +7,7 @@ import TerminalInspection from './TerminalInspection.vue'
 import TerminalMail from './TerminalMail.vue'
 import { commandHelp } from '../lib/commands'
 import { linkStatus, type Action, type Link, type Session } from '../lib/runtime'
-import { inspectRange, unpairedSurrogate } from '../lib/unicode'
+import { inspectRange, notation, unpairedSurrogate } from '../lib/unicode'
 import type { ComposerSave, Entry, TerminalView } from '../lib/workspace'
 
 const props = defineProps<{
@@ -454,22 +454,24 @@ defineExpose({
       <div class="toolbar shortcuts" aria-label="Quick actions" role="group">
         <button
           v-for="link in shortcuts"
-          :key="link.label"
+          :key="link.action.type"
           type="button"
           :data-action="link.action.type"
+          :title="link.label"
           :disabled="busy"
           @click="emit('action', link.action)"
         >
-          {{ link.label }}
+          {{ link.action.type }}
         </button>
         <button
           v-if="selectedScalar !== undefined"
           type="button"
+          title="Inspect selected character"
           :disabled="busy"
           @mousedown.prevent
           @click="emit('action', { type: 'inspect', character: selectedScalar })"
         >
-          Inspect selection
+          inspect {{ notation(selectedScalar.codePointAt(0)!) }}
         </button>
       </div>
       <CommandComposer

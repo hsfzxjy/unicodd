@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test'
 async function fixture(page: Page) {
   await page.goto('/')
   await page.getByRole('button', { name: 'relay-07', exact: true }).click()
-  await page.getByRole('button', { name: 'Login', exact: true }).click()
+  await page.getByRole('button', { name: 'login', exact: true }).click()
   await expect(page.getByRole('textbox', { name: 'Account alias' })).toBeVisible()
 }
 
@@ -33,7 +33,7 @@ test('inspects a selected scalar and reuses earlier results at the active select
   await expect(input).toHaveValue('e\u0301🧪\u200b')
   await page
     .getByRole('group', { name: 'Quick actions' })
-    .getByRole('button', { name: 'Inspect', exact: true })
+    .getByRole('button', { name: 'inspect', exact: true })
     .click()
   const scalar = page.getByRole('textbox', { name: 'character', exact: true })
   await scalar.fill('U+D800')
@@ -43,7 +43,7 @@ test('inspects a selected scalar and reuses earlier results at the active select
   await scalar.press('Enter')
   await page
     .getByRole('group', { name: 'Quick actions' })
-    .getByRole('button', { name: 'Login', exact: true })
+    .getByRole('button', { name: 'login', exact: true })
     .click()
   const accented = details('U+00E9')
   await expect(accented.getByRole('button', { name: /^NFD: Inspect U\+0065/ })).toBeVisible()
@@ -153,14 +153,14 @@ test('prefills inspect from quick actions and inspects a native resource selecti
 }) => {
   await fixture(page)
   const quick = page.getByRole('group', { name: 'Quick actions' })
-  await quick.getByRole('button', { name: 'Inspect', exact: true }).click()
+  await quick.getByRole('button', { name: 'inspect', exact: true }).click()
   const scalar = page.getByRole('textbox', { name: 'character', exact: true })
   await expect(scalar).toBeFocused()
   await scalar.fill('U+200B')
   await scalar.press('Enter')
   const log = page.getByRole('log')
   await expect(log.getByRole('region', { name: 'Unicode U+200B' })).toContainText('Format')
-  await quick.getByRole('button', { name: 'Files' }).click()
+  await quick.getByRole('button', { name: 'ls', exact: true }).click()
   await log.getByRole('button', { name: 'README' }).click()
   const resource = log.getByRole('region', { name: 'File /README' })
   await resource.locator('pre').evaluate((element) => {
@@ -171,7 +171,7 @@ test('prefills inspect from quick actions and inspects a native resource selecti
     selection.removeAllRanges()
     selection.addRange(range)
   })
-  await quick.getByRole('button', { name: 'Inspect selection' }).click()
+  await quick.getByRole('button', { name: 'inspect U+004D', exact: true }).click()
   await expect(log.getByRole('region', { name: 'Unicode U+004D' })).toContainText(
     'Uppercase letter',
   )

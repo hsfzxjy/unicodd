@@ -35,7 +35,7 @@ Type a command followed by Space to select its tag and edit its arguments in the
 
 Enter moves to the next parameter or runs from the last. Shift+Enter inserts a newline. Tab and Shift+Tab move between parameters. Run submits from any field. Escape returns to command-name editing and keeps the structured draft cached. Up/Down recall history in the ordinary prompt. Use Alt+Up/Down from an argument. Rejected commands keep their arguments and selection for retry. Each scenario saves its drafts and command history. Reconnecting, changing hosts, and logging out clear the active draft context.
 
-Code points and Inspect operate on the active parameter. Clicking a character in terminal output inspects it without changing the draft. Explicit Insert and Replace actions use the active parameter's remembered selection. The prompt's tag, Run action and transcript remain available as arguments expand.
+Code points, UTF-8 bytes, and Inspect operate on the active parameter. The byte view shows the exact draft, including literal escape spelling. Clicking a byte group selects its source character. Clicking a character in terminal output inspects it without changing the draft. Explicit Insert and Replace actions use the active parameter's remembered selection. Reuse opens a transcript command as an editable tag and arguments when the composer can represent it.
 
 ## Authoring scenarios
 

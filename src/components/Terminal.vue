@@ -255,7 +255,7 @@ defineExpose({
               aria-label="Reuse command"
               title="Copy into command input"
               :disabled="!composer?.canReuse"
-              @click="composer?.reuseCommand(entry.echo)"
+              @click.stop="composer?.reuseCommand(entry.echo)"
             >
               Reuse
             </button>
@@ -267,7 +267,7 @@ defineExpose({
               :aria-controls="outputPrefix + entry.id"
               :aria-expanded="!collapsed.has(entry.id)"
               :title="collapsed.has(entry.id) ? 'Show output' : 'Hide output'"
-              @click="toggleOutput(entry.id)"
+              @click.stop="toggleOutput(entry.id)"
             >
               <span aria-hidden="true">{{ collapsed.has(entry.id) ? '◂' : '▾' }}</span>
             </button>

@@ -164,6 +164,9 @@ textarea {
   grid-template-columns: repeat(auto-fill, minmax(69px, 1fr));
   gap: 4px;
 }
+.argument-byte-grid {
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+}
 .point {
   position: relative;
   display: inline-grid;
@@ -196,6 +199,10 @@ textarea {
 .point code {
   font-size: 11px;
   color: var(--muted);
+}
+.point .argument-byte-values {
+  color: var(--text);
+  white-space: nowrap;
 }
 .point-actions {
   margin-top: 6px;

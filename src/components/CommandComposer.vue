@@ -474,10 +474,24 @@ function insertCommand(value: string) {
 }
 async function reuseCommand(value: string) {
   if (!canReuse.value) return
-  cache()
-  reset()
   historyIndex = history.length
   scratch = undefined
+  const draft = commandDraft(value)
+  if (draft && draft.values.length <= composerArguments(draft.name, props.operations).length) {
+    const original = parseCommand(value)
+    // An explicitly empty optional argument cannot round-trip through the composer.
+    if (
+      !draft.values.length ||
+      original?.type === 'invalid' ||
+      JSON.stringify(composerAction(draft.name, draft.values, props.operations)) ===
+        JSON.stringify(original)
+    ) {
+      await selectCommand(draft.name, draft.values)
+      return
+    }
+  }
+  cache()
+  reset()
   text.value = value
   showSuggestions.value = false
   await nextTick()

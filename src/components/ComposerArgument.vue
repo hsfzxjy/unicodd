@@ -36,7 +36,8 @@ const control = ref<HTMLTextAreaElement>()
 const mirror = ref<HTMLDivElement>()
 const drawnCaret = ref<HTMLSpanElement>()
 const focused = ref(false)
-const expanded = ref(false)
+type Inspector = 'points' | 'bytes'
+const inspector = ref<Inspector>()
 const selection = ref<Span>({ start: 0, end: 0 })
 const page = ref(0)
 const narrow = matchMedia('(max-width: 600px)')
@@ -55,7 +56,7 @@ const selectedScalar = computed(() => {
   if (escape && 'text' in escape && escape.end === selected.value.length) return escape.text
 })
 const pointContext = computed(() => {
-  if (!expanded.value) return ''
+  if (!inspector.value) return ''
   const start = pointIndex(props.modelValue, selection.value.start)
   if (!selected.value) return start ? `Caret after code point ${start}` : 'Caret at start'
   const end = pointIndex(props.modelValue, selection.value.end)
@@ -70,10 +71,9 @@ const count = computed(() => {
 })
 const pages = computed(() => Math.max(1, Math.ceil(count.value / pageSize.value)))
 const encoder = new TextEncoder()
+const malformedOffset = computed(() => unpairedSurrogate(props.modelValue))
 const utf8Length = computed(() =>
-  unpairedSurrogate(props.modelValue) === undefined
-    ? encoder.encode(props.modelValue).length
-    : undefined,
+  malformedOffset.value === undefined ? encoder.encode(props.modelValue).length : undefined,
 )
 const mirroredText = computed(() => {
   const text = editorText(props.modelValue)
@@ -81,8 +81,24 @@ const mirroredText = computed(() => {
   return !text || text.endsWith('\n') ? text + '\u200b' : text
 })
 const visible = computed(() =>
-  expanded.value ? inspectRange(props.modelValue, page.value * pageSize.value, pageSize.value) : [],
+  inspector.value
+    ? inspectRange(props.modelValue, page.value * pageSize.value, pageSize.value)
+    : [],
 )
+const byteGroups = computed(() => {
+  if (inspector.value !== 'bytes' || malformedOffset.value !== undefined || !visible.value.length)
+    return []
+  let offset = encoder.encode(props.modelValue.slice(0, visible.value[0].start)).length
+  return visible.value.map(({ scalar }) => {
+    const bytes = encoder.encode(scalar)
+    const group = {
+      offset: offset.toString(16).toUpperCase().padStart(4, '0'),
+      hex: Array.from(bytes, (byte) => byte.toString(16).toUpperCase().padStart(2, '0')).join(' '),
+    }
+    offset += bytes.length
+    return group
+  })
+})
 
 function syncControl() {
   const field = control.value
@@ -184,7 +200,7 @@ function readSelection(reveal = true, raw = props.modelValue) {
       end: rawOffset(raw, field.selectionEnd),
     })
   }
-  if (expanded.value && reveal) {
+  if (inspector.value && reveal) {
     const index = pointIndex(raw, selection.value.start)
     page.value = Math.min(pages.value - 1, Math.floor(index / pageSize.value))
   }
@@ -279,9 +295,9 @@ function selectPoint(span: Span) {
   focusAt(span, false)
 }
 
-function toggle() {
-  expanded.value = !expanded.value
-  if (expanded.value) readSelection()
+function toggle(view: Inspector) {
+  inspector.value = inspector.value === view ? undefined : view
+  if (inspector.value) readSelection()
 }
 
 function copy(value: string) {
@@ -289,7 +305,7 @@ function copy(value: string) {
 }
 
 function restoreView(view: ArgumentView) {
-  expanded.value = view.expanded === true
+  inspector.value = view.expanded === true ? (view.bytes ? 'bytes' : 'points') : undefined
   page.value = Number.isSafeInteger(view.page)
     ? Math.max(0, Math.min(view.page, pages.value - 1))
     : 0
@@ -299,7 +315,11 @@ defineExpose({
   apply,
   focusAt,
   context: () => ({ ...selection.value }),
-  saveView: (): ArgumentView => ({ expanded: expanded.value, page: page.value }),
+  saveView: (): ArgumentView => ({
+    expanded: inspector.value !== undefined,
+    page: page.value,
+    bytes: inspector.value === 'bytes' || undefined,
+  }),
   restoreView,
 })
 </script>
@@ -353,11 +373,20 @@ defineExpose({
         v-if="unicode"
         type="button"
         class="disclosure"
-        :aria-expanded="expanded"
+        :aria-expanded="inspector === 'points'"
         :aria-controls="id + '-points'"
-        @click="toggle"
+        @click="toggle('points')"
       >
-        <span aria-hidden="true">{{ expanded ? '▾' : '▸' }}</span> Code points
+        <span aria-hidden="true">{{ inspector === 'points' ? '▾' : '▸' }}</span> Code points
+      </button>
+      <button
+        type="button"
+        class="disclosure"
+        :aria-expanded="inspector === 'bytes'"
+        :aria-controls="id + '-points'"
+        @click="toggle('bytes')"
+      >
+        <span aria-hidden="true">{{ inspector === 'bytes' ? '▾' : '▸' }}</span> UTF-8 bytes
       </button>
       <button
         v-if="unicode"
@@ -369,47 +398,68 @@ defineExpose({
       </button>
     </div>
     <div
-      v-if="unicode"
-      v-show="active && expanded"
+      v-show="active && inspector"
       :id="id + '-points'"
       class="point-view"
       role="region"
       :aria-label="label + ' Unicode inspector'"
     >
-      <div v-if="pages > 1" class="toolbar pagination">
-        <button type="button" :disabled="page === 0" @click="page--">Previous</button>
-        <span class="meta" role="status">Page {{ page + 1 }} of {{ pages }}</span>
-        <button type="button" :disabled="page + 1 === pages" @click="page++">Next</button>
-      </div>
-      <div
-        v-if="visible.length"
-        class="point-grid"
-        role="group"
-        :aria-label="label + ' code points'"
-      >
-        <button
-          v-for="(point, index) in visible"
-          :key="point.start"
-          type="button"
-          class="point"
-          :aria-label="`${page * pageSize + index + 1}. ${point.notation}, ${point.glyph}`"
-          :aria-pressed="point.start >= selection.start && point.end <= selection.end"
-          @click="selectPoint(point)"
+      <p v-if="inspector === 'bytes' && malformedOffset !== undefined" class="muted">
+        Unpaired surrogate at UTF-16 offset {{ malformedOffset }}.
+      </p>
+      <template v-else>
+        <div v-if="pages > 1" class="toolbar pagination">
+          <button type="button" :disabled="page === 0" @click="page--">Previous</button>
+          <span class="meta" role="status">Page {{ page + 1 }} of {{ pages }}</span>
+          <button type="button" :disabled="page + 1 === pages" @click="page++">Next</button>
+        </div>
+        <div
+          v-if="visible.length"
+          class="point-grid"
+          :class="{ 'argument-byte-grid': inspector === 'bytes' }"
+          role="group"
+          :aria-label="label + (inspector === 'bytes' ? ' UTF-8 bytes' : ' code points')"
         >
-          <bdi>{{ point.glyph }}</bdi
-          ><code>{{ point.notation }}</code>
-          <span
-            v-if="
-              caretOffset === point.start ||
-              (index === visible.length - 1 && caretOffset === point.end)
+          <button
+            v-for="(point, index) in visible"
+            :key="point.start"
+            type="button"
+            class="point"
+            :aria-label="
+              byteGroups[index]
+                ? `Byte offset 0x${byteGroups[index].offset}, ${byteGroups[index].hex}, ${point.notation}`
+                : `${page * pageSize + index + 1}. ${point.notation}, ${point.glyph}`
             "
-            class="point-caret"
-            :class="{ 'at-end': caretOffset === point.end }"
-            aria-hidden="true"
-          ></span>
-        </button>
-      </div>
-      <p v-else class="muted">No code points in this input.</p>
+            :aria-pressed="point.start >= selection.start && point.end <= selection.end"
+            @click="selectPoint(point)"
+          >
+            <template v-if="byteGroups[index]">
+              <code class="argument-byte-values">{{ byteGroups[index].hex }}</code>
+              <code>0x{{ byteGroups[index].offset }}</code>
+            </template>
+            <template v-else>
+              <bdi>{{ point.glyph }}</bdi>
+              <code>{{ point.notation }}</code>
+            </template>
+            <span
+              v-if="
+                caretOffset === point.start ||
+                (index === visible.length - 1 && caretOffset === point.end)
+              "
+              class="point-caret"
+              :class="{ 'at-end': caretOffset === point.end }"
+              aria-hidden="true"
+            ></span>
+          </button>
+        </div>
+        <p v-else class="muted">
+          {{
+            inspector === 'bytes'
+              ? 'No UTF-8 bytes in this input.'
+              : 'No code points in this input.'
+          }}
+        </p>
+      </template>
       <div v-if="selected" class="toolbar point-actions">
         <button
           type="button"

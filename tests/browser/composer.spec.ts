@@ -170,6 +170,61 @@ test('reveals timed command output at its configured boundaries', async ({ page 
   await expect(entry.getByRole('region', { name: 'File /README' })).toBeVisible()
 })
 
+test('inspects UTF-8 byte groups and selects their source scalar', async ({ page }, info) => {
+  await relay(page)
+  await quick(page, 'login').click()
+  const alias = field(page, 'Account alias')
+  const bytes = page.getByRole('button', { name: 'UTF-8 bytes', exact: true })
+  const grid = page.getByRole('group', { name: 'Account alias UTF-8 bytes' })
+  await alias.fill('a🧪é\u200b')
+  await bytes.click()
+  await expect(grid.locator('.argument-byte-values')).toHaveText([
+    '61',
+    'F0 9F A7 AA',
+    '65',
+    'CC 81',
+    'E2 80 8B',
+  ])
+  await page.screenshot({ path: info.outputPath('utf8-bytes-desktop.png') })
+  await page.setViewportSize({ width: 390, height: 435 })
+  const emoji = grid.getByRole('button', { name: 'Byte offset 0x0001, F0 9F A7 AA, U+1F9EA' })
+  await emoji.click()
+  await expect(emoji).toHaveAttribute('aria-pressed', 'true')
+  expect(
+    await alias.evaluate((field: HTMLTextAreaElement) => [
+      field.selectionStart,
+      field.selectionEnd,
+    ]),
+  ).toEqual([1, 3])
+  await expect(alias).toHaveValue('a🧪é\u200b')
+  await page.screenshot({ path: info.outputPath('utf8-bytes-compact.png') })
+
+  await alias.fill(String.raw`\u0069`)
+  await expect(grid.locator('.argument-byte-values')).toHaveText([
+    '5C',
+    '75',
+    '30',
+    '30',
+    '36',
+    '39',
+  ])
+  await alias.fill('🧪'.repeat(17))
+  await selection(alias, 0, 0)
+  await page.getByRole('button', { name: 'Next', exact: true }).click()
+  await expect(grid.getByRole('button')).toHaveAccessibleName(
+    'Byte offset 0x0040, F0 9F A7 AA, U+1F9EA',
+  )
+
+  await alias.evaluate((field: HTMLTextAreaElement) => {
+    field.value = 'a\ud800'
+    field.dispatchEvent(new InputEvent('input', { bubbles: true }))
+  })
+  await expect(page.getByText('Unpaired surrogate at UTF-16 offset 1.')).toBeVisible()
+  await expect(grid).toHaveCount(0)
+  await page.getByRole('button', { name: 'Code points', exact: true }).click()
+  await expect(page.getByRole('button', { name: /U\+D800, Surrogate/ })).toBeVisible()
+})
+
 test('collapses individual results and reuses the full command as an editable draft', async ({
   page,
 }, info) => {
@@ -214,10 +269,29 @@ test('collapses individual results and reuses the full command as an editable dr
   await expect(free(page)).toBeFocused()
   await expect(entries).toHaveCount(count)
   await notes.getByRole('button', { name: 'Reuse command' }).click()
-  await expect(free(page)).toHaveValue('ls "./notes"')
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+  await expect(tag(page)).toContainText('ls')
+  await expect(field(page, 'path')).toHaveValue('./notes')
+  await expect(field(page, 'path')).toBeFocused()
   await expect(entries).toHaveCount(count)
   await quick(page, 'login').click()
   await expect(field(page, 'Account alias')).toHaveValue('🧪é')
+
+  await typed(page, 'whoami')
+  await expect(entries.last()).toContainText('guest · guest')
+  await entries.last().getByRole('button', { name: 'Reuse command' }).click()
+  await expect(tag(page)).toContainText('whoami')
+  await expect(tag(page)).toBeFocused()
+
+  await typed(page, 'ls ""')
+  await expect(entries.last()).toContainText('Enter a resource path.')
+  await entries.last().getByRole('button', { name: 'Reuse command' }).click()
+  await expect(free(page)).toHaveValue('ls ""')
+
+  await typed(page, String.raw`login \u000041`)
+  await expect(entries.last()).toContainText('Login rejected')
+  await entries.last().getByRole('button', { name: 'Reuse command' }).click()
+  await expect(field(page, 'Account alias')).toHaveValue(String.raw`\u000041`)
 })
 
 test('switches commands without execution, navigates the menu and restores scoped drafts and UTF-16 selections', async ({

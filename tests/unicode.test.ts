@@ -13,13 +13,14 @@ import {
 } from '../src/lib/unicode'
 
 describe('Unicode editing representations', () => {
-  it('decodes fixed-width escapes once and rejects non-scalars', () => {
+  it('decodes Unicode escapes once and rejects non-scalars', () => {
     expect(decodeUnicodeEscapes(String.raw`a\u01f9ea\u000301\u000000b`)).toEqual({
       text: 'a🧪\u0301\0b',
     })
-    expect(decodeUnicodeEscapes(String.raw`\\u000041 \u00005cu000042 \u1234`)).toEqual({
-      text: String.raw`\u000041 \u000042 \u1234`,
+    expect(decodeUnicodeEscapes(String.raw`\\u000041 \u00005cu000042`)).toEqual({
+      text: String.raw`\u000041 \u000042`,
     })
+    expect(decodeUnicodeEscapes(String.raw`\u1234`)).toEqual({ text: '\u1234' })
     expect(decodeUnicodeEscapes(String.raw`\u00D800`)).toHaveProperty('error')
     expect(decodeUnicodeEscapes(String.raw`\u110000`)).toHaveProperty('error')
   })

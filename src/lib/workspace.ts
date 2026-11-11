@@ -18,6 +18,7 @@ export interface Draft {
 export interface ArgumentView {
   expanded: boolean
   page: number
+  bytes?: boolean
 }
 
 export interface ComposerSave {

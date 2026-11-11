@@ -130,17 +130,6 @@ code,
   gap: 6px;
 }
 
-.field-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 2px 8px;
-  margin-bottom: 5px;
-}
-.field-head label {
-  overflow-wrap: anywhere;
-}
 textarea {
   display: block;
   width: 100%;
@@ -345,15 +334,6 @@ h1.terminal-scenario {
 .objective p {
   margin-top: 3px;
   overflow-wrap: anywhere;
-}
-.alias-editor {
-  display: grid;
-  gap: 8px;
-  padding: 10px 12px 12px;
-  border-top: 1px solid var(--line);
-}
-.alias-actions {
-  justify-content: space-between;
 }
 .transcript {
   overflow: auto;
@@ -605,9 +585,7 @@ h1.terminal-scenario {
   font-size: 12px;
 }
 .prompt {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  display: block;
   padding-inline-start: 7px;
   border-inline-start: 2px solid var(--control);
   background: var(--inset);
@@ -685,9 +663,6 @@ h1.terminal-scenario {
     max-height: none;
     overflow: visible;
     border-width: 0 0 1px;
-  }
-  .context-frame .alias-editor {
-    border-top: 0;
   }
   .terminal-frame {
     grid-template-rows: auto minmax(0, max-content) minmax(60px, 1fr) auto;
@@ -793,10 +768,6 @@ h1.terminal-scenario {
   textarea {
     font-size: 16px;
   }
-  .alias-editor textarea {
-    min-height: 54px;
-    height: 54px;
-  }
 }
 
 @media (max-width: 830px) {
@@ -808,28 +779,8 @@ h1.terminal-scenario {
   .short-viewport .shortcuts button {
     flex: none;
   }
-  .short-viewport .alias-editor {
-    gap: 4px;
-    padding-block: 5px;
-  }
-  .short-viewport .alias-editor textarea {
-    min-height: 44px;
-    height: 44px;
-  }
 }
 
-.multi-payload .payload textarea {
-  min-height: 40px;
-  height: 40px;
-}
-.multi-payload .active-payload textarea {
-  border-color: var(--accent);
-}
-.fixed-fields {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0 16px;
-}
 .inspection-encoding {
   display: flex;
   flex-wrap: wrap;
@@ -839,25 +790,159 @@ h1.terminal-scenario {
 .terminal-line {
   white-space: pre-wrap;
 }
-@media (max-width: 830px) {
-  .multi-payload .payload textarea {
+/* The same prompt surface grows argument rows; no second editor frame. */
+.command-composer {
+  position: relative;
+  min-width: 0;
+}
+.prompt-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.prompt-line .prompt-host {
+  flex: none;
+}
+.prompt .command-tag {
+  min-height: 30px;
+  padding: 2px 6px;
+  border: 1px solid var(--control);
+  border-radius: 2px;
+  font: inherit;
+  line-height: 1.3;
+}
+.command-tag span {
+  color: var(--muted);
+  font-size: 11px;
+}
+.prompt .run-command {
+  margin-inline-start: auto;
+  flex: none;
+}
+.composer-arguments {
+  max-height: min(45dvh, 300px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding-inline-end: 4px;
+}
+.composer-argument {
+  display: grid;
+  grid-template-columns: minmax(9ch, 19ch) minmax(0, 1fr);
+  align-items: start;
+  column-gap: 8px;
+}
+.composer-argument > label {
+  align-self: center;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+  cursor: text;
+}
+.composer-argument.active-argument > label {
+  color: var(--accent);
+}
+.composer-argument textarea {
+  min-height: 36px;
+  max-height: 96px;
+  margin: 0;
+  padding: 7px 0 4px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  resize: none;
+  font: inherit;
+  line-height: 1.5;
+  caret-color: var(--accent);
+}
+.composer-argument textarea:focus {
+  outline: none;
+}
+.composer-argument .payload-tools,
+.composer-argument .point-view {
+  grid-column: 1 / -1;
+  margin: 0 0 2px;
+}
+.composer-argument .payload-tools {
+  justify-content: flex-start;
+  gap: 4px 8px;
+}
+.composer-argument .payload-tools button {
+  min-height: 28px;
+  padding: 1px 4px;
+}
+.command-menu {
+  position: absolute;
+  z-index: 3;
+  inset-inline: 0;
+  bottom: calc(100% + 6px);
+  max-width: 540px;
+  max-height: min(50dvh, 390px);
+  overflow-y: auto;
+  border: 1px solid var(--control);
+  padding: 3px;
+  background: var(--surface);
+  font-family: var(--mono);
+  box-shadow: 0 4px 12px #0004;
+}
+.command-menu button {
+  display: grid;
+  grid-template-columns: 12ch minmax(0, 1fr);
+  gap: 8px;
+  text-align: start;
+  width: 100%;
+  min-height: 32px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.command-menu button[aria-checked='true'] {
+  color: var(--accent);
+  background: var(--raised);
+}
+.command-menu button:focus {
+  outline-offset: -2px;
+}
+.command-menu button:last-child {
+  display: block;
+  border-top: 1px solid var(--line);
+}
+.command-menu .meta {
+  font-size: 11px;
+}
+@media (max-width: 600px), (pointer: coarse) {
+  .prompt .command-tag,
+  .prompt .run-command,
+  .command-menu button {
     min-height: 44px;
-    height: 44px;
+  }
+  .composer-argument {
+    grid-template-columns: minmax(9ch, 15ch) minmax(0, 1fr);
+    column-gap: 6px;
+  }
+  .composer-argument textarea {
+    min-height: 44px;
+    font-size: 16px;
+    padding-top: 9px;
+  }
+  .composer-argument .payload-tools button {
+    min-height: 34px;
+  }
+  .command-menu button {
+    grid-template-columns: 11ch minmax(0, 1fr);
   }
 }
-@media (max-width: 830px) {
-  .short-viewport .multi-payload .payload {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
-    align-items: center;
-    gap: 2px 8px;
-  }
-  .short-viewport .multi-payload .field-head {
-    margin-bottom: 0;
-  }
-  .short-viewport .multi-payload .payload-tools,
-  .short-viewport .multi-payload .point-view {
-    grid-column: 1 / -1;
-    margin-top: 0;
-  }
+
+.composer-fixed {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 16px;
+  padding-block: 2px;
+}
+
+.composer-fixed > span {
+  display: inline-flex;
+  gap: 6px;
 }

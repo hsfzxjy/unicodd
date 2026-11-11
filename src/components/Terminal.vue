@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
+import CommandComposer from './CommandComposer.vue'
+import type { PuzzleBinding } from '../lib/scenario'
 import TerminalFile from './TerminalFile.vue'
 import TerminalInspection from './TerminalInspection.vue'
 import TerminalMail from './TerminalMail.vue'
-import { commandHelp, commandInsertion, matchSuggestions, parseCommand } from '../lib/commands'
+import { commandHelp } from '../lib/commands'
 import type { Action, Link, Output } from '../lib/runtime'
 import { unpairedSurrogate } from '../lib/unicode'
 
@@ -22,30 +24,16 @@ const props = defineProps<{
   shortcuts: Link[]
   suggestions: string[]
   busy: boolean
-  canInsertPayload: boolean
-  canReplace: boolean
+  context: string
+  operations: readonly PuzzleBinding[]
+  execute: (action: Action, echo?: string) => Promise<import('../lib/runtime').Response | undefined>
 }>()
 const emit = defineEmits<{ action: [Action, string?] }>()
 const scroll = ref<HTMLDivElement>()
 const frame = ref<HTMLElement>()
-const input = ref<HTMLInputElement>()
-const commandId = useId()
-const command = ref('')
-const showSuggestions = ref(true)
-const composing = ref(false)
-const hasFocus = ref(false)
-const commandGroup = ref<HTMLElement>()
-const quickActions = ref<HTMLElement>()
+const composer = ref<InstanceType<typeof CommandComposer>>()
 const following = ref(true)
 const selectedScalar = ref<string>()
-const history: string[] = []
-let index = 0
-let scratch = ''
-const matches = computed(() =>
-  hasFocus.value && !composing.value && showSuggestions.value
-    ? matchSuggestions(command.value, props.suggestions).slice(0, 5)
-    : [],
-)
 
 function scrollToEnd() {
   if (scroll.value) scroll.value.scrollTop = scroll.value.scrollHeight
@@ -94,71 +82,6 @@ watch(
   { flush: 'post' },
 )
 
-function submit() {
-  if (composing.value || props.busy) return
-  const raw = command.value
-  const action = parseCommand(raw)
-  if (!action) return
-  if (history.at(-1) !== raw) history.push(raw)
-  if (history.length > 60) history.shift()
-  index = history.length
-  scratch = ''
-  command.value = ''
-  showSuggestions.value = true
-  emit('action', action, raw)
-}
-
-function keydown(event: KeyboardEvent) {
-  if (event.isComposing || event.keyCode === 229 || composing.value) return
-  if (event.key === 'Escape') showSuggestions.value = false
-  if (event.key === 'Tab' && !event.shiftKey && matches.value.length === 1) {
-    event.preventDefault()
-    complete(matches.value[0])
-  }
-  if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-    if (!history.length) return
-    event.preventDefault()
-    if (index === history.length) scratch = command.value
-    index = Math.min(history.length, Math.max(0, index + (event.key === 'ArrowUp' ? -1 : 1)))
-    command.value = history[index] ?? scratch
-    showSuggestions.value = false
-  }
-}
-
-function focusout(event: FocusEvent) {
-  if (!commandGroup.value?.contains(event.relatedTarget as Node | null)) hasFocus.value = false
-}
-
-function complete(value: string) {
-  command.value = value
-  showSuggestions.value = false
-  input.value?.focus()
-}
-
-function focusAction(type: Action['type']) {
-  quickActions.value
-    ?.querySelector<HTMLButtonElement>(`[data-action="${type}"]`)
-    ?.focus({ preventScroll: true })
-}
-
-function promptInspection() {
-  command.value = 'inspect '
-  void nextTick(() => {
-    input.value?.focus()
-    input.value?.setSelectionRange(8, 8)
-  })
-}
-
-function insertCommand(text: string) {
-  const field = input.value
-  if (!field || composing.value) return
-  const start = field.selectionStart ?? field.value.length
-  field.setRangeText(commandInsertion(text), start, field.selectionEnd ?? start, 'end')
-  command.value = field.value
-  showSuggestions.value = true
-  field.focus()
-}
-
 function revealOutput(kind: 'inspection' | 'mail' | 'file', focus: boolean) {
   const box = scroll.value
   const selector = kind === 'inspection' ? '.inspection' : '.terminal-' + kind
@@ -181,10 +104,11 @@ function focusTranscript() {
 }
 
 defineExpose({
-  focusAction,
   focusTranscript,
-  insertCommand,
-  promptInspection,
+  insertCommand: (text: string) => composer.value?.insertCommand(text),
+  applyText: (mode: 'insert' | 'replace', text: string) => composer.value?.applyText(mode, text),
+  selectCommand: (name: import('../lib/commands').CommandName) =>
+    composer.value?.selectCommand(name),
   revealOutput,
   scrollToEnd,
 })
@@ -265,8 +189,9 @@ defineExpose({
             <TerminalInspection
               v-else-if="row.kind === 'inspection'"
               :row="row"
-              :can-insert-payload="canInsertPayload"
-              :can-replace="canReplace"
+              :can-insert-payload="Boolean(composer?.canInsert)"
+              :can-insert-command="Boolean(composer?.canInsertCommand)"
+              :can-replace="Boolean(composer?.canReplace)"
               :busy="busy"
               @action="emit('action', $event)"
             />
@@ -296,7 +221,7 @@ defineExpose({
       </article>
     </div>
     <div class="terminal-controls">
-      <div ref="quickActions" class="toolbar shortcuts" aria-label="Quick actions" role="group">
+      <div class="toolbar shortcuts" aria-label="Quick actions" role="group">
         <button
           v-for="link in shortcuts"
           :key="link.label"
@@ -317,46 +242,17 @@ defineExpose({
           Inspect selection
         </button>
       </div>
-      <div ref="commandGroup" @focusin="hasFocus = true" @focusout="focusout">
-        <form class="prompt" @submit.prevent="submit">
-          <label
-            class="prompt-host"
-            :class="{ remote: connected }"
-            :for="commandId"
-            aria-hidden="true"
-            >{{ connected ? '@' : '' }}{{ prompt }} ›</label
-          >
-          <input
-            :id="commandId"
-            ref="input"
-            v-model="command"
-            aria-label="Terminal command"
-            enterkeyhint="go"
-            autocomplete="off"
-            autocapitalize="off"
-            autocorrect="off"
-            spellcheck="false"
-            dir="auto"
-            @input="showSuggestions = true"
-            @keydown="keydown"
-            @compositionstart="composing = true"
-            @compositionend="composing = false"
-          />
-          <button type="submit" :disabled="busy || composing || !command.trim()">Run</button>
-        </form>
-        <div
-          v-if="matches.length"
-          class="suggestions toolbar"
-          aria-label="Command suggestions"
-          role="group"
-          @mousedown.prevent
-        >
-          <button v-for="item in matches" :key="item" type="button" @click="complete(item)">
-            {{ item }}
-          </button>
-          <span v-if="matches.length === 1" class="meta tab-hint">Tab to complete</span>
-        </div>
-      </div>
+      <CommandComposer
+        ref="composer"
+        :prompt="prompt"
+        :connected="connected"
+        :suggestions="suggestions"
+        :operations="operations"
+        :context="context"
+        :busy="busy"
+        :execute="execute"
+        @action="emit('action', $event)"
+      />
     </div>
   </section>
 </template>

@@ -190,7 +190,7 @@ it('returns WASM normalization output and guards payload transfers in the dispat
   })
   expect(runtime.state).toBe(before)
   const insertion = { type: 'editPayload', mode: 'insert', text: 'e\u0301' } as const
-  expect((await runtime.dispatch(insertion)).output?.[0].kind).toBe('error')
+  expect(await runtime.dispatch(insertion)).toEqual({ transfer: insertion })
   await runtime.dispatch(connect)
   await runtime.dispatch({ type: 'login' })
   expect(await runtime.dispatch(insertion)).toEqual({ transfer: insertion })

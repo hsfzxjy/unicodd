@@ -8,6 +8,11 @@ const quick = (page: Page, name: string) =>
 const panel = (page: Page) => page.getByRole('complementary', { name: 'Session context' })
 
 async function run(page: Page, text: string) {
+  const tag = page.getByRole('button', { name: 'Change command', exact: true })
+  if (await tag.count()) {
+    await tag.click()
+    await page.getByRole('menuitem', { name: 'Edit command name…' }).click()
+  }
   const input = page.getByRole('textbox', { name: 'Terminal command' })
   await expect(input).toBeEditable()
   await input.fill(text)
@@ -28,7 +33,7 @@ async function recoverNotice(page: Page, act: Activate) {
   await expect(transcript(page)).toContainText('raw header')
   await act(quick(page, 'Route message'))
   const recipient = page.getByRole('textbox', { name: 'Header recipient', exact: true })
-  const submit = page.getByRole('button', { name: 'Submit route' })
+  const submit = page.getByRole('button', { name: 'Run', exact: true })
   await act(submit)
   await expect(transcript(page)).toContainText('under delivery hold')
   await act(link(page, 'samples/'))
@@ -63,6 +68,10 @@ async function recoverNotice(page: Page, act: Activate) {
 }
 
 test('recovers Dead Letter by graphical actions from the development entry', async ({ page }) => {
+  test.skip(
+    Boolean(process.env.PLAYWRIGHT_TEST_PREVIEW),
+    'Isolated development entry; full graphical production campaign is covered below',
+  )
   await page.goto('/?scenario=002-dead-letter')
   await expect(panel(page)).toContainText('guest')
   await expect(panel(page)).toContainText('Quarantined')
@@ -91,7 +100,7 @@ async function openIndexGraphically(page: Page, act: Activate) {
       .getByRole('button', { name: 'Insert', exact: true }),
   )
   await expect(alias).toHaveValue('\u{1D40C}AINT')
-  await act(page.getByRole('button', { name: 'Submit login' }))
+  await act(page.getByRole('button', { name: 'Run', exact: true }))
   await act(quick(page, 'Files'))
   await act(link(page, 'queue/'))
   await act(link(page, '8c2f.msg'))
@@ -126,7 +135,7 @@ async function beginIndex(page: Page, act: Activate) {
   await expect(transcript(page)).toContainText('Which ID does a shared entry return')
   await act(link(page, '8c2f.summary'))
   await act(quick(page, 'Reconcile identifier'))
-  await act(page.getByRole('button', { name: 'Submit query' }))
+  await act(page.getByRole('button', { name: 'Run', exact: true }))
   await expect(transcript(page)).toContainText('Protected canonical identifier')
   await act(page.getByRole('button', { name: /Code points/ }))
   await act(page.getByRole('button', { name: '2. U+0069, i' }))
@@ -157,7 +166,8 @@ for (const [width, height] of [
         )
         await page.screenshot({ path: info.outputPath(name + '.png') })
       }
-      if (width === 390 || width === 1440) await openIndexGraphically(page, act)
+      if (process.env.PLAYWRIGHT_TEST_PREVIEW || width === 390 || width === 1440)
+        await openIndexGraphically(page, act)
       else await page.goto('/?scenario=003-the-index')
       if (width <= 830) await act(page.getByRole('button', { name: 'Session', exact: true }))
       await expect(panel(page)).toContainText('auditor')
@@ -171,14 +181,14 @@ for (const [width, height] of [
       const wrong = transcript(page).getByRole('region', { name: 'Unicode U+04CF' })
       await expect(wrong).toContainText('D3 8F')
       await act(wrong.getByRole('button', { name: 'Replace', exact: true }))
-      await act(page.getByRole('button', { name: 'Submit query' }))
+      await act(page.getByRole('button', { name: 'Run', exact: true }))
       await expect(transcript(page)).toContainText('Collision detected')
       await act(link(page, '/tools/bucket-8c2f.txt'))
       await expect(transcript(page)).toContainText('Original identifiers: REDACTED')
       await act(quick(page, 'Reconstruct owners'))
       const aName = page.getByRole('textbox', { name: 'Original name A' })
       const bName = page.getByRole('textbox', { name: 'Original name B' })
-      const verify = page.getByRole('button', { name: 'Verify originals' })
+      const verify = page.getByRole('button', { name: 'Run', exact: true })
       await expect(aName).toHaveValue('')
       await aName.fill('Mira')
       await bName.fill('M\u04cfra')
@@ -186,6 +196,7 @@ for (const [width, height] of [
       await expect(transcript(page)).toContainText(
         'Registration B: spelling differs from the verified source.',
       )
+      await capture('03-reconstruction-retry')
       await bName.press('Home')
       await bName.press('ArrowRight')
       await bName.press('Shift+ArrowRight')

@@ -5,12 +5,14 @@ import { describe, inspect } from '../lib/unicode'
 
 const props = defineProps<{
   row: Inspection
+  canInsertCommand: boolean
   canInsertPayload: boolean
   canReplace: boolean
   busy: boolean
 }>()
 const emit = defineEmits<{ action: [Action] }>()
 function insert(text: string) {
+  if (props.busy || (!props.canInsertPayload && !props.canInsertCommand)) return
   emit(
     'action',
     props.canInsertPayload
@@ -81,7 +83,8 @@ const normalization = computed(() => {
         <button
           type="button"
           :aria-disabled="busy || undefined"
-          :title="canInsertPayload ? 'Insert into active payload' : 'Insert into command prompt'"
+          :disabled="busy || (!canInsertPayload && !canInsertCommand)"
+          :title="canInsertPayload ? 'Insert into active parameter' : 'Insert into command prompt'"
           @click="insert(row.point.scalar)"
         >
           Insert
@@ -143,6 +146,7 @@ const normalization = computed(() => {
               type="button"
               :aria-disabled="busy || undefined"
               :aria-label="'Insert ' + form"
+              :disabled="busy || (!canInsertPayload && !canInsertCommand)"
               @click="insert(text)"
             >
               Insert

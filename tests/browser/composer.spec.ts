@@ -1,0 +1,356 @@
+import { expect, test, type Page } from '@playwright/test'
+import { commandRegistry } from '../../src/lib/commands'
+
+const free = (page: Page) => page.getByRole('textbox', { name: 'Terminal command', exact: true })
+const tag = (page: Page) => page.getByRole('button', { name: 'Change command', exact: true })
+const run = (page: Page) => page.getByRole('button', { name: 'Run', exact: true })
+const log = (page: Page) => page.getByRole('log')
+const quick = (page: Page, name: string) =>
+  page.getByRole('group', { name: 'Quick actions' }).getByRole('button', { name, exact: true })
+const field = (page: Page, name: string) => page.getByRole('textbox', { name, exact: true })
+async function editName(page: Page) {
+  if (await tag(page).count()) {
+    await tag(page).click()
+    await page.getByRole('menuitem', { name: 'Edit command name…' }).click()
+  }
+}
+async function typed(page: Page, text: string) {
+  await editName(page)
+  await free(page).fill(text)
+  await free(page).press('Enter')
+}
+async function relay(page: Page) {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'relay-07', exact: true }).click()
+}
+async function select(page: Page, name: string) {
+  await tag(page).click()
+  await page.getByRole('menuitemradio', { name: new RegExp('^' + name + ' ') }).click()
+}
+async function selection(input: ReturnType<typeof field>, start: number, end: number) {
+  await input.evaluate(
+    (element: HTMLTextAreaElement, span) => {
+      element.setSelectionRange(span[0], span[1])
+      element.dispatchEvent(new Event('select', { bubbles: true }))
+    },
+    [start, end],
+  )
+}
+
+test('tags all 16 commands, expands required input, leaves unknown text alone and executes zero arguments', async ({
+  page,
+}) => {
+  await relay(page)
+  const count = await log(page).locator('.terminal-entry').count()
+  for (const definition of commandRegistry) {
+    await editName(page)
+    await free(page).fill(definition.name + ' ')
+    await expect(tag(page)).toContainText(definition.name)
+    await expect(free(page)).toHaveCount(0)
+    await expect(page.locator('.composer-argument textarea')).toHaveCount(
+      definition.arguments.length,
+    )
+  }
+  await expect(log(page).locator('.terminal-entry')).toHaveCount(count)
+  await editName(page)
+  for (const text of ['lo ', 'unknown ']) {
+    await free(page).fill(text)
+    await expect(tag(page)).toHaveCount(0)
+    await expect(free(page)).toHaveValue(text)
+  }
+  await free(page).fill('whoami ')
+  await expect(tag(page)).toBeFocused()
+  await tag(page).press('Enter')
+  await expect(log(page).locator('.terminal-entry').last()).toContainText('guest · guest')
+  await expect(free(page)).toBeVisible()
+  await free(page).fill('cat')
+  await free(page).press('Enter')
+  await expect(field(page, 'path')).toBeFocused()
+  await field(page, 'path').fill('/README')
+  await field(page, 'path').press('Enter')
+  await expect(log(page).getByRole('region', { name: 'File /README' })).toBeVisible()
+  await typed(page, 'login "  🧪é​  "')
+  await expect(field(page, 'Account alias')).toHaveValue('  🧪é​  ')
+  await expect(page.locator('.alias-editor')).toHaveCount(0)
+  await expect(page.getByRole('form')).toHaveCount(1)
+})
+
+test('switches commands without execution, navigates the menu and restores scoped drafts and UTF-16 selections', async ({
+  page,
+}) => {
+  await relay(page)
+  await quick(page, 'Login').click()
+  const alias = field(page, 'Account alias')
+  await alias.fill('a🧪é​')
+  await selection(alias, 1, 3)
+  const count = await log(page).locator('.terminal-entry').count()
+  await tag(page).press('ArrowDown')
+  const current = page.getByRole('menuitemradio', { checked: true })
+  await expect(current).toBeFocused()
+  await current.press('End')
+  await expect(page.getByRole('menuitem', { name: 'Edit command name…' })).toBeFocused()
+  await page.keyboard.press('Home')
+  await expect(current).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(tag(page)).toBeFocused()
+  await select(page, 'cat')
+  await expect(field(page, 'path')).toBeFocused()
+  await field(page, 'path').fill('/notes/keypad.txt')
+  await select(page, 'login')
+  await expect(alias).toHaveValue('a🧪é​')
+  expect(
+    await alias.evaluate((element: HTMLTextAreaElement) => [
+      element.selectionStart,
+      element.selectionEnd,
+    ]),
+  ).toEqual([1, 3])
+  await expect(log(page).locator('.terminal-entry')).toHaveCount(count)
+  await alias.press('Shift+Tab')
+  await expect(tag(page)).toBeFocused()
+  await tag(page).press('Tab')
+  await expect(alias).toBeFocused()
+  await alias.press('Tab')
+  await expect(run(page)).toBeFocused()
+  await alias.fill('')
+  await alias.press('Backspace')
+  await expect(free(page)).toBeFocused()
+  expect(
+    await free(page).evaluate((element: HTMLInputElement) => [
+      element.selectionStart,
+      element.selectionEnd,
+    ]),
+  ).toEqual([0, 5])
+  await free(page).fill('unknown command')
+  await free(page).press('Enter')
+  await expect(free(page)).toHaveValue('unknown command')
+  await expect(log(page)).toContainText('Unknown command')
+})
+
+test('defers conversion, submission, cancellation and field advance throughout IME composition', async ({
+  page,
+}) => {
+  await relay(page)
+  const command = free(page)
+  await command.evaluate((element) =>
+    element.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true })),
+  )
+  await command.fill('login ')
+  await command.press('Enter')
+  await command.press('Escape')
+  await expect(tag(page)).toHaveCount(0)
+  await command.evaluate((element) =>
+    element.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true })),
+  )
+  await expect(tag(page)).toHaveCount(0)
+  await command.fill('login')
+  await command.press('Space')
+  const alias = field(page, 'Account alias')
+  await expect(alias).toBeFocused()
+  const count = await log(page).locator('.terminal-entry').count()
+  await alias.evaluate((element) =>
+    element.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true })),
+  )
+  await alias.press('Enter')
+  await alias.press('Space')
+  await alias.press('Escape')
+  await expect(tag(page)).toContainText('login')
+  await expect(run(page)).toBeDisabled()
+  await expect(log(page).locator('.terminal-entry')).toHaveCount(count)
+  await alias.evaluate((element: HTMLTextAreaElement) => {
+    element.value = '日本'
+    element.setSelectionRange(2, 2)
+    element.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true }))
+  })
+  await alias.press('Enter')
+  await expect(alias).toHaveValue('日本')
+  await expect(log(page).locator('.terminal-entry')).toHaveCount(count + 1)
+})
+
+test('retains failed arguments and cursor context, recalls structured history and applies a success once', async ({
+  page,
+}) => {
+  await relay(page)
+  await quick(page, 'Login').click()
+  const alias = field(page, 'Account alias')
+  await alias.fill('a🧪é​')
+  await selection(alias, 1, 3)
+  await alias.press('Enter')
+  await expect(alias).toBeFocused()
+  await expect(alias).toHaveValue('a🧪é​')
+  expect(
+    await alias.evaluate((element: HTMLTextAreaElement) => [
+      element.selectionStart,
+      element.selectionEnd,
+    ]),
+  ).toEqual([1, 3])
+  await alias.fill(String.raw`\u01D40CAINT`)
+  await alias.press('Enter')
+  await expect(free(page)).toBeVisible()
+  await expect(log(page).getByText('Authentication accepted', { exact: false })).toHaveCount(1)
+  await free(page).press('ArrowUp')
+  await expect(alias).toHaveValue(String.raw`\u01D40CAINT`)
+  await alias.fill('draft with spaces')
+  await alias.press('Shift+Enter')
+  await expect(alias).toHaveValue('draft with spaces\n')
+  await quick(page, 'Logout').click()
+  await quick(page, 'Login').click()
+  await expect(alias).not.toHaveValue('draft with spaces\n')
+})
+
+test('keeps extra one-line arguments repairable and preserves raw scalar escapes on failed retry', async ({
+  page,
+}) => {
+  await relay(page)
+  await typed(page, 'connect missing')
+  await expect(field(page, 'host')).toHaveValue('missing')
+  await typed(page, 'login a b')
+  await expect(free(page)).toHaveValue('login a b')
+  await typed(page, String.raw`login \u00D800`)
+  const alias = field(page, 'Account alias')
+  await expect(alias).toHaveValue(String.raw`\u00D800`)
+  await alias.fill(String.raw`\u01D40CAINT`)
+  await run(page).dblclick()
+  await expect(log(page).getByText('Authentication accepted', { exact: false })).toHaveCount(1)
+})
+
+test('maps the one-line caret into a failed Unicode argument and disables edits for zero parameters', async ({
+  page,
+}) => {
+  await relay(page)
+  await free(page).fill('login "a🧪b"')
+  await free(page).evaluate((element: HTMLInputElement) => element.setSelectionRange(8, 10))
+  await free(page).press('Enter')
+  const alias = field(page, 'Account alias')
+  await expect(alias).toHaveValue('a🧪b')
+  expect(
+    await alias.evaluate((element: HTMLTextAreaElement) => [
+      element.selectionStart,
+      element.selectionEnd,
+    ]),
+  ).toEqual([1, 3])
+  await page.getByRole('form').getByRole('button', { name: 'Inspect', exact: true }).click()
+  const details = log(page).getByRole('region', { name: 'Unicode U+1F9EA' })
+  await expect(details).toBeVisible()
+  await select(page, 'whoami')
+  await expect(details.getByRole('button', { name: 'Insert', exact: true })).toBeDisabled()
+  await select(page, 'login')
+  await expect(alias).toHaveValue('a🧪b')
+  await alias.press('Escape')
+  await free(page).fill('whoami')
+  await free(page).press('Enter')
+  await free(page).press('ArrowUp')
+  await free(page).press('ArrowUp')
+  await expect(alias).toHaveValue('a🧪b')
+})
+
+test('advances and reverses through both route fields and preserves both reconstruction names on retry', async ({
+  page,
+}) => {
+  test.skip(
+    Boolean(process.env.PLAYWRIGHT_TEST_PREVIEW),
+    'Uses isolated development entries; production campaign is covered separately',
+  )
+  await page.goto('/?scenario=002-dead-letter')
+  await free(page).fill('route')
+  await free(page).press('Enter')
+  const header = field(page, 'Header recipient')
+  const envelope = field(page, 'Envelope recipient')
+  await expect(header).toBeFocused()
+  await header.fill('a🧪b')
+  await header.press('Enter')
+  await expect(envelope).toBeFocused()
+  await envelope.press('Shift+Tab')
+  await expect(header).toBeFocused()
+  await header.press('Tab')
+  await expect(envelope).toBeFocused()
+  await envelope.fill('Ｍira')
+  await selection(envelope, 0, 1)
+  await envelope.press('Enter')
+  await expect(header).toHaveValue('a🧪b')
+  await expect(envelope).toHaveValue('Ｍira')
+  expect(
+    await envelope.evaluate((element: HTMLTextAreaElement) => [
+      element.selectionStart,
+      element.selectionEnd,
+    ]),
+  ).toEqual([0, 1])
+  await page.goto('/?scenario=003-the-index')
+  await typed(page, 'reconcile Mіra')
+  await typed(page, 'reconstruct')
+  await expect(page.locator('.composer-fixed')).toContainText('0001842')
+  await expect(page.locator('.composer-fixed')).toContainText('0002917')
+  const a = field(page, 'Original name A')
+  const b = field(page, 'Original name B')
+  await a.fill('Mira')
+  await b.fill('M🧪ra')
+  await selection(b, 1, 3)
+  await b.press('Enter')
+  await expect(a).toHaveValue('Mira')
+  await expect(b).toHaveValue('M🧪ra')
+  await typed(page, 'inspect U+0456')
+  await quick(page, 'Reconstruct owners').click()
+  await log(page)
+    .getByRole('region', { name: 'Unicode U+0456' })
+    .getByRole('button', { name: 'Replace', exact: true })
+    .click()
+  await expect(a).toHaveValue('Mira')
+  await expect(b).toHaveValue('Mіra')
+  await b.press('Enter')
+  await expect(log(page)).toContainText('Reconstruction verified')
+  await expect(free(page)).toBeVisible()
+})
+
+for (const [width, height] of [
+  [375, 812],
+  [390, 844],
+  [768, 1024],
+  [1280, 800],
+  [1440, 900],
+]) {
+  test.describe(`${width} × ${height} composer`, () => {
+    test.use({ viewport: { width, height }, hasTouch: width <= 768, isMobile: width <= 600 })
+    test('renders the same prompt surface, dropdown, optional argument and long Unicode draft', async ({
+      page,
+    }, info) => {
+      await relay(page)
+      const capture = async (name: string) => {
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
+        await expect(run(page)).toBeInViewport({ ratio: 1 })
+        await page.screenshot({ path: info.outputPath(name + '.png') })
+      }
+      await capture('01-free')
+      await free(page).fill('help ')
+      await capture('02-zero')
+      await tag(page).click()
+      await expect(page.getByRole('menu', { name: 'Commands' })).toBeInViewport({ ratio: 1 })
+      await expect(page.getByRole('menuitemradio', { name: /^reconstruct / })).toHaveCount(0)
+      await capture('03-dropdown')
+      await page.keyboard.press('Escape')
+      await select(page, 'ls')
+      await expect(field(page, 'path')).toBeVisible()
+      await run(page).click()
+      await expect(log(page).locator('.terminal-entry').last()).toContainText('/')
+      await quick(page, 'Login').click()
+      const alias = field(page, 'Account alias')
+      await alias.fill('a🧪é​'.repeat(100))
+      await selection(alias, 0, 1)
+      await page
+        .getByRole('form', { name: 'Command composer' })
+        .getByRole('button', { name: 'Inspect', exact: true })
+        .click()
+      await expect(log(page).getByRole('region', { name: 'Unicode U+0061' })).toBeVisible()
+      await capture('04-long-inspection')
+      await alias.press('Enter')
+      await expect(alias).toHaveValue('a🧪é​'.repeat(100))
+      await capture('05-retry')
+      if (width <= 600) {
+        await page.setViewportSize({ width, height: 435 })
+        await expect(alias).toBeInViewport()
+        await capture('06-keyboard-height')
+      }
+      await page.getByRole('button', { name: 'Code points', exact: true }).click()
+      await expect(page.getByRole('group', { name: 'Account alias code points' })).toBeVisible()
+      await capture('07-code-points')
+    })
+  })
+}

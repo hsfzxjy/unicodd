@@ -10,7 +10,6 @@ import { actionCommand, commandHelp } from './commands.ts'
 import {
   parentPath,
   puzzleArity,
-  type PuzzleCommand,
   type Effect,
   type Guard,
   type Host,
@@ -24,15 +23,7 @@ import { describe, lookup, scalarCategory, unpairedSurrogate, type Point } from 
 export type Action =
   | {
       type:
-        | 'hosts'
-        | 'whoami'
-        | 'logout'
-        | 'help'
-        | 'clear'
-        | 'reset'
-        | 'resetCampaign'
-        | 'campaign'
-        | 'closeEditor'
+        'hosts' | 'whoami' | 'logout' | 'help' | 'clear' | 'reset' | 'resetCampaign' | 'campaign'
     }
   | { type: 'connect'; host: string }
   | { type: 'ls'; path?: string }
@@ -76,7 +67,6 @@ export interface Session {
   identity: Identity
   flags: readonly string[]
   completed: boolean
-  editing: PuzzleCommand | false
   deliveredMail: readonly string[]
   readMail: readonly string[]
 }
@@ -84,9 +74,8 @@ export interface Session {
 export interface Response {
   output?: Output[]
   clear?: boolean
-  inspectPrompt?: boolean
+  compose?: import('./commands.ts').CommandName
   transfer?: Extract<Action, { type: 'copy' | 'editPayload' | 'insertCommand' }>
-  edit?: boolean
   enter?: string
 }
 
@@ -102,7 +91,6 @@ export function createRuntime(
       identity: host?.guest ?? scenario.local,
       flags: [],
       completed,
-      editing: false,
       deliveredMail: campaign.delivered,
       readMail: campaign.read,
     }
@@ -356,7 +344,7 @@ export function createRuntime(
         const host = scenario.hosts.find(({ id }) => id === action.host)
         if (!host || (host.discover && !state.flags.includes(host.discover)))
           return error(`Unknown host: ${action.host}`)
-        state = { ...state, host, identity: host.guest, editing: false }
+        state = { ...state, host, identity: host.guest }
         return { output: [message(host.welcome)] }
       }
       case 'ls':
@@ -366,7 +354,7 @@ export function createRuntime(
         return { output: [message(`${state.identity.user} · ${state.identity.role}`)] }
       case 'logout':
         if (!state.host) return error('Connect to a host first.')
-        state = { ...state, identity: state.host.guest, editing: false }
+        state = { ...state, identity: state.host.guest }
         return { output: [message(`Session returned to ${state.identity.user}.`)] }
       case 'login':
       case 'route':
@@ -381,8 +369,7 @@ export function createRuntime(
               ? action.payload
               : action.payloads
         if (payload === undefined) {
-          state = { ...state, editing: action.type }
-          return { edit: true }
+          return { compose: action.type }
         }
         const values = typeof payload === 'string' ? [payload] : payload
         if (values.length !== puzzleArity[action.type])
@@ -423,14 +410,13 @@ export function createRuntime(
           }
           const output: Output[] = []
           apply(binding.success, output, action.type === 'login' ? 'auth' : 'message')
-          state = { ...state, editing: false }
           return { output }
         } finally {
           if (pending === before) pending = undefined
         }
       }
       case 'inspect': {
-        if (action.character === undefined) return { inspectPrompt: true }
+        if (action.character === undefined) return { compose: 'inspect' }
         const scalar = lookup(action.character)
         if (scalar === undefined)
           return error('Enter one Unicode scalar or a code point such as U+00E9.')
@@ -464,14 +450,9 @@ export function createRuntime(
       case 'editPayload':
         if (unpairedSurrogate(action.text) !== undefined)
           return error('Expected valid Unicode text.')
-        if (action.type === 'editPayload' && !state.editing)
-          return error('Open a payload editor first.')
         return { transfer: action }
       case 'clear':
         return { clear: true }
-      case 'closeEditor':
-        if (state.editing) state = { ...state, editing: false }
-        return {}
       case 'invalid':
         return error(action.message)
     }

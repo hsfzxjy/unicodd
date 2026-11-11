@@ -52,7 +52,7 @@ it('keeps campaign progression and inbox separate from replayable sessions', asy
   expect(runtime.state.identity.role).toBe('guest')
   expect(await run('cat /spool/2917.msg')).toMatchObject({ output: [{ kind: 'file' }] })
   expect(await run('cat /delivered/2917.msg')).toMatchObject({ output: [{ kind: 'error' }] })
-  expect(await run('route')).toEqual({ edit: true })
+  expect(await run('route')).toEqual({ compose: 'route' })
   expect(await run('route Mira Mira')).toMatchObject({
     output: [{ text: expect.stringContaining('under delivery hold') }],
   })
@@ -77,7 +77,7 @@ it('keeps campaign progression and inbox separate from replayable sessions', asy
   })
   const exportPath = 'cat /exports/8c2f-originals.json'
   expect(await run(exportPath)).toMatchObject({ output: [{ kind: 'error' }] })
-  expect(await run('reconcile')).toEqual({ edit: true })
+  expect(await run('reconcile')).toEqual({ compose: 'reconcile' })
   expect(await run('reconcile Mira')).toMatchObject({
     output: [{ text: expect.stringContaining('Protected canonical identifier') }],
   })

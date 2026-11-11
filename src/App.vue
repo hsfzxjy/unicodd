@@ -1,23 +1,12 @@
 <script setup lang="ts">
-import {
-  computed,
-  nextTick,
-  onMounted,
-  onUnmounted,
-  reactive,
-  ref,
-  shallowReactive,
-  shallowRef,
-  watch,
-} from 'vue'
-import PayloadEditor from './components/PayloadEditor.vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import Terminal, { type Entry } from './components/Terminal.vue'
 import { createCampaign } from './lib/campaign'
 import { actionCommand, puzzleAction } from './lib/commands'
 import type { createContentLoader, ScenarioEntry } from './lib/content'
 import { createRuntime, type Action, type Link, type Session } from './lib/runtime'
-import { puzzleArity, type PuzzleCommand, type PuzzleField, type Scenario } from './lib/scenario'
-import { copyText, decodeUnicodeEscapes } from './lib/unicode'
+import { type Scenario } from './lib/scenario'
+import { copyText } from './lib/unicode'
 import type { Engine } from './types'
 
 const props = defineProps<{ content: ReturnType<typeof createContentLoader>; engine: Engine }>()
@@ -35,43 +24,17 @@ const catalogLoading = ref(true)
 const loadingError = ref('')
 const attempt = ref(0)
 const busy = ref(false)
-const composing = ref(false)
 const narrowViewport = matchMedia('(max-width: 830px)')
 const narrow = ref(narrowViewport.matches)
 const sessionExpanded = ref(false)
 const application = ref<HTMLElement>()
 const terminal = ref<InstanceType<typeof Terminal>>()
-const editors = shallowReactive(new Map<string, InstanceType<typeof PayloadEditor>>())
-const activeInput = ref('')
-const lastEditing = ref<PuzzleCommand>()
-const loginSubmit = ref<HTMLButtonElement>()
-const drafts = reactive(new Map<string, string>())
+const contextVersion = ref(0)
 const transcript = shallowRef<Entry[]>([])
 const prompt = computed(() => session.value?.host?.id ?? 'local')
-const operation = computed(() =>
-  session.value?.host?.operations.find(
-    ({ command }) => command === (session.value?.editing || lastEditing.value),
-  ),
-)
-const fixedFields = computed(
-  () => operation.value?.fields.filter(({ fixed }) => fixed !== undefined) ?? [],
-)
-const editable = computed(
-  () => operation.value?.fields.filter(({ fixed }) => fixed === undefined) ?? [],
-)
-const activeField = computed(
-  () => editable.value.find(({ input }) => input === activeInput.value) ?? editable.value[0],
-)
-const editor = computed(() => activeField.value && editors.get(activeField.value.input))
-const draftKey = (input: string) =>
-  JSON.stringify([scenarioId.value, session.value?.host?.id, operation.value?.command, input])
+const operations = computed(() => session.value?.host?.operations ?? [])
 let runtime: ReturnType<typeof createRuntime> | undefined
 let sequence = 0
-const canInsertPayload = computed(() => Boolean(session.value?.editing) && !composing.value)
-const canReplace = computed(() => {
-  const span = editor.value?.context()
-  return canInsertPayload.value && Boolean(span && span.end > span.start)
-})
 
 const viewport = window.visualViewport
 function updateLayout() {
@@ -102,10 +65,8 @@ const shortcuts = computed((): Link[] => {
   if (campaign?.hasInbox) actions.push({ label: 'Mail', action: { type: 'mail' } })
   if (session.value.host) {
     actions.push({ label: 'Files', action: { type: 'ls' } })
-    if (!session.value.editing) {
-      for (const operation of runtime?.operations ?? [])
-        actions.push({ label: operation.actionLabel, action: puzzleAction(operation.command) })
-    }
+    for (const operation of runtime?.operations ?? [])
+      actions.push({ label: operation.actionLabel, action: puzzleAction(operation.command) })
     if (session.value.identity !== session.value.host.guest)
       actions.push({ label: 'Logout', action: { type: 'logout' } })
   }
@@ -149,55 +110,26 @@ watch([scenarioId, attempt], ([id]) => {
   if (!loaded || !campaign?.enter(id)) return
   sessionExpanded.value = false
   busy.value = false
-  composing.value = false
   loadingError.value = ''
   runtime = createRuntime(loaded, props.engine, campaign)
   scenario.value = loaded
   session.value = runtime.state
-  activeInput.value = ''
-  lastEditing.value = undefined
+  contextVersion.value++
   transcript.value = [{ id: sequence++, output: runtime.welcome() }]
   void nextTick(() => terminal.value?.scrollToEnd())
 })
 void loadCatalog()
 
-function draft(field: PuzzleField) {
-  return drafts.get(draftKey(field.input)) ?? field.initial
-}
-
-function setEditor(input: string, instance: unknown) {
-  if (instance) editors.set(input, instance as InstanceType<typeof PayloadEditor>)
-  else editors.delete(input)
-}
-
-function submitPayload() {
-  const command = operation.value?.command
-  if (composing.value || !command) return
-  const values: string[] = []
-  for (const field of editable.value) {
-    const decoded = decodeUnicodeEscapes(draft(field))
-    if ('error' in decoded)
-      return dispatch({
-        type: 'invalid',
-        message: editable.value.length === 1 ? decoded.error : field.label + ' · ' + decoded.error,
-      })
-    values.push(decoded.text)
-  }
-  return dispatch(puzzleAction(command, values))
-}
-
 function echoText(value: string) {
-  return value.length <= 512 ? value : value.slice(0, 512) + '…'
+  if (value.length <= 512) return value
+  const limit =
+    /[\uD800-\uDBFF]/u.test(value[511]) && /[\uDC00-\uDFFF]/u.test(value[512]) ? 511 : 512
+  return value.slice(0, limit) + '…'
 }
 
 async function dispatch(action: Action, command?: string) {
   const active = runtime
-  if (
-    !active ||
-    busy.value ||
-    (composing.value && (Object.hasOwn(puzzleArity, action.type) || action.type === 'editPayload'))
-  )
-    return
+  if (!active || busy.value) return
   if (
     action.type === 'resetCampaign' &&
     !window.confirm('Clear campaign progress and all local mail?')
@@ -206,7 +138,6 @@ async function dispatch(action: Action, command?: string) {
   const id = scenarioId.value
   const before = active.state
   const from = prompt.value
-  const editorFocused = Boolean(document.activeElement?.closest('.alias-editor'))
   busy.value = true
   let response
   try {
@@ -222,45 +153,31 @@ async function dispatch(action: Action, command?: string) {
     } else if (response.transfer?.type === 'insertCommand') {
       terminal.value?.insertCommand(response.transfer.text)
     } else if (response.transfer?.type === 'editPayload') {
-      const { mode, text } = response.transfer
-      const span = editor.value?.context()
-      if (span && !composing.value && (mode === 'insert' || span.start < span.end)) {
-        editor.value?.apply(
-          mode === 'insert' ? { start: span.start, end: span.start } : span,
-          text,
-          false,
-        )
-      }
+      terminal.value?.applyText(response.transfer.mode, response.transfer.text)
     }
   } finally {
     if (runtime === active) busy.value = false
   }
   if (runtime !== active || scenarioId.value !== id) return
   if (response.enter !== undefined) {
-    if (action.type === 'resetCampaign') drafts.clear()
     if (response.enter !== scenarioId.value) scenarioId.value = response.enter
     else if (action.type === 'resetCampaign') attempt.value++
     if (response.enter !== id || action.type === 'resetCampaign') {
       await nextTick()
       terminal.value?.focusTranscript()
     }
-    return
+    return response
   }
   session.value = active.state
-  if (!active.state.editing) composing.value = false
-  if (action.type === 'reset') {
-    const prefix = JSON.stringify([id]).slice(0, -1) + ','
-    for (const key of drafts.keys()) if (key.startsWith(prefix)) drafts.delete(key)
-  }
-  if (before.host !== active.state.host || action.type === 'reset') {
-    lastEditing.value = undefined
-    activeInput.value = ''
-  }
-  if (active.state.editing && lastEditing.value !== active.state.editing) {
-    lastEditing.value = active.state.editing
-    activeInput.value = ''
-  }
-  const echo = command ?? actionCommand(action)
+  if (
+    !response.output?.some((row) => row.kind === 'error') &&
+    (before.host !== active.state.host ||
+      action.type === 'reset' ||
+      action.type === 'logout' ||
+      action.type === 'connect')
+  )
+    contextVersion.value++
+  const echo = response.compose ? undefined : (command ?? actionCommand(action))
   if (response.clear) {
     transcript.value = response.output ? [{ id: sequence++, output: response.output }] : []
     terminal.value?.scrollToEnd()
@@ -276,7 +193,11 @@ async function dispatch(action: Action, command?: string) {
       },
     ]
   }
-  if (response.inspectPrompt) terminal.value?.promptInspection()
+  if (response.compose) {
+    if (narrow.value) sessionExpanded.value = false
+    await nextTick()
+    if (runtime === active) await terminal.value?.selectCommand(response.compose)
+  }
   const readable = response.output?.find(
     (row) => row.kind === 'inspection' || row.kind === 'mail' || row.kind === 'file',
   )
@@ -284,21 +205,7 @@ async function dispatch(action: Action, command?: string) {
     await nextTick()
     if (runtime === active) terminal.value?.revealOutput(readable.kind, command === undefined)
   }
-  if (response.edit) {
-    if (narrow.value) sessionExpanded.value = false
-    await nextTick()
-    if (runtime !== active) return
-    if (matchMedia('(pointer: fine)').matches) {
-      const span = editor.value?.context()
-      if (span) editor.value?.focusAt(span)
-    } else {
-      loginSubmit.value?.focus({ preventScroll: true })
-    }
-  } else if (editorFocused && before.editing && !active.state.editing) {
-    await nextTick()
-    if (runtime === active)
-      terminal.value?.focusAction(action.type === 'closeEditor' ? before.editing || 'ls' : 'ls')
-  }
+  return response
 }
 </script>
 
@@ -307,7 +214,7 @@ async function dispatch(action: Action, command?: string) {
     <main v-if="scenario && session" :key="scenario.id" class="workspace">
       <Teleport to="#terminal-context" :disabled="!narrow" defer>
         <aside
-          v-show="!narrow || sessionExpanded || session.editing"
+          v-show="!narrow || sessionExpanded"
           class="context-frame"
           aria-label="Session context"
         >
@@ -366,47 +273,6 @@ async function dispatch(action: Action, command?: string) {
               </div>
             </div>
           </div>
-          <form
-            v-if="operation"
-            v-show="session.editing"
-            :key="session.host?.id + '/' + operation.command"
-            class="alias-editor"
-            :class="{ 'multi-payload': editable.length > 1 }"
-            :aria-label="
-              operation.command === 'login' ? 'Login editor' : operation.label + ' editor'
-            "
-            @submit.prevent="submitPayload"
-          >
-            <div v-if="fixedFields.length" class="fixed-fields meta">
-              <span v-for="{ input, label, fixed } in fixedFields" :key="input">
-                <bdi>{{ label }}</bdi> <bdi>{{ fixed }}</bdi>
-              </span>
-            </div>
-            <PayloadEditor
-              v-for="field in editable"
-              :key="field.input"
-              :ref="(instance) => setEditor(field.input, instance)"
-              :label="field.label"
-              :model-value="draft(field)"
-              :active="activeField?.input === field.input"
-              @update:model-value="drafts.set(draftKey(field.input), $event)"
-              @activate="activeInput = field.input"
-              @composition="composing = $event"
-              @inspect="dispatch({ type: 'inspect', character: $event })"
-            />
-            <div class="toolbar alias-actions">
-              <button
-                type="button"
-                :disabled="busy || composing"
-                @click="dispatch({ type: 'closeEditor' })"
-              >
-                Hide editor
-              </button>
-              <button ref="loginSubmit" class="primary" type="submit" :disabled="busy || composing">
-                {{ busy ? 'Checking…' : operation.submitLabel }}
-              </button>
-            </div>
-          </form>
         </aside>
       </Teleport>
 
@@ -418,8 +284,9 @@ async function dispatch(action: Action, command?: string) {
         :shortcuts="shortcuts"
         :suggestions="suggestions"
         :busy="busy"
-        :can-insert-payload="canInsertPayload"
-        :can-replace="canReplace"
+        :operations="operations"
+        :context="scenarioId + '/' + contextVersion"
+        :execute="dispatch"
         @action="dispatch"
       >
         <template #scenario>

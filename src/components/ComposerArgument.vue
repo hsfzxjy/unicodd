@@ -2,7 +2,6 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from 'vue'
 import {
   applyNativeEdit,
-  copyText,
   editorText,
   inspect,
   inspectRange,
@@ -13,19 +12,27 @@ import {
   type Span,
 } from '../lib/unicode'
 
-const props = defineProps<{ label: string; modelValue: string; active: boolean }>()
+const props = defineProps<{
+  label: string
+  modelValue: string
+  active: boolean
+  unicode: boolean
+  disabled: boolean
+  last: boolean
+}>()
 const emit = defineEmits<{
   'update:modelValue': [string]
   inspect: [string]
+  copy: [string]
   composition: [boolean]
   activate: []
+  key: [KeyboardEvent]
 }>()
 const id = useId()
 const control = ref<HTMLTextAreaElement>()
 const expanded = ref(false)
 const selection = ref<Span>({ start: 0, end: 0 })
 const page = ref(0)
-const feedback = ref('')
 const narrow = matchMedia('(max-width: 600px)')
 const pageSize = ref(narrow.matches ? 16 : 48)
 let composing = false
@@ -64,17 +71,36 @@ function syncControl() {
   const field = control.value
   const value = editorText(props.modelValue)
   if (field && !composing && field.value !== value) field.value = value
+  resize()
+}
+function resize() {
+  const field = control.value
+  if (!field) return
+  field.style.height = 'auto'
+  field.style.height = Math.min(96, Math.max(36, field.scrollHeight)) + 'px'
 }
 function updatePageSize() {
   const first = page.value * pageSize.value
   pageSize.value = narrow.matches ? 16 : 48
   page.value = Math.floor(first / pageSize.value)
 }
+let lastWidth = 0
+const resizeObserver = new ResizeObserver((entries) => {
+  const width = entries[0]?.contentRect.width ?? 0
+  if (width !== lastWidth) {
+    lastWidth = width
+    resize()
+  }
+})
 onMounted(() => {
   syncControl()
+  if (control.value) resizeObserver.observe(control.value)
   narrow.addEventListener('change', updatePageSize)
 })
-onUnmounted(() => narrow.removeEventListener('change', updatePageSize))
+onUnmounted(() => {
+  narrow.removeEventListener('change', updatePageSize)
+  resizeObserver.disconnect()
+})
 watch(
   () => props.modelValue,
   () => {
@@ -117,6 +143,7 @@ function nativeInput() {
   const draft = applyNativeEdit(props.modelValue, field.value, before, field.selectionStart)
   before = undefined
   emit('update:modelValue', draft)
+  resize()
   void nextTick(() => readSelection(true, draft))
 }
 
@@ -138,11 +165,10 @@ function focusAt(span: Span, focus = true) {
   const raw = props.modelValue
   const start = editorText(raw.slice(0, span.start)).length
   const end = editorText(raw.slice(0, span.end)).length
-  if (focus) field.focus()
+  if (focus) field.focus({ preventScroll: true })
   field.setSelectionRange(start, end)
   projection = { raw, start, end }
   selection.value = span
-  if (focus) field.scrollIntoView({ block: 'nearest' })
 }
 
 function apply(span: Span, text: string, focus = true) {
@@ -185,24 +211,16 @@ function toggle() {
   if (expanded.value) readSelection()
 }
 
-async function copy(value: string) {
-  try {
-    await copyText(value)
-    feedback.value = 'Copied.'
-  } catch {
-    feedback.value = 'Clipboard unavailable.'
-  }
+function copy(value: string) {
+  emit('copy', value)
 }
 
 defineExpose({ apply, focusAt, context: () => ({ ...selection.value }) })
 </script>
 
 <template>
-  <div class="payload" :class="{ 'active-payload': active }">
-    <div class="field-head">
-      <label :for="id">{{ label }}</label>
-      <span class="meta">{{ count }} code {{ count === 1 ? 'point' : 'points' }}</span>
-    </div>
+  <div class="composer-argument" :class="{ 'active-argument': active }">
+    <label :for="id">{{ label }}</label>
     <textarea
       :id="id"
       ref="control"
@@ -211,7 +229,10 @@ defineExpose({ apply, focusAt, context: () => ({ ...selection.value }) })
       autocapitalize="off"
       autocomplete="off"
       autocorrect="off"
-      rows="3"
+      rows="1"
+      :readonly="disabled"
+      :enterkeyhint="last ? 'go' : 'next'"
+      @keydown="emit('key', $event)"
       @focus="emit('activate')"
       @select="readSelection()"
       @keyup="readSelection()"
@@ -226,7 +247,8 @@ defineExpose({ apply, focusAt, context: () => ({ ...selection.value }) })
       @copy="copySelection"
       @cut="copySelection"
     />
-    <div v-show="active" class="toolbar payload-tools">
+    <div v-if="unicode" v-show="active" class="toolbar payload-tools">
+      <span class="meta">{{ count }} code {{ count === 1 ? 'point' : 'points' }}</span>
       <button
         type="button"
         class="disclosure"
@@ -244,7 +266,7 @@ defineExpose({ apply, focusAt, context: () => ({ ...selection.value }) })
         Inspect
       </button>
     </div>
-    <div v-show="active && expanded" :id="id + '-points'" class="point-view">
+    <div v-show="unicode && active && expanded" :id="id + '-points'" class="point-view">
       <div v-if="pages > 1" class="toolbar pagination">
         <button type="button" :disabled="page === 0" @click="page--">Previous</button>
         <span class="meta" role="status">Page {{ page + 1 }} of {{ pages }}</span>
@@ -306,7 +328,6 @@ defineExpose({ apply, focusAt, context: () => ({ ...selection.value }) })
       </div>
       <div class="point-context meta" role="status">
         {{ pointContext }}
-        <span v-if="feedback"> · {{ feedback }}</span>
       </div>
     </div>
   </div>

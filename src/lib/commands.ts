@@ -1,27 +1,130 @@
 import type { Action } from './runtime.ts'
 import { puzzleArity, type PuzzleCommand } from './scenario.ts'
-import { readUnicodeEscape } from './unicode.ts'
+import { decodeUnicodeEscapes, readUnicodeEscape, scalarSpan, type Span } from './unicode.ts'
 
-export const commandHelp = [
-  ['help', 'Show this command reference.'],
-  ['hosts', 'List known hosts.'],
-  ['mail [message]', 'List local mail or read a message by ID.'],
-  ['connect <host>', 'Start a guest session on a host.'],
-  ['ls [path]', 'List a directory. Paths are relative to /.'],
-  ['cat <path>', 'Read a file.'],
-  ['whoami', 'Show the current identity.'],
-  ['login [alias]', 'Open the alias editor or submit an alias.'],
-  ['route [header envelope]', 'Open the recipient editor or submit both recipients.'],
-  ['reconcile [candidate]', 'Open the identifier editor or query a collision.'],
-  ['reconstruct [name-a name-b]', 'Open the record editor or submit both original names.'],
-  ['campaign', 'List discovered destinations.'],
-  ['scenario <id>', 'Enter a discovered scenario.'],
-  ['logout', 'Return to guest access.'],
-  ['inspect <character>', 'Show Unicode details for a scalar or code point.'],
-  ['clear', 'Clear terminal scrollback.'],
+export type ArgumentKind = 'text' | 'path' | 'host' | 'message' | 'scenario' | 'scalar' | 'payload'
+export interface CommandArgument {
+  name: string
+  label: string
+  kind: ArgumentKind
+  required: boolean
+  initial: string
+}
+const argument = (name: string, kind: ArgumentKind, required = true): CommandArgument => ({
+  name,
+  label: name,
+  kind,
+  required,
+  initial: '',
+})
+
+// Parsing, help, completion and the composer share this vocabulary. Scenario bindings
+// supply puzzle field labels, defaults and fixed context, never another input UI.
+export const commandRegistry = [
+  { name: 'help', usage: 'help', description: 'Show this command reference.', arguments: [] },
+  { name: 'hosts', usage: 'hosts', description: 'List known hosts.', arguments: [] },
+  {
+    name: 'mail',
+    usage: 'mail [message]',
+    description: 'List local mail or read a message.',
+    arguments: [argument('message', 'message', false)],
+  },
+  {
+    name: 'connect',
+    usage: 'connect <host>',
+    description: 'Start a guest session on a host.',
+    arguments: [argument('host', 'host')],
+  },
+  {
+    name: 'ls',
+    usage: 'ls [path]',
+    description: 'List a directory. Paths are relative to /.',
+    arguments: [argument('path', 'path', false)],
+  },
+  {
+    name: 'cat',
+    usage: 'cat <path>',
+    description: 'Read a file.',
+    arguments: [argument('path', 'path')],
+  },
+  { name: 'whoami', usage: 'whoami', description: 'Show the current identity.', arguments: [] },
+  {
+    name: 'login',
+    usage: 'login [alias]',
+    description: 'Compose or submit an alias.',
+    arguments: [argument('alias', 'payload')],
+  },
+  {
+    name: 'route',
+    usage: 'route [header envelope]',
+    description: 'Compose or submit both recipients.',
+    arguments: [argument('header', 'payload'), argument('envelope', 'payload')],
+  },
+  {
+    name: 'reconcile',
+    usage: 'reconcile [candidate]',
+    description: 'Query an identifier collision.',
+    arguments: [argument('candidate', 'payload')],
+  },
+  {
+    name: 'reconstruct',
+    usage: 'reconstruct [name-a name-b]',
+    description: 'Verify both original record names.',
+    arguments: [argument('name-a', 'payload'), argument('name-b', 'payload')],
+  },
+  {
+    name: 'campaign',
+    usage: 'campaign',
+    description: 'List discovered destinations.',
+    arguments: [],
+  },
+  {
+    name: 'scenario',
+    usage: 'scenario <id>',
+    description: 'Enter a discovered scenario.',
+    arguments: [argument('id', 'scenario')],
+  },
+  { name: 'logout', usage: 'logout', description: 'Return to guest access.', arguments: [] },
+  {
+    name: 'inspect',
+    usage: 'inspect <character>',
+    description: 'Show Unicode details for a scalar or code point.',
+    arguments: [argument('character', 'scalar')],
+  },
+  { name: 'clear', usage: 'clear', description: 'Clear terminal scrollback.', arguments: [] },
 ] as const
+export type CommandName = (typeof commandRegistry)[number]['name']
+export const commandHelp = commandRegistry.map(
+  ({ usage, description }) => [usage, description] as const,
+)
+export function commandDefinition(name: string) {
+  return commandRegistry.find((command) => command.name === name)
+}
+export function composerArguments(
+  name: CommandName,
+  operations: readonly import('./scenario.ts').PuzzleBinding[],
+): CommandArgument[] {
+  const definition = commandDefinition(name)!
+  const binding = operations.find((operation) => operation.command === name)
+  return binding
+    ? binding.fields
+        .filter((field) => field.fixed === undefined)
+        .map((field) => ({
+          name: field.input,
+          label: field.label,
+          initial: field.initial,
+          required: true,
+          kind: 'payload',
+        }))
+    : [...definition.arguments]
+}
+export function spaceCommand(source: string, composing = false): CommandName | undefined {
+  if (composing) return
+  const match = /^([a-z]+) $/u.exec(source)
+  return match ? commandDefinition(match[1])?.name : undefined
+}
 
-function tokenize(source: string) {
+function tokenize(source: string, draft = false) {
   const args: string[] = []
   let token = ''
   let quote = ''
@@ -31,15 +134,15 @@ function tokenize(source: string) {
     const next = source[index + 1]
     const escape = char === '\\' ? readUnicodeEscape(source, index) : undefined
     if (escape) {
-      if ('error' in escape) return { args, quote, error: escape.error }
-      token += escape.text
+      if ('error' in escape && !draft) return { args, quote, error: escape.error }
+      token += draft ? source.slice(index, escape.end) : 'text' in escape ? escape.text : ''
       started = true
       index = escape.end - 1
     } else if (
       char === '\\' &&
       (next === '\\' || next === (quote || '"') || (!quote && next === "'"))
     ) {
-      token += next
+      token += draft && next === '\\' ? '\\u00005C' : next
       started = true
       index++
     } else if (quote) {
@@ -58,7 +161,37 @@ function tokenize(source: string) {
     }
   }
   if (started) args.push(token)
-  return { args, quote }
+  return { args, quote, started }
+}
+
+export function commandDraft(source: string) {
+  const parsed = tokenize(source, true)
+  const definition = commandDefinition(parsed.args[0])
+  if (!definition || parsed.quote || parsed.error) return
+  return { name: definition.name, values: parsed.args.slice(1) }
+}
+
+// Map a one-line native selection into the parameter draft without treating decoded
+// whitespace or quote escapes as command syntax. Structured retries use raw UTF-16.
+export function commandDraftSelection(source: string, selection: Span) {
+  const draft = commandDraft(source)
+  if (!draft?.values.length) return
+  const position = (offset: number) => {
+    const prefix = tokenize(source.slice(0, offset), true)
+    const index = Math.min(
+      draft.values.length - 1,
+      Math.max(0, prefix.args.length - (prefix.started ? 2 : 1)),
+    )
+    const local = prefix.started && prefix.args.length > 1 ? prefix.args.at(-1)!.length : 0
+    return { index, offset: Math.min(local, draft.values[index].length) }
+  }
+  const start = position(selection.start)
+  const end = position(selection.end)
+  const span = scalarSpan(draft.values[start.index], {
+    start: start.offset,
+    end: end.index === start.index ? end.offset : draft.values[start.index].length,
+  })
+  return { index: start.index, span }
 }
 
 export function parseCommand(source: string): Action | undefined {
@@ -66,20 +199,40 @@ export function parseCommand(source: string): Action | undefined {
   if (error) return { type: 'invalid', message: error }
   if (quote) return { type: 'invalid', message: 'Close the quoted argument.' }
   if (!args.length) return
-  const [command, argument] = args
-  const help = commandHelp.find(([usage]) => usage.split(' ')[0] === command)
-  if (!help)
+  const [command] = args
+  const definition = commandDefinition(command)
+  if (!definition)
     return { type: 'invalid', message: `Unknown command "${command}". Type help for commands.` }
-  if (Object.hasOwn(puzzleArity, command)) {
-    const verb = command as PuzzleCommand
-    if (args.length !== 1 && args.length !== puzzleArity[verb] + 1)
-      return { type: 'invalid', message: `Usage: ${help[0]}` }
-    return puzzleAction(verb, args.length > 1 ? args.slice(1) : undefined)
+  const count = args.length - 1
+  const minimum =
+    Object.hasOwn(puzzleArity, command) && !count
+      ? 0
+      : definition.arguments.filter((field) => field.required).length
+  if (count < minimum || count > definition.arguments.length)
+    return { type: 'invalid', message: `Usage: ${definition.usage}` }
+
+  return commandAction(command as CommandName, args.slice(1))
+}
+
+export function composerAction(
+  name: CommandName,
+  values: string[],
+  operations: readonly import('./scenario.ts').PuzzleBinding[],
+): Action {
+  const fields = composerArguments(name, operations)
+  const decoded: string[] = []
+  for (const [index, field] of fields.entries()) {
+    const result = decodeUnicodeEscapes(values[index] ?? field.initial)
+    if ('error' in result) return { type: 'invalid', message: field.label + ' · ' + result.error }
+    if (result.text !== '' || field.required) decoded.push(result.text)
   }
-  const minimum = help[0].includes('<') ? 2 : 1
-  const maximum = help[0].includes(' ') ? 2 : 1
-  if (args.length < minimum || args.length > maximum)
-    return { type: 'invalid', message: `Usage: ${help[0]}` }
+  return commandAction(name, decoded)
+}
+
+export function commandAction(command: CommandName, values: string[] = []): Action {
+  if (Object.hasOwn(puzzleArity, command))
+    return puzzleAction(command as PuzzleCommand, values.length ? values : undefined)
+  const argument = values[0]
   switch (command) {
     case 'connect':
       return { type: 'connect', host: argument }
@@ -101,6 +254,8 @@ export function parseCommand(source: string): Action | undefined {
     case 'logout':
     case 'clear':
       return { type: command }
+    default:
+      throw new Error('Unsupported command: ' + command)
   }
 }
 
@@ -142,16 +297,17 @@ export function matchSuggestions(source: string, candidates: string[]): string[]
 }
 
 function quote(argument: string): string {
-  return /[\s"'\\]/u.test(argument) || !argument
-    ? '"' + argument.replace(/[\\"]/g, '\\$&') + '"'
-    : argument
+  // Native single-line controls project CR/LF away. Command serialization keeps
+  // those scalars as explicit escapes, including when editing a command name.
+  const escaped = argument.replace(/[\\"]/gu, '\\$&').replace(/[\p{Cc}]/gu, scalarEscape)
+  return /[\s"'\\]/u.test(argument) || !argument ? '"' + escaped + '"' : escaped
+}
+function scalarEscape(scalar: string) {
+  return '\\u' + scalar.codePointAt(0)!.toString(16).toUpperCase().padStart(6, '0')
 }
 
 export function commandInsertion(text: string): string {
-  return text.replace(
-    /["'\\\p{White_Space}\p{Cc}]/gu,
-    (scalar) => '\\u' + scalar.codePointAt(0)!.toString(16).toUpperCase().padStart(6, '0'),
-  )
+  return text.replace(/["'\\\p{White_Space}\p{Cc}]/gu, scalarEscape)
 }
 
 export function actionCommand(action: Action): string | undefined {
@@ -178,7 +334,6 @@ export function actionCommand(action: Action): string | undefined {
     case 'invalid':
     case 'reset':
     case 'resetCampaign':
-    case 'closeEditor':
     case 'copy':
     case 'insertCommand':
     case 'editPayload':

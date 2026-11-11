@@ -15,6 +15,7 @@ import {
 const props = defineProps<{
   label: string
   modelValue: string
+  inline: boolean
   active: boolean
   unicode: boolean
   disabled: boolean
@@ -76,6 +77,10 @@ function syncControl() {
 function resize() {
   const field = control.value
   if (!field) return
+  if (props.inline) {
+    field.style.height = ''
+    return
+  }
   field.style.height = 'auto'
   field.style.height = Math.min(96, Math.max(36, field.scrollHeight)) + 'px'
 }
@@ -230,6 +235,8 @@ defineExpose({ apply, focusAt, context: () => ({ ...selection.value }) })
       autocomplete="off"
       autocorrect="off"
       rows="1"
+      :placeholder="inline ? label : undefined"
+      :wrap="inline ? 'off' : 'soft'"
       :readonly="disabled"
       :enterkeyhint="last ? 'go' : 'next'"
       @keydown="emit('key', $event)"

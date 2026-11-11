@@ -327,12 +327,25 @@ for (const [width, height] of [
       await capture('03-dropdown')
       await page.keyboard.press('Escape')
       await select(page, 'ls')
-      await expect(field(page, 'path')).toBeVisible()
+      const path = field(page, 'path')
+      await expect(path).toBeVisible()
+      await expect(path).toHaveAttribute('placeholder', 'path')
+      const tagBox = (await tag(page).boundingBox())!
+      const pathBox = (await path.boundingBox())!
+      const runBox = (await run(page).boundingBox())!
+      expect(Math.abs(pathBox.y + pathBox.height / 2 - tagBox.y - tagBox.height / 2)).toBeLessThan(
+        2,
+      )
+      expect(pathBox.x).toBeGreaterThan(tagBox.x + tagBox.width)
+      expect(pathBox.x + pathBox.width).toBeLessThanOrEqual(runBox.x)
+      await capture('03-inline-path')
       await run(page).click()
       await expect(log(page).locator('.terminal-entry').last()).toContainText('/')
       await quick(page, 'Login').click()
       const alias = field(page, 'Account alias')
+      await expect(alias).toHaveAttribute('placeholder', 'Account alias')
       await alias.fill('a🧪é​'.repeat(100))
+      expect((await alias.boundingBox())!.height).toBe(width <= 768 ? 44 : 36)
       await selection(alias, 0, 1)
       await page
         .getByRole('form', { name: 'Command composer' })

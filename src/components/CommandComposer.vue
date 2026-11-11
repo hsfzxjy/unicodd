@@ -443,7 +443,7 @@ defineExpose({
   >
     <form
       class="prompt"
-      :class="{ structured: selected }"
+      :class="{ structured: selected, 'single-argument': fields.length === 1 }"
       aria-label="Command composer"
       @submit.prevent="submit"
     >
@@ -508,6 +508,7 @@ defineExpose({
           :key="selected + '/' + field.name"
           :ref="(instance) => setEditor(index, instance)"
           :label="field.label"
+          :inline="fields.length === 1"
           :model-value="values[index] ?? ''"
           :active="activeIndex === index"
           :unicode="field.kind === 'payload' || field.kind === 'scalar'"

@@ -946,3 +946,69 @@ h1.terminal-scenario {
   display: inline-flex;
   gap: 6px;
 }
+
+.prompt.single-argument {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) max-content minmax(24px, 1fr) max-content;
+  align-items: center;
+  column-gap: 6px;
+}
+.single-argument .prompt-line,
+.single-argument .composer-arguments,
+.single-argument .composer-argument {
+  display: contents;
+}
+.single-argument .prompt-host {
+  grid-column: 1;
+  grid-row: 1;
+  max-width: min(22vw, 14ch);
+}
+.single-argument .command-tag {
+  grid-column: 2;
+  grid-row: 1;
+}
+.single-argument .run-command {
+  grid-column: 4;
+  grid-row: 1;
+}
+.single-argument .composer-argument > label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.single-argument .composer-argument textarea {
+  grid-column: 3;
+  grid-row: 1;
+  min-width: 0;
+  height: 36px;
+  max-height: 36px;
+  overflow: auto;
+}
+.composer-argument textarea::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+.single-argument .composer-fixed {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+.single-argument .payload-tools {
+  grid-column: 1 / -1;
+  grid-row: 3;
+}
+.single-argument .point-view {
+  grid-column: 1 / -1;
+  grid-row: 4;
+  max-height: min(45dvh, 300px);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+@media (max-width: 600px), (pointer: coarse) {
+  .single-argument .composer-argument textarea {
+    height: 44px;
+    max-height: 44px;
+  }
+}

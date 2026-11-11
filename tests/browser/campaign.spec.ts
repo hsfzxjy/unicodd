@@ -382,11 +382,56 @@ test('completes and replays the entire campaign with commands across reloads', a
   await expect(link(page, 'A favor')).toHaveCount(1)
 })
 
-test('ignores development scenario entry on the built site', async ({ page }) => {
+test('switches levels in a debug session and keeps the campaign save separate', async ({
+  page,
+}, info) => {
+  test.skip(Boolean(process.env.PLAYWRIGHT_TEST_PREVIEW), 'Requires the development server')
+  const saved = JSON.stringify({
+    version: 1,
+    current: '001-the-relay',
+    completed: [],
+    delivered: ['favor'],
+    read: ['favor'],
+  })
+  await page.addInitScript((value) => {
+    if (!localStorage.getItem('unicodd.campaign')) localStorage.setItem('unicodd.campaign', value)
+  }, saved)
+  await openCampaign(page, '/?debug=1&scenario=006-the-release')
+  const levels = page.getByRole('combobox', { name: 'Debug level' })
+  await expect(levels).toHaveValue('006-the-release')
+  await expect(levels.getByRole('option')).toHaveCount(9)
+  await run(page, 'prepare registration preserve')
+  await expect(transcript(page)).toContainText('Identity mapping staged.')
+  await page.getByRole('textbox', { name: 'Terminal command' }).fill('preview grapheme')
+  await page.screenshot({ path: info.outputPath('debug-level-desktop.png') })
+
+  await levels.selectOption('009-the-boundary')
+  await expect(levels).toHaveValue('009-the-boundary')
+  await expect(transcript(page)).not.toContainText('Identity mapping staged.')
+  await page.setViewportSize({ width: 390, height: 435 })
+  await page.screenshot({ path: info.outputPath('debug-level-compact.png') })
+  await levels.selectOption('006-the-release')
+  await expect(transcript(page)).toContainText('Identity mapping staged.')
+  await expect(page.getByRole('textbox', { name: 'Terminal command' })).toHaveValue(
+    'preview grapheme',
+  )
+  expect(await page.evaluate(() => localStorage.getItem('unicodd.campaign'))).toBe(saved)
+
+  await openCampaign(page)
+  await expect(levels).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'The Relay' })).toBeVisible()
+  await run(page, 'scenario 009-the-boundary')
+  await expect(transcript(page)).toContainText('Unknown destination: 009-the-boundary')
+})
+
+test('ignores debug mode and direct scenario entry on the built site', async ({ page }) => {
   test.skip(!process.env.PLAYWRIGHT_TEST_PREVIEW, 'Requires the production build')
-  await openCampaign(page, '/?scenario=006-the-release')
+  await openCampaign(page, '/?debug=1&scenario=006-the-release')
+  await expect(page.getByRole('combobox', { name: 'Debug level' })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'The Relay' })).toBeVisible()
   await expect(panel(page)).toContainText('local')
+  await run(page, 'scenario 006-the-release')
+  await expect(transcript(page)).toContainText('Unknown destination: 006-the-release')
 })
 
 test('keeps internal puzzle matrix files off the game server', async ({ page }) => {

@@ -165,14 +165,18 @@ function decode(raw: string | null): Save | undefined {
   }
 }
 
+export type DirectEntry = string | { debug: true; initial?: string }
+
 export function createCampaign(
   scenarios: readonly Scenario[],
   storage?: StorageAccess,
-  direct?: string,
+  direct?: DirectEntry,
   replay?: CampaignSnapshot,
 ) {
   const available = scenarios.filter((item) => item.available)
   const byId = new Map(available.map((item) => [item.id, item]))
+  const debugging = typeof direct === 'object' && direct.debug
+  const initial = typeof direct === 'object' ? direct.initial : direct
   const inbox = new Map(
     available.flatMap((item) => item.inbox?.messages ?? []).map((item) => [item.id, item]),
   )
@@ -187,8 +191,12 @@ export function createCampaign(
   let current = ''
   let restoring = true
 
+  function isDirect(id: string) {
+    return byId.has(id) && (debugging || initial === id)
+  }
+
   function selectable(id: string) {
-    return discovered.has(id) || (direct === id && byId.has(id))
+    return discovered.has(id) || isDirect(id)
   }
 
   function start() {
@@ -291,7 +299,7 @@ export function createCampaign(
       for (const id of saved.delivered) deliver(id)
       for (const scenario of available) {
         const { id, recovery } = scenario
-        if (!discovered.has(id) || !saved.completed.includes(id)) continue
+        if (!selectable(id) || !saved.completed.includes(id)) continue
         const handoff = saved.handoffs?.[id]
         if (
           validHandoff(handoff) &&
@@ -330,7 +338,7 @@ export function createCampaign(
     // Browser storage may be blocked.
   }
   restoring = false
-  enter(direct && selectable(direct) ? direct : current)
+  enter(!replay && initial && selectable(initial) ? initial : current)
 
   return {
     get current() {
@@ -368,7 +376,7 @@ export function createCampaign(
       return added
     },
     selectable,
-    direct: (id: string) => direct === id,
+    direct: isDirect,
     handoff: (id: string) => handoffs.get(id),
     completed: (id: string) => completed.has(id),
     destinations: () => available.filter(({ id }) => selectable(id)),

@@ -2,7 +2,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import Terminal from './components/Terminal.vue'
 import logicRevision from 'virtual:unicodd-logic-revision'
-import { createCampaign } from './lib/campaign'
+import { createCampaign, type DirectEntry } from './lib/campaign'
 import { actionCommand, puzzleAction } from './lib/commands'
 import type { createContentLoader, ScenarioEntry } from './lib/content'
 import { createRuntime, type Action, type Link, type Session } from './lib/runtime'
@@ -20,6 +20,15 @@ import {
 import type { Engine } from './types'
 
 const props = defineProps<{ content: ReturnType<typeof createContentLoader>; engine: Engine }>()
+const devQuery = import.meta.env.DEV ? new URLSearchParams(location.search) : undefined
+const debugSelector =
+  import.meta.env.DEV && devQuery?.get('debug') === '1'
+    ? { label: 'Debug level', optionSuffix: ' · Debug' }
+    : undefined
+const requestedScenario = devQuery?.get('scenario') ?? undefined
+const direct: DirectEntry | undefined = debugSelector
+  ? { debug: true, initial: requestedScenario }
+  : requestedScenario
 const catalog = shallowRef<ScenarioEntry[]>([])
 const scenarios = shallowRef<Scenario[]>([])
 let campaign: ReturnType<typeof createCampaign> | undefined
@@ -157,9 +166,6 @@ async function loadCatalog() {
     catalog.value = await props.content.manifest()
     scenarios.value = await props.content.campaign(catalog.value)
     revision = await historyRevision(logicRevision, [catalog.value, scenarios.value])
-    const direct = import.meta.env.DEV
-      ? (new URLSearchParams(location.search).get('scenario') ?? undefined)
-      : undefined
     let storage: Storage | undefined
     try {
       if (!direct) storage = window.localStorage
@@ -206,7 +212,7 @@ watch([scenarioId, attempt], async ([id]) => {
         loaded,
         scenarios.value,
         props.engine,
-        campaign.direct(id),
+        direct,
       )
       if (runtime !== active) return
       baseline = saved.journal.start
@@ -463,19 +469,19 @@ async function dispatch(action: Action, command?: string) {
         @change="scheduleSave"
       >
         <template #scenario>
-          <h1 v-if="destinations.length === 1" class="terminal-scenario">
+          <h1 v-if="destinations.length === 1 && !debugSelector" class="terminal-scenario">
             <bdi>{{ scenario.title }}</bdi>
           </h1>
           <select
             v-else
             :value="scenarioId"
             class="terminal-scenario"
-            aria-label="Scenario"
+            :aria-label="debugSelector?.label ?? 'Scenario'"
             :disabled="busy"
             @change="dispatch({ type: 'scenario', id: ($event.target as HTMLSelectElement).value })"
           >
             <option v-for="entry in destinations" :key="entry.id" :value="entry.id">
-              {{ entry.label }}
+              {{ entry.label + (debugSelector?.optionSuffix ?? '') }}
             </option>
           </select>
         </template>

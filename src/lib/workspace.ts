@@ -1,4 +1,4 @@
-import { createCampaign, type CampaignSnapshot } from './campaign.ts'
+import { createCampaign, type CampaignSnapshot, type DirectEntry } from './campaign.ts'
 import { actionCommand, commandDefinition, type CommandName } from './commands.ts'
 import { createRuntime, type Action, type Output, type RuntimeSnapshot } from './runtime.ts'
 import type { Scenario } from './scenario.ts'
@@ -117,16 +117,11 @@ export async function replayJournal(
   scenario: Scenario,
   scenarios: readonly Scenario[],
   engine: Engine,
-  direct: boolean,
+  direct?: DirectEntry,
 ) {
   function open(checkpoint: Checkpoint) {
     if (!checkpoint?.runtime || !checkpoint.campaign) throw new Error('Invalid checkpoint')
-    const campaign = createCampaign(
-      scenarios,
-      undefined,
-      direct ? scenario.id : undefined,
-      checkpoint.campaign,
-    )
+    const campaign = createCampaign(scenarios, undefined, direct, checkpoint.campaign)
     return { campaign, runtime: createRuntime(scenario, engine, campaign, checkpoint.runtime) }
   }
 

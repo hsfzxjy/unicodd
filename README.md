@@ -25,6 +25,10 @@ npx playwright install chromium
 npm run test:browser
 ```
 
+### Debug levels
+
+With `npm run dev`, open `/?debug=1` to switch between all available levels from the terminal title bar. Add `&scenario=<id>` to start on a specific level. The debug session uses direct-entry evidence and keeps its workspaces in memory for the lifetime of the page.
+
 ## Composing commands
 
 Type a command followed by Space to select its tag and edit its arguments in the terminal prompt. Click the tag to switch commands without executing them. Enter on a bare command with required arguments opens its fields. Complete one-line commands, including quoted arguments, still work.

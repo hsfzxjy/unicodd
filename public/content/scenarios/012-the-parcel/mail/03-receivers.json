@@ -1,0 +1,12 @@
+{
+  "messages": [
+    {
+      "id": "03-receivers",
+      "from": "Helena / MONONYM",
+      "to": "Local operator",
+      "subject": "What the client teams need",
+      "body": "The importer can keep the original names in the manifest. It only needs a dependable path to open each payload. If this batch works, I’ll use it in our routine client checks.",
+      "date": "2026-09-04"
+    }
+  ]
+}

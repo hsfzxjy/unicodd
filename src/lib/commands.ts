@@ -208,6 +208,26 @@ export const commandRegistry = [
   ),
   recoveryCommand('surfaces', 'Inspect an output from the candidate release.', 'surface'),
   recoveryCommand('audit', 'Verify the candidate publication across its output surfaces.'),
+  recoveryCommand('targets', 'List the virtual extraction targets and comparison policies.'),
+  recoveryCommand(
+    'probe-path',
+    'Trace a path through a target namespace.',
+    'target',
+    'transform',
+    'path',
+  ),
+  recoveryCommand(
+    'assets',
+    'Read the approved public inventory or an individual asset.',
+    'file-id',
+  ),
+  recoveryCommand(
+    'extract',
+    'Stage a virtual extraction and inspect its result.',
+    'target',
+    'mapping',
+  ),
+  recoveryCommand('roundtrip', 'Read back the staged public bundle on every target.'),
   {
     name: 'campaign',
     usage: 'campaign',

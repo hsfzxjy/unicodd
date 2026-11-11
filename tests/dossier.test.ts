@@ -83,3 +83,25 @@ it.each([String.raw`{"x":"\uDEAD"}`, String.raw`{"x":"first","\u0078":"second"}`
     })
   },
 )
+
+it('reports target-specific path parsing and rejects newly created separators', async () => {
+  const probe = (target: string, transform: string, path: string) =>
+    engine.runDossier({
+      version: 1,
+      dataset,
+      command: 'probe-path',
+      args: [target, transform, path],
+    })
+  await expect(probe('posix-cs', 'raw', 'notes／sample.txt')).resolves.toMatchObject({
+    ok: true,
+    value: { solved: true },
+  })
+  await expect(probe('posix-cs', 'nfkc', 'notes／sample.txt')).resolves.toMatchObject({
+    ok: true,
+    value: { solved: false, rows: [{ label: 'posix-cs' }, { fields: ['structural-change'] }] },
+  })
+  await expect(probe('win32-compat', 'raw', 'samples/COM¹.txt')).resolves.toMatchObject({
+    ok: true,
+    value: { solved: false, rows: [{ label: 'win32-compat' }, { fields: ['device-name'] }] },
+  })
+})

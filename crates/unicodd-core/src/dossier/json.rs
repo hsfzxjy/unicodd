@@ -36,8 +36,12 @@ impl JsonString {
 /// The source and interoperability exercise use a flat object of strings.
 /// Let serde validate the grammar and scalar encoding before scanning token ranges.
 pub(super) fn parse(raw: &str) -> Result<BTreeMap<String, JsonString>, String> {
+    let start = skip(raw, 0);
+    if raw.as_bytes().get(start) != Some(&b'{') {
+        return Err("Expected a flat JSON object of strings.".into());
+    }
     serde_json::from_str::<BTreeMap<String, String>>(raw).map_err(|issue| issue.to_string())?;
-    let mut cursor = skip(raw, 0) + 1; // opening brace
+    let mut cursor = start + 1;
     let mut fields = BTreeMap::new();
     loop {
         cursor = skip(raw, cursor);

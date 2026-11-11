@@ -1,0 +1,12 @@
+{
+  "messages": [
+    {
+      "id": "01-names",
+      "from": "Eli / MONONYM",
+      "to": "Local operator",
+      "subject": "Three extracts, three results",
+      "body": "I sent the same approved batch through the receivers. One restored every file. Another reported an existing name. The third refused a name even with .txt on it. I had been assuming a normalization pass would make all three agree.",
+      "date": "2026-09-04"
+    }
+  ]
+}

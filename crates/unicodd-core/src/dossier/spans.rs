@@ -48,6 +48,7 @@ pub(super) fn coordinates(text: &str, span: Range<usize>) -> Coordinates {
 pub(super) enum Normalization {
     Raw,
     Nfc,
+    Nfd,
     Nfkc,
     StripMarks,
 }
@@ -118,6 +119,9 @@ fn normalize(input: Vec<Scalar>, form: Normalization) -> Vec<Scalar> {
     }
     decomposed[start..].sort_by_key(class);
 
+    if form == Normalization::Nfd {
+        return decomposed;
+    }
     if form == Normalization::StripMarks {
         // This deliberately lossy profile removes non-starter marks.
         return decomposed
@@ -203,6 +207,7 @@ mod tests {
         for text in input {
             for (form, oracle) in [
                 (Normalization::Nfc, crate::Form::NFC),
+                (Normalization::Nfd, crate::Form::NFD),
                 (Normalization::Nfkc, crate::Form::NFKC),
             ] {
                 assert_eq!(

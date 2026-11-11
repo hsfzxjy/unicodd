@@ -1,0 +1,20 @@
+{
+  "messages": [
+    {
+      "id": "dossier-delivery",
+      "from": "Nia / MONONYM",
+      "to": "Local operator",
+      "subject": "Receiver checks for the approved corpus",
+      "body": "Mara has approved the public projection. The receiving teams’ filename checks differ. Can you run the delivery sandbox at bundle-17 before I close the handoff?",
+      "date": "2026-09-04"
+    },
+    {
+      "id": "dossier-delivered",
+      "from": "Nia / MONONYM",
+      "to": "Local operator",
+      "subject": "The client team restored the batch",
+      "body": "The receivers confirmed all the source references and payloads. Mara filed her scoped approval and I closed the delivery item. Eli is looking at adding the portability check to the usual release jobs.",
+      "date": "2026-09-05"
+    }
+  ]
+}

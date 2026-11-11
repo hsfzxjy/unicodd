@@ -173,6 +173,7 @@ async function loadCatalog() {
       // Continue without persistence if the browser blocks storage.
     }
     campaign = createCampaign(scenarios.value, storage, direct)
+    await campaign.verifyDossier(props.engine)
     campaign.invalidateHistory(revision)
     scenarioId.value = campaign.current
   } catch (error) {

@@ -2,6 +2,7 @@ import type { Engine, EngineError, Program } from '../types.ts'
 import { commandRegistry } from './commands.ts'
 import {
   dossierArity,
+  dossierCandidates,
   dossierPredecessor,
   dossierStages,
   isDossierCommand,
@@ -197,6 +198,14 @@ export function createContentLoader(
   }
 
   const datasets = new Map<string, Promise<RecoveryDataset>>()
+  const dossiers = new Map<string, Promise<{ dataset: unknown; snapshot: string }>>()
+
+  async function loadDossier(path: string) {
+    const { value: dataset } = await json(path)
+    const validation = await engine.validateDossier(dataset)
+    if (!validation.ok) engineFailure(path, validation.error)
+    return { dataset, snapshot: validation.value }
+  }
 
   async function loadDataset(path: string, archive?: string): Promise<RecoveryDataset> {
     const data = await json(path)
@@ -342,13 +351,18 @@ export function createContentLoader(
       const dossier = await get('dossier').optional(async (field) => {
         const get = field.object('dataset', 'prior')
         const path = get('dataset').asset(true)
-        const { value: dataset } = await json(path)
-        const snapshot = await engine.validateDossier(dataset)
-        if (!snapshot.ok) engineFailure(path, snapshot.error)
+        if (!dossiers.has(path)) {
+          dossiers.set(
+            path,
+            loadDossier(path).catch((error) => {
+              dossiers.delete(path)
+              throw error
+            }),
+          )
+        }
         return {
           path,
-          dataset,
-          snapshot: snapshot.value,
+          ...(await dossiers.get(path)!),
           prior: get('prior').optional((item) => item.id()),
         }
       })
@@ -789,10 +803,15 @@ export function createContentLoader(
         const host = hosts.find(({ resources }) => resources.some(({ id }) => id === read))
         const gate = host?.resources.find(({ id }) => id === read)?.access?.flag
         const operation = host?.recovery?.find(({ command }) => command === dossierStages[stage])
+        const candidate = host?.recovery?.find(
+          ({ command }) => command === dossierCandidates[stage],
+        )
         if (
           !dossier ||
           handoff ||
           !gate ||
+          !candidate?.invalidates.includes(gate) ||
+          !operation?.invalidates.includes(gate) ||
           !operation?.success.some((effect) => effect.type === 'flag' && effect.flag === gate)
         )
           objective('dossier').fail(

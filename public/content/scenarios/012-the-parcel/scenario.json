@@ -1,0 +1,229 @@
+{
+  "version": 1,
+  "title": "The Parcel",
+  "introduction": "The dossier is approved. The receiving teams use three different extraction targets and have reported different results.",
+  "roles": ["delivery-operator"],
+  "flags": ["delivery_verified"],
+  "local": {
+    "user": "delivery-operator",
+    "role": "delivery-operator"
+  },
+  "initialHost": "bundle-17",
+  "dossier": {
+    "dataset": "dossier/summer-duty.json",
+    "prior": "011-the-mask"
+  },
+  "hosts": [
+    {
+      "id": "bundle-17",
+      "name": "MONONYM delivery sandbox",
+      "guest": {
+        "user": "delivery-operator",
+        "role": "delivery-operator"
+      },
+      "welcome": "Virtual extraction desk. Each trial stages an isolated tree from the approved public inventory.",
+      "status": [
+        {
+          "label": "Dossier delivery",
+          "value": "Target trials pending",
+          "after": {
+            "flag": "delivery_verified",
+            "value": "All target reads verified"
+          }
+        }
+      ],
+      "resources": [
+        {
+          "id": "mail",
+          "path": "/mail",
+          "type": "directory"
+        },
+        {
+          "id": "tools",
+          "path": "/tools",
+          "type": "directory"
+        },
+        {
+          "id": "logs",
+          "path": "/logs",
+          "type": "directory"
+        },
+        {
+          "id": "reports",
+          "path": "/reports",
+          "type": "directory"
+        },
+        {
+          "id": "readme",
+          "path": "/README",
+          "type": "file",
+          "content": "files/readme.txt"
+        },
+        {
+          "id": "profiles",
+          "path": "/tools/targets.txt",
+          "type": "file",
+          "content": "files/profiles.txt"
+        },
+        {
+          "id": "mapping",
+          "path": "/tools/mapping.txt",
+          "type": "file",
+          "content": "files/mapping.txt"
+        },
+        {
+          "id": "sandbox",
+          "path": "/logs/trial-fixtures.txt",
+          "type": "file",
+          "content": "files/sandbox.txt"
+        },
+        {
+          "id": "final-report",
+          "path": "/reports/delivery.txt",
+          "type": "file",
+          "content": "files/final-report.txt",
+          "access": {
+            "flag": "delivery_verified"
+          },
+          "denied": "Run the full verification before opening this report."
+        },
+        {
+          "id": "01-names",
+          "path": "/mail/01-names",
+          "type": "mail",
+          "content": "mail/01-names.json"
+        },
+        {
+          "id": "02-digests",
+          "path": "/mail/02-digests",
+          "type": "mail",
+          "content": "mail/02-digests.json"
+        },
+        {
+          "id": "03-receivers",
+          "path": "/mail/03-receivers",
+          "type": "mail",
+          "content": "mail/03-receivers.json"
+        }
+      ],
+      "recovery": [
+        {
+          "command": "targets",
+          "actionLabel": "Show extraction targets",
+          "label": "Show extraction targets",
+          "submitLabel": "Run targets",
+          "fields": [],
+          "quick": true,
+          "success": [],
+          "failure": "The current attempt did not pass review."
+        },
+        {
+          "command": "assets",
+          "actionLabel": "Read approved assets",
+          "label": "Read approved assets",
+          "submitLabel": "Run assets",
+          "fields": [
+            {
+              "input": "file",
+              "label": "Public file",
+              "initial": "all",
+              "kind": "text"
+            }
+          ],
+          "quick": true,
+          "success": [],
+          "failure": "The current attempt did not pass review."
+        },
+        {
+          "command": "probe-path",
+          "actionLabel": "Trace a target path",
+          "label": "Trace a target path",
+          "submitLabel": "Run probe-path",
+          "fields": [
+            {
+              "input": "target",
+              "label": "Target",
+              "initial": "win32-compat",
+              "kind": "text"
+            },
+            {
+              "input": "transform",
+              "label": "Transform",
+              "initial": "raw",
+              "kind": "text"
+            },
+            {
+              "input": "path",
+              "label": "Path",
+              "initial": "NUL.txt",
+              "kind": "payload"
+            }
+          ],
+          "quick": true,
+          "success": [],
+          "failure": "The current attempt did not pass review."
+        },
+        {
+          "command": "extract",
+          "actionLabel": "Stage virtual extraction",
+          "label": "Stage virtual extraction",
+          "submitLabel": "Run extract",
+          "fields": [
+            {
+              "input": "target",
+              "label": "Target",
+              "initial": "all",
+              "kind": "text"
+            },
+            {
+              "input": "mapping",
+              "label": "Mapping",
+              "initial": "raw",
+              "kind": "payload"
+            }
+          ],
+          "quick": true,
+          "success": [],
+          "failure": "The current attempt did not pass review.",
+          "invalidates": ["delivery_verified"]
+        },
+        {
+          "command": "roundtrip",
+          "actionLabel": "Verify restored bundle",
+          "label": "Verify restored bundle",
+          "submitLabel": "Run roundtrip",
+          "fields": [],
+          "quick": true,
+          "success": [
+            {
+              "type": "flag",
+              "flag": "delivery_verified"
+            },
+            {
+              "type": "resourceLink",
+              "resource": "final-report"
+            }
+          ],
+          "failure": "The current attempt did not pass review.",
+          "invalidates": ["delivery_verified"]
+        }
+      ]
+    }
+  ],
+  "objective": {
+    "text": "Verify the approved parcel on all three targets and read the delivery report.",
+    "read": "final-report",
+    "dossier": "bundle",
+    "message": "The dossier delivery is complete. The receivers verified every approved source file.",
+    "onComplete": [
+      {
+        "type": "deliverMail",
+        "message": "dossier-delivered"
+      }
+    ]
+  },
+  "inbox": {
+    "content": "mail/inbox.json",
+    "initial": ["dossier-delivery"]
+  }
+}

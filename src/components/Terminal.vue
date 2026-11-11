@@ -26,6 +26,12 @@ const props = defineProps<{
   execute: (action: Action, echo?: string) => Promise<import('../lib/runtime').Response | undefined>
 }>()
 const emit = defineEmits<{ action: [Action, string?]; change: [] }>()
+const sourceCoordinates = [
+  ['utf8', 'UTF-8'],
+  ['utf16', 'UTF-16'],
+  ['scalars', 'Scalars'],
+  ['graphemes', 'Graphemes'],
+] as const
 const outputPrefix = useId() + '-output-'
 const scroll = ref<HTMLDivElement>()
 const frame = ref<HTMLElement>()
@@ -389,7 +395,7 @@ defineExpose({
                       {{ hexadecimal(byte, 2) }}
                     </button>
                   </span>
-                  <span v-else class="report-fields" data-resource-text>
+                  <span v-else-if="record.fields.length" class="report-fields" data-resource-text>
                     <bdi v-for="(field, index) in record.fields" :key="index">{{ field }}</bdi>
                   </span>
                   <template v-if="record.source">
@@ -398,13 +404,34 @@ defineExpose({
                       >{{ record.source.after }}</bdi
                     >
                     <span class="report-details" dir="ltr">
-                      <span>UTF-8 {{ record.source.coordinates.utf8.join('–') }}</span>
-                      <span>UTF-16 {{ record.source.coordinates.utf16.join('–') }}</span>
-                      <span>Scalars {{ record.source.coordinates.scalars.join('–') }}</span>
-                      <span>
-                        Graphemes {{ record.source.coordinates.graphemes.join('–') }}
-                        {{ record.source.coordinates.exactGraphemes ? '' : '(covering)' }}
-                      </span>
+                      <template v-for="[space, label] in sourceCoordinates" :key="space">
+                        <button
+                          v-if="composer?.canInsert"
+                          type="button"
+                          class="terminal-link"
+                          :aria-label="
+                            'Use ' + label + ' range ' + record.source.coordinates[space].join('-')
+                          "
+                          :aria-disabled="busy || undefined"
+                          @click="
+                            !busy &&
+                            emit('action', {
+                              type: 'editPayload',
+                              mode: composer.canReplace ? 'replace' : 'insert',
+                              text: record.source.coordinates[space].join('-'),
+                            })
+                          "
+                        >
+                          {{ label }} {{ record.source.coordinates[space].join('–') }}
+                        </button>
+                        <span v-else
+                          >{{ label }} {{ record.source.coordinates[space].join('–') }}</span
+                        >
+                        <span
+                          v-if="space === 'graphemes' && !record.source.coordinates.exactGraphemes"
+                          >(covering)</span
+                        >
+                      </template>
                     </span>
                   </template>
                   <button

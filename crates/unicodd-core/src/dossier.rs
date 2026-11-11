@@ -1,4 +1,7 @@
+mod extraction;
 mod json;
+mod parcel;
+mod paths;
 mod publication;
 mod search;
 mod spans;
@@ -22,6 +25,8 @@ pub struct Dataset {
     records: Vec<Record>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     publication: Option<publication::Policy>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    parcel: Option<parcel::Sandbox>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -73,6 +78,9 @@ pub fn validate(dataset: &Dataset) -> Result<String, EngineError> {
     if let Some(policy) = &dataset.publication {
         publication::validate(dataset, policy)?;
     }
+    if let Some(sandbox) = &dataset.parcel {
+        sandbox.validate()?;
+    }
     #[derive(Serialize)]
     #[serde(rename_all = "camelCase")]
     struct Catalog<'a> {
@@ -120,6 +128,11 @@ enum Command {
     Redact,
     Surfaces,
     Audit,
+    Targets,
+    ProbePath,
+    Assets,
+    Extract,
+    Roundtrip,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -131,6 +144,8 @@ struct Receipt {
     digest: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     publication: Option<Review>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    bundle: Option<Review>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -243,6 +258,11 @@ pub fn run(request: Request) -> Result<Report, EngineError> {
         Command::Redact => (3, &["selection", "candidate"]),
         Command::Surfaces => (1, &["selection", "candidate", "surface"]),
         Command::Audit => (0, publication::CHECKS),
+        Command::Targets => (0, &[]),
+        Command::ProbePath => (3, &["profile", "path"]),
+        Command::Assets => (1, &["publication", "candidate"]),
+        Command::Extract => (2, &["publication", "candidate", "archive"]),
+        Command::Roundtrip => (0, parcel::CHECKS),
     };
     if version != VERSION || args.len() != arity || args.iter().any(|arg| arg.len() > 2048) {
         return Err(EngineError::new(
@@ -267,6 +287,18 @@ pub fn run(request: Request) -> Result<Report, EngineError> {
             publication::check_json(dataset.publication.as_ref(), &mut report, &args[0]);
             Ok(())
         }
+        Command::Targets
+        | Command::ProbePath
+        | Command::Assets
+        | Command::Extract
+        | Command::Roundtrip => parcel::run(
+            &dataset,
+            command,
+            args,
+            &mut report,
+            prior.as_ref(),
+            &snapshot,
+        ),
         _ => {
             let policy = dataset.publication.as_ref().ok_or_else(|| {
                 EngineError::new(

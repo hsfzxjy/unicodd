@@ -1,0 +1,1 @@
+Start with the approved assets and the receiver notes. Reproduce the filename failures, then verify a bundle whose file references survive every reader. Sandbox samples are independent fixtures and cannot join the public parcel.

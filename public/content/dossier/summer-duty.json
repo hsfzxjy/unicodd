@@ -177,5 +177,479 @@
       "doubled": "{\"note\":\"\\\\u00C9\"}",
       "decomposed": "{\"note\":\"E\\u0301\"}"
     }
+  },
+  "parcel": {
+    "samples": {
+      "links": [
+        {
+          "id": "specimen",
+          "path": "safe.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "alias",
+          "path": "linked.txt",
+          "kind": "symlink",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "alias2",
+          "path": "hard.txt",
+          "kind": "hardlink",
+          "size": 1,
+          "payload": "x"
+        }
+      ],
+      "parents": [
+        {
+          "id": "ok",
+          "path": "safe.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "parent-slash",
+          "path": "../outside.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "parent-backslash",
+          "path": "..\\outside.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        }
+      ],
+      "roots": [
+        {
+          "id": "root",
+          "path": "/absolute.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "drive",
+          "path": "D:\\outside.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "unc",
+          "path": "\\\\receiver\\share\\demo.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        }
+      ],
+      "prefix": [
+        {
+          "id": "file",
+          "path": "route",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "nested",
+          "path": "route/leaf.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        }
+      ],
+      "duplicates": [
+        {
+          "id": "same",
+          "path": "first.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "same",
+          "path": "second.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        }
+      ],
+      "directories": [
+        {
+          "id": "first",
+          "path": "Samples/a.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "second",
+          "path": "samples/b.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        }
+      ],
+      "limits": [
+        {
+          "id": "size",
+          "path": "size.txt",
+          "kind": "file",
+          "size": 262144,
+          "payload": "x"
+        }
+      ],
+      "count": [
+        {
+          "id": "p0",
+          "path": "p0.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p1",
+          "path": "p1.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p2",
+          "path": "p2.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p3",
+          "path": "p3.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p4",
+          "path": "p4.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p5",
+          "path": "p5.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p6",
+          "path": "p6.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p7",
+          "path": "p7.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p8",
+          "path": "p8.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p9",
+          "path": "p9.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p10",
+          "path": "p10.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p11",
+          "path": "p11.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p12",
+          "path": "p12.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p13",
+          "path": "p13.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p14",
+          "path": "p14.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p15",
+          "path": "p15.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p16",
+          "path": "p16.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p17",
+          "path": "p17.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p18",
+          "path": "p18.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p19",
+          "path": "p19.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p20",
+          "path": "p20.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p21",
+          "path": "p21.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p22",
+          "path": "p22.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p23",
+          "path": "p23.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p24",
+          "path": "p24.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p25",
+          "path": "p25.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p26",
+          "path": "p26.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p27",
+          "path": "p27.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p28",
+          "path": "p28.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p29",
+          "path": "p29.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p30",
+          "path": "p30.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p31",
+          "path": "p31.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p32",
+          "path": "p32.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p33",
+          "path": "p33.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p34",
+          "path": "p34.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p35",
+          "path": "p35.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p36",
+          "path": "p36.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p37",
+          "path": "p37.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p38",
+          "path": "p38.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p39",
+          "path": "p39.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "p40",
+          "path": "p40.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        }
+      ],
+      "length": [
+        {
+          "id": "too-long",
+          "path": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "bad-count",
+          "path": "length.txt",
+          "kind": "file",
+          "size": 2,
+          "payload": "x"
+        }
+      ],
+      "component": [
+        {
+          "id": "valid",
+          "path": "a／b.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "dots",
+          "path": "．．/demo.txt",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        }
+      ],
+      "devices": [
+        {
+          "id": "suffix",
+          "path": "folder/COM¹.log",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "trailing",
+          "path": "folder/note.txt ",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        },
+        {
+          "id": "colon",
+          "path": "folder/label:tag",
+          "kind": "file",
+          "size": 1,
+          "payload": "x"
+        }
+      ]
+    }
   }
 }

@@ -65,6 +65,12 @@
       "label": "The Mask",
       "scenario": "scenarios/011-the-mask/scenario.json",
       "initiallyDiscovered": false
+    },
+    {
+      "id": "012-the-parcel",
+      "label": "The Parcel",
+      "scenario": "scenarios/012-the-parcel/scenario.json",
+      "initiallyDiscovered": false
     }
   ]
 }

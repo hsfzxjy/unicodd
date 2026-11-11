@@ -1,6 +1,7 @@
 import type { MailMessage, Scenario } from './scenario.ts'
 import type { Handoff } from './recovery.ts'
-import { validDossierReceipt, type DossierReceipt } from './dossier.ts'
+import type { Engine } from '../types.ts'
+import { dossierReview, sameReceipt, validDossierReceipt, type DossierReceipt } from './dossier.ts'
 import type { LevelSave } from './workspace.ts'
 
 export const campaignKey = 'unicodd.campaign'
@@ -190,6 +191,7 @@ export function createCampaign(
   const readResources = new Set<string>()
   const handoffs = new Map<string, Handoff>()
   const dossierReceipts = new Map<string, DossierReceipt>()
+  const staleDossier = new Set<string>()
   const levels = new Map<string, LevelSave>()
   let current = ''
   let restoring = true
@@ -211,6 +213,7 @@ export function createCampaign(
     readResources.clear()
     handoffs.clear()
     dossierReceipts.clear()
+    staleDossier.clear()
     levels.clear()
     for (const scenario of available) {
       if (scenario.initiallyDiscovered) discovered.add(scenario.id)
@@ -276,6 +279,7 @@ export function createCampaign(
       completed.add(id)
       if (handoff) handoffs.set(id, handoff)
       if (receipt) dossierReceipts.set(id, receipt)
+      staleDossier.delete(id)
       for (const effect of scenario.objective.onComplete) {
         if (effect.type === 'deliverMail') {
           if (!(restoring && effect.liveOnly) && deliver(effect.message)) newMail = true
@@ -303,6 +307,58 @@ export function createCampaign(
     return true
   }
 
+  function discardDossier(id: string) {
+    const affected = new Set([id])
+    for (const scenario of available) {
+      if (scenario.dossier?.prior && affected.has(scenario.dossier.prior)) {
+        affected.add(scenario.id)
+        discovered.delete(scenario.id)
+        for (const message of scenario.inbox?.initial ?? []) {
+          delivered.delete(message)
+          read.delete(message)
+        }
+      }
+      if (!affected.has(scenario.id)) continue
+      completed.delete(scenario.id)
+      dossierReceipts.delete(scenario.id)
+      const level = levels.get(scenario.id)
+      if (level)
+        levels.set(scenario.id, {
+          ...level,
+          runtime: { ...level.runtime, dossier: undefined },
+          journal: undefined,
+          terminal: undefined,
+        })
+      for (const effect of scenario.objective.onComplete) {
+        if (effect.type !== 'deliverMail') continue
+        delivered.delete(effect.message)
+        read.delete(effect.message)
+      }
+    }
+    staleDossier.add(id)
+    if (affected.has(current)) current = id
+    persist()
+  }
+
+  async function verifyDossier(engine: Engine) {
+    for (const scenario of available) {
+      const receipt = dossierReceipts.get(scenario.id)
+      if (!receipt) continue
+      const predecessor = scenario.dossier?.prior
+      const result = await engine.runDossier(
+        dossierReview(
+          scenario,
+          receipt,
+          predecessor ? dossierReceipts.get(predecessor) : undefined,
+        ),
+      )
+      if (!result.ok && ['engine_unavailable', 'evaluation_failure'].includes(result.error.code))
+        throw new Error(result.error.message)
+      if (!result.ok || !sameReceipt(result.value.handoff, receipt)) discardDossier(scenario.id)
+    }
+    enter(current)
+  }
+
   start()
   try {
     const raw = storage?.getItem(campaignKey)
@@ -314,6 +370,7 @@ export function createCampaign(
         if (!selectable(id) || !saved.completed.includes(id)) continue
         if (scenario.objective.dossier) {
           complete(id, undefined, saved.dossierReceipts?.[id])
+          if (!completed.has(id)) staleDossier.add(id)
           continue
         }
         const handoff = saved.handoffs?.[id]
@@ -339,6 +396,10 @@ export function createCampaign(
       for (const id of discovered) {
         const level = saved.levels?.[id]
         if (level?.version === 1) levels.set(id, level)
+      }
+      for (const id of [...staleDossier]) {
+        discardDossier(id)
+        if (!selectable(saved.current)) current = id
       }
     } else if (!raw) {
       for (const message of byId.get(current)?.inbox?.initial ?? []) deliver(message)
@@ -395,6 +456,8 @@ export function createCampaign(
     direct: isDirect,
     handoff: (id: string) => handoffs.get(id),
     dossierReceipt: (id: string) => dossierReceipts.get(id),
+    staleDossier: (id: string) => staleDossier.has(id),
+    verifyDossier,
     completed: (id: string) => completed.has(id),
     destinations: () => available.filter(({ id }) => selectable(id)),
     enter,

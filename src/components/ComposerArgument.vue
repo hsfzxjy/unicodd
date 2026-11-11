@@ -314,6 +314,9 @@ function restoreView(view: ArgumentView) {
 defineExpose({
   apply,
   focusAt,
+  captureSelection() {
+    if (document.activeElement === control.value) readSelection(false)
+  },
   context: () => ({ ...selection.value }),
   saveView: (): ArgumentView => ({
     expanded: inspector.value !== undefined,

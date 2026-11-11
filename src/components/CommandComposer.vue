@@ -280,6 +280,7 @@ async function submit() {
   }
   const action = selected.value ? structuredAction() : parseCommand(raw)
   if (!action) return
+  activeEditor.value?.captureSelection()
   const saved = snapshot()
   const context = props.context
   const focusedField =

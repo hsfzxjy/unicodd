@@ -253,7 +253,7 @@ for (const [width, height] of [
   })
 }
 
-test('completes and replays the entire campaign with commands across reloads', async ({ page }) => {
+test('completes and replays the recovery and archive arcs across reloads', async ({ page }) => {
   await openCampaign(page)
   await run(page, 'campaign')
   await expect(link(page, 'The Relay')).toBeVisible()
@@ -399,7 +399,7 @@ test('switches levels in a debug session and keeps the campaign save separate', 
   await openCampaign(page, '/?debug=1&scenario=006-the-release')
   const levels = page.getByRole('combobox', { name: 'Debug level' })
   await expect(levels).toHaveValue('006-the-release')
-  await expect(levels.getByRole('option')).toHaveCount(11)
+  await expect(levels.getByRole('option')).toHaveCount(12)
   await run(page, 'prepare registration preserve')
   await expect(transcript(page)).toContainText('Identity mapping staged.')
   await page.getByRole('textbox', { name: 'Terminal command' }).fill('preview grapheme')

@@ -261,7 +261,8 @@
     "text": "Prepare a public projection and read the approved publication report.",
     "read": "final-report",
     "dossier": "publication",
-    "message": "Mara has approved the public regression corpus for delivery."
+    "message": "Mara has approved the public regression corpus for delivery.",
+    "onComplete": [{ "type": "discover", "scenario": "012-the-parcel" }]
   },
   "inbox": {
     "content": "mail/inbox.json",

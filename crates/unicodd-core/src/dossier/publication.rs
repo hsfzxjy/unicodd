@@ -103,6 +103,10 @@ impl Publication {
     pub fn approval(&self, policy: &Policy) -> String {
         digest_json(&(&policy.version, self))
     }
+
+    fn seal(&self, policy: &Policy, selection: &str) -> String {
+        digest_json(&(policy, selection, self.approval(policy)))
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -245,10 +249,18 @@ pub(super) fn validate(dataset: &Dataset, policy: &Policy) -> Result<(), EngineE
         .documents
         .iter()
         .flat_map(|document| &document.assets)
-        .any(|asset| contains_protected_name(policy, &asset.name))
+        .any(|asset| {
+            contains_protected_name(policy, &asset.name)
+                || contains_protected_name(policy, &asset.id)
+        })
+        || policy
+            .documents
+            .iter()
+            .any(|document| contains_protected_name(policy, &document.record))
+        || contains_protected_name(policy, &policy.version)
     {
         return Err(invalid(
-            "Approved asset names must be free of private source associations.",
+            "Public names and references must be free of private source associations.",
         ));
     }
     Ok(())
@@ -575,14 +587,9 @@ fn index_terms(body: &str) -> Vec<String> {
 
 fn review_rows(report: &mut Report, view: &Publication) {
     for record in &view.records {
-        report.row(
-            &record.id,
-            [
-                record.title.clone(),
-                record.body.clone(),
-                record.sample.clone(),
-            ],
-        );
+        report.row(&record.id, [record.title.clone()]);
+        report.row("Body", [record.body.clone()]);
+        report.row("Public sample", [record.sample.clone()]);
     }
 }
 
@@ -670,11 +677,41 @@ pub(super) fn audit(
         }
         receipt.publication = Some(Review {
             args,
-            digest: digest_json(&(policy, &receipt.digest, approval)),
+            digest: view.seal(policy, &receipt.digest),
         });
         report.handoff = Some(receipt);
     }
     Ok(())
+}
+
+pub(super) fn approved(
+    dataset: &Dataset,
+    policy: &Policy,
+    prior: Option<&Receipt>,
+    snapshot: &str,
+) -> Result<Option<(Receipt, Publication)>, EngineError> {
+    let Some(prior) = prior else { return Ok(None) };
+    if prior.bundle.is_some() {
+        return Ok(None);
+    }
+    let Some(review) = &prior.publication else {
+        return Ok(None);
+    };
+    let selection = Receipt {
+        publication: None,
+        ..prior.clone()
+    };
+    if original(dataset, Some(&selection), snapshot)?.is_none() {
+        return Ok(None);
+    }
+    let Some(options) = options(policy, &review.args) else {
+        return Ok(None);
+    };
+    let (view, findings) = build(policy, &options);
+    Ok(
+        (findings.is_empty() && view.seal(policy, &prior.digest) == review.digest)
+            .then_some((prior.clone(), view)),
+    )
 }
 
 pub(super) fn inspect(
@@ -743,6 +780,8 @@ pub(super) fn inspect(
                 for (start, word) in folded.text.match_indices(&key(&source["contact"].value)) {
                     let cover = folded.cover(start..start + word.len()).unwrap();
                     let row = report.row("Folded key and original cover", [word.into()]);
+                    row.details
+                        .push(format!("Folded UTF-8 [{start}, {})", start + word.len()));
                     row.source = Some(search::context(
                         &body.value,
                         coordinates(&body.value, cover),
@@ -798,6 +837,19 @@ pub(super) fn map_span(
     let mapped = match args[1].as_str() {
         "json" => body.decoded_span(range),
         "bytes" => body.value.get(range.clone()).map(|_| range),
+        "graphemes" => {
+            use unicode_segmentation::UnicodeSegmentation;
+            let edges: Vec<_> = body
+                .value
+                .grapheme_indices(true)
+                .map(|(index, _)| index)
+                .chain([body.value.len()])
+                .collect();
+            edges
+                .get(range.start)
+                .zip(edges.get(range.end))
+                .map(|(&start, &end)| start..end)
+        }
         "scalars" | "utf16" => {
             let byte = |needle| {
                 let mut offset = 0;

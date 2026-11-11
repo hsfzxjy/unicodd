@@ -9,9 +9,11 @@ import {
 import { createCampaign, validHandoff } from './campaign.ts'
 import { actionCommand, commandHelp, operationArity } from './commands.ts'
 import {
+  dossierArity,
+  dossierCandidates,
+  dossierReview,
   dossierStages,
   isDossierCommand,
-  receiptArgs,
   sameReceipt,
   stagesDossierCandidate,
   validArguments,
@@ -139,6 +141,12 @@ export function createRuntime(
 ) {
   const hostKey = (host: Host, destination = scenario.id) => destination + '/' + host.id
   const resourceKey = (host: Host, resource: Resource) => hostKey(host) + '/' + resource.id
+  const dossierStage = scenario.objective.dossier
+  const dossierReportFlag = dossierStage
+    ? scenario.hosts
+        .flatMap(({ resources }) => resources)
+        .find(({ id }) => id === scenario.objective.read)?.access?.flag
+    : undefined
   const start = (completed: boolean): Session => {
     const host = scenario.hosts.find(({ id }) => id === scenario.initialHost)
     if (host) campaign.visitHost(hostKey(host))
@@ -213,12 +221,14 @@ export function createRuntime(
           identities.find(
             ({ user, role }) => user === saved.identity?.user && role === saved.identity.role,
           ) ?? guest,
-        flags: saved.flags.filter((flag) => scenario.flags.includes(flag)),
+        flags: saved.flags.filter(
+          (flag) => scenario.flags.includes(flag) && flag !== dossierReportFlag,
+        ),
         completed: scenario.dossier ? campaign.completed(scenario.id) : saved.completed,
         recovery,
         dossier:
           scenario.dossier &&
-          scenario.objective.dossier &&
+          dossierStage &&
           Object.fromEntries(
             scenario.hosts.flatMap(({ id }) => {
               const draft = saved.dossier?.[id]
@@ -228,12 +238,13 @@ export function createRuntime(
                   id,
                   {
                     snapshot: draft.snapshot,
-                    candidate: validArguments(draft.candidate, 3) ? draft.candidate : undefined,
-                    receipt: validDossierReceipt(
-                      draft.receipt,
-                      draft.snapshot,
-                      scenario.objective.dossier!,
+                    candidate: validArguments(
+                      draft.candidate,
+                      dossierArity[dossierCandidates[dossierStage]],
                     )
+                      ? draft.candidate
+                      : undefined,
+                    receipt: validDossierReceipt(draft.receipt, draft.snapshot, dossierStage)
                       ? draft.receipt
                       : undefined,
                   },
@@ -242,8 +253,11 @@ export function createRuntime(
             }),
           ),
       }
-      if (scenario.dossier && campaign.completed(scenario.id)) {
-        state = { ...state, flags: [...new Set([...state.flags, ...start(true).flags])] }
+      if (
+        dossierReportFlag &&
+        (campaign.completed(scenario.id) || (host && state.dossier?.[host.id]?.receipt))
+      ) {
+        state = { ...state, flags: [...state.flags, dossierReportFlag] }
       }
     }
   }
@@ -258,6 +272,13 @@ export function createRuntime(
     code === 'engine_unavailable' || code === 'evaluation_failure'
   const welcome = (): Output[] => [
     message(scenario.introduction),
+    ...(campaign.staleDossier(scenario.id)
+      ? [
+          message(
+            'A saved dossier review no longer matches the available evidence. Run verification again.',
+          ),
+        ]
+      : []),
     ...(state.deliveredMail.some((id) => !state.readMail.includes(id))
       ? [{ kind: 'mailNotice' } as const]
       : []),
@@ -438,9 +459,10 @@ export function createRuntime(
       if (handoff) campaign.complete(scenario.id, handoff)
       return
     }
+    const { destinations, newMail } = campaign.complete(scenario.id, handoff, receipt)
+    if (!campaign.completed(scenario.id)) return
     state = { ...state, completed: true }
     output.push({ kind: 'objective', text: scenario.objective.message })
-    const { destinations, newMail } = campaign.complete(scenario.id, handoff, receipt)
     if (newMail) {
       syncInbox()
       output.push({ kind: 'mailNotice' })
@@ -500,16 +522,10 @@ export function createRuntime(
       const before = state
       pending = before
       try {
-        const checked = await engine.runDossier({
-          version: 1,
-          dataset: scenario.dossier.dataset,
-          command: dossierStages[scenario.objective.dossier],
-          args: [],
-          candidate: receiptArgs(stored, scenario.objective.dossier),
-          prior: scenario.dossier.prior
-            ? campaign.dossierReceipt(scenario.dossier.prior)
-            : undefined,
-        })
+        const prior = scenario.dossier.prior
+        const checked = await engine.runDossier(
+          dossierReview(scenario, stored, prior ? campaign.dossierReceipt(prior) : undefined),
+        )
         if (state !== before) return {}
         if (!checked.ok)
           return { ...error(checked.error.message), transient: isTransient(checked.error.code) }
@@ -631,6 +647,11 @@ export function createRuntime(
       case 'redact':
       case 'surfaces':
       case 'audit':
+      case 'targets':
+      case 'probe-path':
+      case 'assets':
+      case 'extract':
+      case 'roundtrip':
       case 'mirror': {
         const binding = availableOperations().find(({ command }) => command === action.type)
         if (!binding) return error(`${action.type} is unavailable with the current access.`)

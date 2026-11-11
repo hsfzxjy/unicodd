@@ -1,0 +1,2 @@
+Independent fixtures for the sandbox: links, parents, roots, prefix, duplicates, directories, limits, count, length, component, devices. Pass sample:<name> as the extraction mapping to try one. A rejected trial publishes no tree.
+Receiving trial: exact-byte desk restored the raw names. The folded desk reported existing-file collisions. The Win32-style reader refused a device basename and two trailing characters.

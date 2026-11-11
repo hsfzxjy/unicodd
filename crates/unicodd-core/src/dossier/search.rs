@@ -58,6 +58,7 @@ fn comparison(form: &str, casing: &str) -> Option<Comparison> {
         match form {
             "raw" => Normalization::Raw,
             "nfc" => Normalization::Nfc,
+            "nfd" => Normalization::Nfd,
             "nfkc" => Normalization::Nfkc,
             "strip" => Normalization::StripMarks,
             "skeleton" => return Some(Comparison::Skeleton),
@@ -140,7 +141,7 @@ fn find(text: &str, key: &str, profile: Profile) -> Result<Vec<Range<usize>>, En
         Boundary::Default | Boundary::French => {
             for span in segments(text, profile.boundary) {
                 let token = &text[span.clone()];
-                if token.chars().any(char::is_alphanumeric) && profile.index.key(token)? == key {
+                if token.unicode_words().next().is_some() && profile.index.key(token)? == key {
                     hits.push(span);
                 }
             }
@@ -441,6 +442,7 @@ pub(super) fn verify(
         selection: args.to_vec(),
         digest: digest_json(&(snapshot, &hits)),
         publication: None,
+        bundle: None,
     };
     Ok(Ok((receipt, hits)))
 }

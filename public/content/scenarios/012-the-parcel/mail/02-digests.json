@@ -1,0 +1,12 @@
+{
+  "messages": [
+    {
+      "id": "02-digests",
+      "from": "Rowan / MONONYM",
+      "to": "Local operator",
+      "subject": "Two copies of the keyboard sample",
+      "body": "The capture sheet has two copies of the sample from different reports. A digest tells us what bytes arrived. It cannot tell us which report supplied them. Please read back the source references as well as the files.",
+      "date": "2026-09-04"
+    }
+  ]
+}

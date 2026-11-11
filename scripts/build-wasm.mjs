@@ -10,12 +10,14 @@ if (bindgen !== `wasm-bindgen ${version}`) {
   )
 }
 const target = 'wasm32-unknown-unknown'
+const profile = 'wasm'
 execFileSync(
   'cargo',
   [
     'build',
     '--locked',
-    '--release',
+    '--profile',
+    profile,
     '-p',
     'unicodd-core',
     '--target',
@@ -31,9 +33,10 @@ execFileSync(
 execFileSync(
   'wasm-bindgen',
   [
-    `target/${target}/release/unicodd_core.wasm`,
+    `target/${target}/${profile}/unicodd_core.wasm`,
     '--target',
     'web',
+    '--remove-name-section',
     '--out-dir',
     'src/lib/wasm/pkg',
   ],

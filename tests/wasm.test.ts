@@ -29,6 +29,11 @@ describe('generated WASM bindings', () => {
         caseFoldingVersion: '15.1.0',
         skeletonVersion: '15.1.0',
         uts39Revision: 28,
+        recoveryVersion: 1,
+        collationProfile: 'icu4x-2.1.1-cldr-48.0-icu-78.1rc-v1',
+        casingProfile: 'icu4x-2.1.1-unicode-17.0-icu-78.1rc',
+        graphemeVersion: '16.0.0',
+        bidiVersion: '16.0.0',
       },
     })
     expect(results[1]).toEqual(results[0])

@@ -52,6 +52,11 @@ pub fn engine_info() -> String {
         case_folding_version: &'static str,
         skeleton_version: &'static str,
         uts39_revision: u32,
+        recovery_version: u32,
+        collation_profile: &'static str,
+        casing_profile: &'static str,
+        grapheme_version: &'static str,
+        bidi_version: &'static str,
     }
     let (major, minor, patch) = core::unicode_version();
     respond(Ok(Info {
@@ -60,7 +65,38 @@ pub fn engine_info() -> String {
         case_folding_version: core::SECURITY_UNICODE_VERSION,
         skeleton_version: core::SECURITY_UNICODE_VERSION,
         uts39_revision: core::UTS39_REVISION,
+        recovery_version: core::recovery::VERSION,
+        collation_profile: core::international::COLLATION_PROFILE,
+        casing_profile: core::international::CASING_PROFILE,
+        grapheme_version: core::international::GRAPHEME_VERSION,
+        bidi_version: core::international::BIDI_VERSION,
     }))
+}
+
+#[wasm_bindgen]
+pub fn validate_recovery_dataset(dataset: &[u8]) -> String {
+    respond(
+        parse(
+            dataset,
+            MAX_INPUT_WIRE_BYTES,
+            ErrorCode::InvalidProgram,
+            "dataset",
+        )
+        .and_then(|dataset| core::recovery::validate_dataset(&dataset)),
+    )
+}
+
+#[wasm_bindgen]
+pub fn run_recovery(request: &[u8]) -> String {
+    respond(
+        parse(
+            request,
+            MAX_INPUT_WIRE_BYTES,
+            ErrorCode::InvalidInput,
+            "request",
+        )
+        .and_then(core::recovery::run),
+    )
 }
 
 #[wasm_bindgen]

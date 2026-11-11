@@ -17,3 +17,19 @@ The build reads the official Unicode 15.1.0 data below and writes sorted Rust ta
 - Inspection uses `unicode_names2` 1.2.2 for Unicode 15.1 character names and `Scripts.txt` for the primary Script property. Candidates are a bounded view of related scalar mappings with equal skeletons. The general category labels use the browser's Unicode property data.
 
 Unicode data terms and the character-name data notice ship with the built game. [Unicode license notices](../../../public/UNICODE-LICENSE.txt)
+
+## Internationalization data
+
+| Capability                   | Locked implementation                        | Data                                                                                                                                              |
+| ---------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Collation and sort keys      | `icu_collator` and `icu_collator_data` 2.1.1 | Unicode 17.0, CLDR 48.0.0 and ICU `release-78.1rc`. The dependency's locale fallback data is `icu_locale_data` 2.1.2, generated from CLDR 48.1.0. |
+| Full-string lowercase        | `icu_casemap` and `icu_casemap_data` 2.1.1   | Unicode 17.0, CLDR 48.0.0 and ICU `release-78.1rc`.                                                                                               |
+| Extended grapheme boundaries | `unicode-segmentation` 1.12.0                | Unicode 16.0.0, UAX #29 revision 45                                                                                                               |
+| Bidirectional analysis       | `unicode-bidi` 0.3.18                        | Unicode 16.0.0, UAX #9 revision 50                                                                                                                |
+| General normalization        | `unicode-normalization` 0.1.26               | Unicode 18.0.0                                                                                                                                    |
+
+The recovery API exposes `en-US` and `sv-SE` with primary, secondary and tertiary collation. Queue cursors bind the locale, strength, key strategy, page size, dataset revision and collation profile to a record boundary. Change the profile ID when upgrading data or sort options. ICU4X generates the keys and compares titles. Full-string lowercase uses ICU4X's root, Turkish, Azeri and Lithuanian behavior. Default case folding continues to use the separate Unicode 15.1.0 operation.
+
+Audit boundaries are UTF-8 byte offsets into the original string. The preview checks whether a candidate cut lands on one of those boundaries, measures the final serialized UTF-8 line, and uses UAX #9 resolved levels to test the ordering of fixed anchors around a dynamic field. The DOM keeps fields in separate `bdi` elements. Copy uses a serialized line with balanced FSI/PDI and visible escapes for formatting controls. Original fields remain exact.
+
+The size-optimized WASM build uses the upstream ICU4X compiled tables. Game commands expose the supported locales above, and the artifact includes the linked ICU4X tailoring tables. Builds require no separate locale downloads. See the [collation data](https://docs.rs/icu_collator_data/2.1.1/src/icu_collator_data/lib.rs.html), [case mapping data](https://docs.rs/icu_casemap_data/2.1.1/src/icu_casemap_data/lib.rs.html), and [ICU 78 Unicode release notes](https://unicode-org.github.io/icu/download/78.html).

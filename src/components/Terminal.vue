@@ -241,6 +241,7 @@ defineExpose({
           v-if="entry.echo !== undefined"
           class="command-echo"
           :class="{ remote: entry.connected }"
+          @click="toggleOutput(entry.id)"
         >
           <p class="command-line">
             <span class="prompt-host" :class="{ remote: entry.connected }"
@@ -268,7 +269,7 @@ defineExpose({
               :title="collapsed.has(entry.id) ? 'Show output' : 'Hide output'"
               @click="toggleOutput(entry.id)"
             >
-              <span aria-hidden="true">{{ collapsed.has(entry.id) ? '▸' : '▾' }}</span>
+              <span aria-hidden="true">{{ collapsed.has(entry.id) ? '◂' : '▾' }}</span>
             </button>
           </div>
         </div>

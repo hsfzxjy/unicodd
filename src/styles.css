@@ -412,6 +412,7 @@ h1.terminal-scenario {
   align-items: flex-start;
   background: #27343e;
   color: var(--text);
+  cursor: pointer;
 }
 .command-echo.remote {
   background: #203832;

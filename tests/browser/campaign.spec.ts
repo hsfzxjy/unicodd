@@ -112,6 +112,8 @@ async function openIndexGraphically(page: Page, act: Activate) {
   await act(quick(page, 'Mail'))
   await act(link(page, 'The missing notice'))
   await expect(transcript(page)).toContainText('The relay handed it to postbox-03')
+  await act(page.getByRole('button', { name: 'Open hosts list, 1 new', exact: true }))
+  await expect(transcript(page).locator('.terminal-list').last()).toContainText('postbox-03 · New')
   await act(link(page, 'Dead Letter'))
   await recoverNotice(page, act)
   await act(quick(page, 'Mail'))

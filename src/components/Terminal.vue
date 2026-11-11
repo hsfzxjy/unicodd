@@ -6,7 +6,7 @@ import TerminalFile from './TerminalFile.vue'
 import TerminalInspection from './TerminalInspection.vue'
 import TerminalMail from './TerminalMail.vue'
 import { commandHelp } from '../lib/commands'
-import type { Action, Link, Output } from '../lib/runtime'
+import { linkStatus, type Action, type Link, type Output, type Session } from '../lib/runtime'
 import { inspectRange, unpairedSurrogate } from '../lib/unicode'
 
 export interface Entry {
@@ -27,6 +27,9 @@ const props = defineProps<{
   busy: boolean
   context: string
   operations: readonly OperationBinding[]
+  activity: Pick<Session, 'visitedHosts' | 'readMail' | 'readResources'>
+  newHosts: number
+  unreadMail?: number
   execute: (action: Action, echo?: string) => Promise<import('../lib/runtime').Response | undefined>
 }>()
 const emit = defineEmits<{ action: [Action, string?] }>()
@@ -105,7 +108,7 @@ watch(
 )
 
 function revealOutput(
-  kind: 'inspection' | 'mail' | 'file' | 'report',
+  kind: 'inspection' | 'mail' | 'file' | 'report' | 'list',
   focus: boolean,
   followOnly = false,
 ) {
@@ -125,6 +128,14 @@ function revealOutput(
   if (focus) {
     frame.value?.scrollIntoView({ block: 'nearest' })
     latest.focus({ preventScroll: true })
+  }
+}
+
+async function openTitleList(type: 'hosts' | 'mail') {
+  const response = await props.execute({ type })
+  if (response?.output?.[0]?.kind === 'listing') {
+    await nextTick()
+    revealOutput('list', true)
   }
 }
 
@@ -149,9 +160,39 @@ defineExpose({
       <span class="wordmark">unicodd</span>
       <slot name="scenario" />
       <div class="title-actions">
+        <button
+          type="button"
+          class="title-notification"
+          :class="{ 'has-notification': newHosts > 0 }"
+          :aria-label="newHosts ? `Open hosts list, ${newHosts} new` : 'Open hosts list'"
+          title="Open hosts list"
+          :aria-disabled="busy || undefined"
+          @click="openTitleList('hosts')"
+        >
+          <span class="title-icon hosts-icon" aria-hidden="true"></span>
+          <span v-if="newHosts" class="notification-count" aria-hidden="true">{{ newHosts }}</span>
+        </button>
+        <button
+          v-if="unreadMail !== undefined"
+          type="button"
+          class="title-notification"
+          :class="{ 'has-notification': unreadMail > 0 }"
+          :aria-label="unreadMail ? `Open inbox, ${unreadMail} unread` : 'Open inbox'"
+          title="Open inbox"
+          :aria-disabled="busy || undefined"
+          @click="openTitleList('mail')"
+        >
+          <span class="title-icon mail-icon" aria-hidden="true"></span>
+          <span v-if="unreadMail" class="notification-count" aria-hidden="true">{{
+            unreadMail
+          }}</span>
+        </button>
         <slot name="title-actions" />
         <button v-if="!following" type="button" aria-label="Latest output" @click="scrollToEnd">
-          Latest<span class="latest-output-word"> output</span> ↓
+          <span class="latest-output-label"
+            >Latest<span class="latest-output-word"> output</span></span
+          >
+          ↓
         </button>
       </div>
     </div>
@@ -213,13 +254,17 @@ defineExpose({
         >
           <div v-if="entry.output.length" class="entry-output">
             <template v-for="(row, index) in entry.output" :key="index">
-              <div v-if="row.kind === 'listing'" class="terminal-list">
+              <div v-if="row.kind === 'listing'" class="terminal-list" tabindex="-1">
                 <p class="listing-path">
                   <bdi>{{ row.path ?? row.title ?? 'Known hosts' }}</bdi>
                 </p>
                 <p v-if="!row.links.length" class="meta">{{ row.empty ?? 'Empty directory.' }}</p>
                 <ul v-else>
-                  <li v-for="link in row.links" :key="link.label">
+                  <li
+                    v-for="(link, index) in row.links"
+                    :key="index"
+                    :data-status="linkStatus(link, activity)"
+                  >
                     <button
                       type="button"
                       class="terminal-link"
@@ -228,9 +273,13 @@ defineExpose({
                     >
                       <bdi>{{ link.label }}</bdi>
                     </button>
-                    <span v-if="link.detail" class="listing-detail"
-                      ><bdi>{{ link.detail }}</bdi></span
-                    >
+                    <span v-if="link.detail || link.tracking" class="listing-detail">
+                      <bdi v-if="link.detail">{{ link.detail }}</bdi>
+                      <template v-if="linkStatus(link, activity)">
+                        {{ link.detail ? ' · ' : '' }}
+                        <span class="listing-status">{{ linkStatus(link, activity) }}</span>
+                      </template>
+                    </span>
                   </li>
                 </ul>
               </div>

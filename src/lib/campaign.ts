@@ -10,6 +10,8 @@ interface Save {
   completed: string[]
   delivered: string[]
   read: string[]
+  visitedHosts?: string[]
+  readResources?: string[]
   handoffs?: Record<string, Handoff>
 }
 
@@ -69,6 +71,8 @@ export function createCampaign(
   const completed = new Set<string>()
   const delivered = new Set<string>()
   const read = new Set<string>()
+  const visitedHosts = new Set<string>()
+  const readResources = new Set<string>()
   const handoffs = new Map<string, Handoff>()
   let current = ''
   let restoring = true
@@ -82,6 +86,8 @@ export function createCampaign(
     completed.clear()
     delivered.clear()
     read.clear()
+    visitedHosts.clear()
+    readResources.clear()
     handoffs.clear()
     for (const scenario of available) {
       if (scenario.initiallyDiscovered) discovered.add(scenario.id)
@@ -100,6 +106,8 @@ export function createCampaign(
           completed: [...completed],
           delivered: [...delivered],
           read: [...read],
+          visitedHosts: [...visitedHosts],
+          readResources: [...readResources],
           handoffs: Object.fromEntries(handoffs),
         } satisfies Save),
       )
@@ -111,6 +119,13 @@ export function createCampaign(
   function deliver(id: string) {
     if (!inbox.has(id) || delivered.has(id)) return false
     delivered.add(id)
+    return true
+  }
+
+  function track(keys: Set<string>, key: string) {
+    if (keys.has(key)) return false
+    keys.add(key)
+    persist()
     return true
   }
 
@@ -169,6 +184,12 @@ export function createCampaign(
         }
       }
       for (const id of saved.read) if (delivered.has(id)) read.add(id)
+      for (const [values, keys] of [
+        [saved.visitedHosts, visitedHosts],
+        [saved.readResources, readResources],
+      ] as const)
+        if (Array.isArray(values))
+          for (const value of values) if (typeof value === 'string') keys.add(value)
       if (selectable(saved.current)) current = saved.current
     } else if (!raw) {
       for (const message of byId.get(current)?.inbox?.initial ?? []) deliver(message)
@@ -202,15 +223,20 @@ export function createCampaign(
     get read() {
       return [...read]
     },
+    get visitedHosts() {
+      return [...visitedHosts]
+    },
+    get readResources() {
+      return [...readResources]
+    },
     message(id: string): MailMessage | undefined {
       return delivered.has(id) ? inbox.get(id) : undefined
     },
     markRead(id: string) {
-      if (delivered.has(id) && !read.has(id)) {
-        read.add(id)
-        persist()
-      }
+      if (delivered.has(id)) track(read, id)
     },
+    visitHost: (key: string) => track(visitedHosts, key),
+    markResourceRead: (key: string) => track(readResources, key),
     deliver(id: string) {
       const added = deliver(id)
       if (added) persist()

@@ -292,6 +292,55 @@ h1.terminal-scenario {
   color: var(--muted);
   font-size: 12px;
 }
+.frame-title .title-notification {
+  position: relative;
+  display: grid;
+  min-width: 36px;
+  place-items: center;
+  padding: 4px 8px;
+  background: transparent;
+}
+.frame-title .has-notification {
+  color: var(--accent);
+}
+.title-icon {
+  position: relative;
+  display: block;
+  width: 17px;
+  height: 13px;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+}
+.hosts-icon::before {
+  position: absolute;
+  inset: 3px 0;
+  border-block: 1px solid currentColor;
+  content: '';
+}
+.mail-icon {
+  overflow: hidden;
+}
+.mail-icon::before {
+  position: absolute;
+  inset: -5px 3px auto;
+  height: 10px;
+  transform: rotate(45deg);
+  border: solid currentColor;
+  border-width: 0 1px 1px 0;
+  content: '';
+}
+.notification-count {
+  position: absolute;
+  inset-block-start: 2px;
+  inset-inline-end: 1px;
+  min-width: 14px;
+  border-radius: 6px;
+  padding-inline: 2px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font: 700 10px/12px var(--mono);
+  text-align: center;
+}
 .session-context {
   padding: 8px 12px 12px;
 }
@@ -454,6 +503,10 @@ h1.terminal-scenario {
 .listing-detail {
   color: var(--muted);
   font-size: 12px;
+}
+.terminal-list li:is([data-status='Unread'], [data-status='New']) :is(button, .listing-status) {
+  color: var(--text);
+  font-weight: 700;
 }
 .terminal-file pre,
 .terminal-mail pre,
@@ -759,12 +812,30 @@ h1.terminal-scenario {
   .terminal-frame .frame-title {
     min-height: 44px;
   }
+  .frame-title .title-notification {
+    min-width: 44px;
+  }
+  .notification-count {
+    inset-block-start: 6px;
+    inset-inline-end: 4px;
+  }
   .entry-actions button {
     min-width: 44px;
     min-height: 44px;
   }
   .command-line {
     padding-block: 11px;
+  }
+}
+@media (max-width: 480px) {
+  .terminal-frame .frame-title {
+    gap: 6px;
+  }
+  .title-actions button[aria-label='Latest output'] {
+    min-width: 44px;
+  }
+  .latest-output-label {
+    display: none;
   }
 }
 @media (max-width: 600px) {

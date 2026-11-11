@@ -43,6 +43,7 @@ export type Action =
 export interface Link {
   label: string
   detail?: string
+  tracking?: { kind: 'host' | 'mail' | 'resource'; key: string }
   action: Action
 }
 
@@ -71,7 +72,20 @@ export interface Session {
   completed: boolean
   deliveredMail: readonly string[]
   readMail: readonly string[]
+  visitedHosts: readonly string[]
+  readResources: readonly string[]
   recovery?: Readonly<Record<string, { context: RecoveryContext; handoff?: Handoff }>>
+}
+
+export function linkStatus(
+  link: Link,
+  state: Pick<Session, 'visitedHosts' | 'readMail' | 'readResources'>,
+): 'New' | 'Unread' | 'Read' | undefined {
+  const tracking = link.tracking
+  if (!tracking) return
+  if (tracking.kind === 'host') return state.visitedHosts.includes(tracking.key) ? undefined : 'New'
+  const read = tracking.kind === 'mail' ? state.readMail : state.readResources
+  return read.includes(tracking.key) ? 'Read' : 'Unread'
 }
 
 export interface Response {
@@ -87,8 +101,11 @@ export function createRuntime(
   engine: Engine,
   campaign = createCampaign([scenario]),
 ) {
+  const hostKey = (host: Host, destination = scenario.id) => destination + '/' + host.id
+  const resourceKey = (host: Host, resource: Resource) => hostKey(host) + '/' + resource.id
   const start = (completed: boolean): Session => {
     const host = scenario.hosts.find(({ id }) => id === scenario.initialHost)
+    if (host) campaign.visitHost(hostKey(host))
     const released = campaign.handoff(scenario.id)?.kind === 'release'
     const final = host?.recovery?.find(({ command }) => command === scenario.objective.action)
     return {
@@ -100,6 +117,8 @@ export function createRuntime(
       completed: completed || released,
       deliveredMail: campaign.delivered,
       readMail: campaign.read,
+      visitedHosts: campaign.visitedHosts,
+      readResources: campaign.readResources,
     }
   }
   let state = start(campaign.completed(scenario.id))
@@ -128,11 +147,23 @@ export function createRuntime(
   function hostLinks(): Link[] {
     return scenario.hosts
       .filter(({ discover }) => !discover || state.flags.includes(discover))
-      .map(({ id, name }) => ({ label: id, detail: name, action: { type: 'connect', host: id } }))
+      .map((host) => ({
+        label: host.id,
+        detail: host.name,
+        tracking: { kind: 'host', key: hostKey(host) },
+        action: { type: 'connect', host: host.id },
+      }))
+  }
+
+  function hostDirectory(): Link[] {
+    return [
+      ...hostLinks(),
+      ...destinationLinks(campaign.destinations().filter(({ id }) => id !== scenario.id)),
+    ]
   }
 
   function hosts(): Output {
-    return { kind: 'listing', links: hostLinks() }
+    return { kind: 'listing', links: hostDirectory(), empty: 'No known hosts.' }
   }
 
   function inboxAction(id?: string): Response {
@@ -142,7 +173,8 @@ export function createRuntime(
         const message = campaign.message(id)!
         return {
           label: message.subject,
-          detail: [id, message.from, state.readMail.includes(id) ? 'Read' : 'Unread'].join(' · '),
+          detail: [id, message.from].join(' · '),
+          tracking: { kind: 'mail', key: id },
           action: { type: 'mail', id },
         }
       })
@@ -172,17 +204,32 @@ export function createRuntime(
       : { type: 'cat', path: resource.path }
   }
 
+  function resourceLink(host: Host, resource: Resource, label: string): Link {
+    return {
+      label,
+      detail: allows(resource.access) ? undefined : 'restricted',
+      tracking:
+        resource.type === 'directory'
+          ? undefined
+          : { kind: 'resource', key: resourceKey(host, resource) },
+      action: pathAction(resource),
+    }
+  }
+
   function destinationLinks(destinations: readonly Scenario[]): Link[] {
-    return destinations.map(({ id, title, hosts, initialHost }) => ({
-      label: title,
-      detail: [
-        hosts.find((host) => host.id === initialHost)?.id,
-        campaign.completed(id) ? 'Complete' : undefined,
-      ]
-        .filter(Boolean)
-        .join(' · '),
-      action: { type: 'scenario', id },
-    }))
+    return destinations.map(({ id, title, hosts, initialHost }) => {
+      const host =
+        hosts.find((candidate) => candidate.id === initialHost) ??
+        hosts.find((candidate) => !candidate.discover)
+      return {
+        label: title,
+        detail: [host?.id, campaign.completed(id) ? 'Complete' : undefined]
+          .filter(Boolean)
+          .join(' · '),
+        tracking: host ? { kind: 'host', key: hostKey(host, id) } : undefined,
+        action: { type: 'scenario', id },
+      }
+    })
   }
 
   function availableOperations() {
@@ -235,8 +282,10 @@ export function createRuntime(
           if (campaign.deliver(effect.message)) newMail = true
           break
         case 'resourceLink': {
-          const resource = state.host?.resources.find(({ id }) => id === effect.resource)
+          const host = state.host
+          const resource = host?.resources.find(({ id }) => id === effect.resource)
           if (
+            host &&
             resource &&
             resourceChain(resource).every(
               ({ discover, access }) => allows(discover) && allows(access),
@@ -245,7 +294,7 @@ export function createRuntime(
             output.push({
               kind: 'listing',
               title: 'Available resource',
-              links: [{ label: resource.path, action: pathAction(resource) }],
+              links: [resourceLink(host, resource, resource.path)],
             })
           break
         }
@@ -278,7 +327,8 @@ export function createRuntime(
   }
 
   function resourceAction(action: Extract<Action, { type: 'ls' | 'cat' }>): Response {
-    if (!state.host) return error('Connect to a host first.')
+    const host = state.host
+    if (!host) return error('Connect to a host first.')
     const raw = action.path ?? '/'
     if (!raw) return error('Enter a resource path.')
     const absolute = raw.startsWith('/')
@@ -286,7 +336,7 @@ export function createRuntime(
       : '/' + (raw === '.' ? '' : raw.replace(/^\.\//u, ''))
     const path =
       action.type === 'ls' && absolute.length > 2 ? absolute.replace(/\/$/u, '') : absolute
-    const resource = state.host.resources.find((item) => item.path === path)
+    const resource = host.resources.find((item) => item.path === path)
     const chain = resource ? resourceChain(resource) : []
     if ((path !== '/' && !resource) || chain.some(({ discover }) => !allows(discover)))
       return error(`No such resource: ${raw}`)
@@ -295,19 +345,22 @@ export function createRuntime(
 
     if (action.type === 'ls') {
       if (resource && resource.type !== 'directory') return error(`Expected a directory: ${path}`)
-      const links = state.host.resources
+      const links = host.resources
         .filter((item) => parentPath(item.path) === path && allows(item.discover))
-        .map((item) => ({
-          label:
+        .map((item) =>
+          resourceLink(
+            host,
+            item,
             item.path.slice(path === '/' ? 1 : path.length + 1) +
-            (item.type === 'directory' ? '/' : ''),
-          detail: allows(item.access) ? undefined : 'restricted',
-          action: pathAction(item),
-        }))
+              (item.type === 'directory' ? '/' : ''),
+          ),
+        )
       return { output: [{ kind: 'listing', path, links }] }
     }
 
     if (!resource || resource.type === 'directory') return error(`Expected a file: ${path}`)
+    if (campaign.markResourceRead(resourceKey(host, resource)))
+      state = { ...state, readResources: campaign.readResources }
     const output: Output[] = [
       resource.type === 'mail'
         ? { kind: 'mail', path, messages: resource.messages }
@@ -321,7 +374,7 @@ export function createRuntime(
     ]
     apply(resource.onRead, output, 'message')
     if (scenario.objective.read === resource.id)
-      completeObjective(output, state.recovery?.[state.host.id]?.handoff)
+      completeObjective(output, state.recovery?.[host.id]?.handoff)
     return { output }
   }
 
@@ -366,7 +419,8 @@ export function createRuntime(
         const host = scenario.hosts.find(({ id }) => id === action.host)
         if (!host || (host.discover && !state.flags.includes(host.discover)))
           return error(`Unknown host: ${action.host}`)
-        state = { ...state, host, identity: host.guest }
+        campaign.visitHost(hostKey(host))
+        state = { ...state, host, identity: host.guest, visitedHosts: campaign.visitedHosts }
         return { output: [message(host.welcome)] }
       }
       case 'ls':
@@ -546,6 +600,9 @@ export function createRuntime(
     },
     get operations() {
       return availableOperations()
+    },
+    get newHosts() {
+      return hostDirectory().filter((link) => linkStatus(link, state) === 'New').length
     },
     welcome,
     suggestions,

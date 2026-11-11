@@ -85,6 +85,12 @@ const shortcuts = computed((): Link[] => {
 })
 
 const suggestions = computed(() => (session.value ? (runtime?.suggestions() ?? []) : []))
+const newHosts = computed(() => (session.value ? (runtime?.newHosts ?? 0) : 0))
+const unreadMail = computed(() => {
+  const active = session.value
+  if (active && campaign?.hasInbox)
+    return active.deliveredMail.filter((id) => !active.readMail.includes(id)).length
+})
 
 async function loadCatalog() {
   catalogLoading.value = true
@@ -315,6 +321,9 @@ async function dispatch(action: Action, command?: string) {
         :suggestions="suggestions"
         :busy="busy"
         :operations="operations"
+        :activity="session"
+        :new-hosts="newHosts"
+        :unread-mail="unreadMail"
         :context="scenarioId + '/' + contextVersion"
         :execute="dispatch"
         @action="dispatch"

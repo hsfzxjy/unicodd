@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { createRuntime } from '../src/lib/runtime'
+import { createRuntime, linkStatus } from '../src/lib/runtime'
 import { parseCommand, actionCommand, matchSuggestions } from '../src/lib/commands'
 import { engine, fixtures, production } from './scenario-content'
 
@@ -87,7 +87,12 @@ it('checks permissions, elevates through WASM, and completes only on authorized 
   expect(await runtime.dispatch({ type: 'clear' })).toEqual({ clear: true })
   expect(runtime.state.completed).toBe(true)
   await runtime.dispatch({ type: 'reset' })
-  expect(runtime.state).toEqual({ ...local, deliveredMail: ['favor', 'missing-notice'] })
+  expect(runtime.state).toEqual({
+    ...local,
+    deliveredMail: ['favor', 'missing-notice'],
+    visitedHosts: ['001-the-relay/relay-07'],
+    readResources: ['001-the-relay/relay-07/incident'],
+  })
 })
 
 it('uses guards and effects for a differently structured fixture', async () => {
@@ -117,13 +122,15 @@ it('uses guards and effects for a differently structured fixture', async () => {
     'file',
     'message',
   ])
-  expect((await runtime.dispatch(inbox)).output).toMatchObject([
-    { kind: 'listing', links: [{ detail: expect.stringContaining('Unread'), action: delivery }] },
-  ])
+  const list = (await runtime.dispatch(inbox)).output?.[0]
+  if (list?.kind !== 'listing') throw new Error('Expected an inbox listing')
+  expect(list.links[0].action).toEqual(delivery)
+  expect(linkStatus(list.links[0], runtime.state)).toBe('Unread')
   const delivered = await runtime.dispatch(delivery)
   expect(delivered.output).toMatchObject([{ kind: 'mail', messages: [{ date: '2026-01-01' }] }])
   expect(await runtime.dispatch(delivery)).toEqual(delivered)
   expect(runtime.state.readMail).toEqual(['fixture-arrival'])
+  expect(linkStatus(list.links[0], runtime.state)).toBe('Read')
   expect(runtime.suggestions()).toContain('connect annex')
   expect((await runtime.dispatch(archive)).output).toEqual([
     { kind: 'error', text: expect.stringContaining('Permission denied') },

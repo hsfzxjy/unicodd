@@ -1,11 +1,12 @@
 import {
   forms,
   type Engine,
+  type EngineError,
   type Normalization,
   type Result,
   type ScalarDetails,
 } from '../types.ts'
-import { createCampaign } from './campaign.ts'
+import { createCampaign, validHandoff } from './campaign.ts'
 import { actionCommand, commandHelp, operationArity } from './commands.ts'
 import type { Handoff, RecoveryCommand, RecoveryContext, RecoveryRow } from './recovery.ts'
 import {
@@ -77,6 +78,15 @@ export interface Session {
   recovery?: Readonly<Record<string, { context: RecoveryContext; handoff?: Handoff }>>
 }
 
+export interface RuntimeSnapshot {
+  host?: string
+  identity: Identity
+  flags: readonly string[]
+  completed: boolean
+  recovery?: Session['recovery']
+  dataset?: { incident: string; revision: string }
+}
+
 export function linkStatus(
   link: Link,
   state: Pick<Session, 'visitedHosts' | 'readMail' | 'readResources'>,
@@ -90,6 +100,7 @@ export function linkStatus(
 
 export interface Response {
   output?: Output[]
+  transient?: boolean
   clear?: boolean
   compose?: import('./commands.ts').CommandName
   transfer?: Extract<Action, { type: 'copy' | 'editPayload' | 'insertCommand' }>
@@ -100,6 +111,7 @@ export function createRuntime(
   scenario: Scenario,
   engine: Engine,
   campaign = createCampaign([scenario]),
+  saved?: RuntimeSnapshot,
 ) {
   const hostKey = (host: Host, destination = scenario.id) => destination + '/' + host.id
   const resourceKey = (host: Host, resource: Resource) => hostKey(host) + '/' + resource.id
@@ -122,6 +134,58 @@ export function createRuntime(
     }
   }
   let state = start(campaign.completed(scenario.id))
+  if (saved && typeof saved.completed === 'boolean' && Array.isArray(saved.flags)) {
+    const host = scenario.hosts.find(({ id }) => id === saved.host)
+    if (saved.host === undefined || host) {
+      const guest = host?.guest ?? scenario.local
+      const identities = host
+        ? [
+            ...host.operations.flatMap(({ success }) => success),
+            ...(host.recovery ?? []).flatMap(({ success }) => success),
+            ...host.resources.flatMap((resource) =>
+              resource.type === 'directory' ? [] : resource.onRead,
+            ),
+          ].flatMap((effect) => (effect.type === 'session' ? [effect.identity] : []))
+        : []
+      const dataset = scenario.recovery?.dataset
+      const recovery =
+        dataset &&
+        saved.dataset?.incident === dataset.incident &&
+        saved.dataset.revision === dataset.revision &&
+        saved.recovery
+          ? Object.fromEntries(
+              scenario.hosts.flatMap(({ id, recovery }) => {
+                const staged = saved.recovery?.[id]
+                return recovery?.length &&
+                  staged?.context &&
+                  typeof staged.context === 'object' &&
+                  !Array.isArray(staged.context)
+                  ? [
+                      [
+                        id,
+                        {
+                          context: staged.context,
+                          handoff: validHandoff(staged.handoff) ? staged.handoff : undefined,
+                        },
+                      ],
+                    ]
+                  : []
+              }),
+            )
+          : undefined
+      state = {
+        ...state,
+        host,
+        identity:
+          identities.find(
+            ({ user, role }) => user === saved.identity?.user && role === saved.identity.role,
+          ) ?? guest,
+        flags: saved.flags.filter((flag) => scenario.flags.includes(flag)),
+        completed: saved.completed,
+        recovery,
+      }
+    }
+  }
   let pending: Session | undefined
   const syncInbox = () => {
     state = { ...state, deliveredMail: campaign.delivered, readMail: campaign.read }
@@ -129,6 +193,8 @@ export function createRuntime(
 
   const message = (text: string): Output => ({ kind: 'message', text })
   const error = (text: string): Response => ({ output: [{ kind: 'error', text }] })
+  const isTransient = (code: EngineError['code']) =>
+    code === 'engine_unavailable' || code === 'evaluation_failure'
   const welcome = (): Output[] => [
     message(scenario.introduction),
     ...(state.deliveredMail.some((id) => !state.readMail.includes(id))
@@ -491,12 +557,14 @@ export function createRuntime(
             const field = arg
               ? binding.fields[Number(arg[1])]
               : binding.fields.find(({ input }) => issue.path === 'inputs.' + input)
-            return error(
+            const response = error(
               issue.code === 'invalid_input' && issue.offset !== undefined
                 ? (field?.label ?? 'Payload') +
                     ' contains an unpaired surrogate. Open Code points to find and remove it.'
                 : `${field?.label ?? issue.code} · ${issue.message}`,
             )
+            if (isTransient(issue.code)) response.transient = true
+            return response
           }
           const output: Output[] = []
           let handoff: Handoff | undefined
@@ -566,7 +634,7 @@ export function createRuntime(
             ),
           ])
           if (state !== before) return {}
-          return {
+          const response: Response = {
             output: [
               {
                 kind: 'inspection',
@@ -577,6 +645,13 @@ export function createRuntime(
               },
             ],
           }
+          if (
+            [details, ...normalization.map(({ result }) => result)].some(
+              (result) => !result.ok && isTransient(result.error.code),
+            )
+          )
+            response.transient = true
+          return response
         } finally {
           if (pending === before) pending = undefined
         }
@@ -595,6 +670,17 @@ export function createRuntime(
   }
 
   return {
+    snapshot(): RuntimeSnapshot {
+      const dataset = scenario.recovery?.dataset
+      return {
+        host: state.host?.id,
+        identity: state.identity,
+        flags: state.flags,
+        completed: state.completed,
+        recovery: state.recovery,
+        dataset: dataset && { incident: dataset.incident, revision: dataset.revision },
+      }
+    },
     get state() {
       return state
     },

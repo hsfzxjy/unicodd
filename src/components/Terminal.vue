@@ -6,17 +6,9 @@ import TerminalFile from './TerminalFile.vue'
 import TerminalInspection from './TerminalInspection.vue'
 import TerminalMail from './TerminalMail.vue'
 import { commandHelp } from '../lib/commands'
-import { linkStatus, type Action, type Link, type Output, type Session } from '../lib/runtime'
+import { linkStatus, type Action, type Link, type Session } from '../lib/runtime'
 import { inspectRange, unpairedSurrogate } from '../lib/unicode'
-
-export interface Entry {
-  id: number
-  echo?: string
-  prompt?: string
-  connected?: boolean
-  output: Output[]
-  waiting?: boolean
-}
+import type { ComposerSave, Entry, TerminalView } from '../lib/workspace'
 
 const props = defineProps<{
   transcript: Entry[]
@@ -30,9 +22,10 @@ const props = defineProps<{
   activity: Pick<Session, 'visitedHosts' | 'readMail' | 'readResources'>
   newHosts: number
   unreadMail?: number
+  initialComposer?: ComposerSave
   execute: (action: Action, echo?: string) => Promise<import('../lib/runtime').Response | undefined>
 }>()
-const emit = defineEmits<{ action: [Action, string?] }>()
+const emit = defineEmits<{ action: [Action, string?]; change: [] }>()
 const outputPrefix = useId() + '-output-'
 const scroll = ref<HTMLDivElement>()
 const frame = ref<HTMLElement>()
@@ -64,6 +57,31 @@ function scrollToEnd() {
 function trackScroll() {
   const box = scroll.value
   if (box) following.value = box.scrollHeight - box.scrollTop - box.clientHeight < 28
+  emit('change')
+}
+
+function saveView(): TerminalView {
+  return {
+    collapsed: [...collapsed],
+    scrollTop: scroll.value?.scrollTop ?? 0,
+    following: following.value,
+  }
+}
+
+function restoreView(view?: TerminalView) {
+  collapsed.clear()
+  if (Array.isArray(view?.collapsed))
+    for (const id of view.collapsed)
+      if (props.transcript.some((entry) => entry.id === id)) collapsed.add(id)
+  following.value = view?.following !== false
+  void nextTick(() => {
+    if (!scroll.value) return
+    if (!view || view.following !== false || !Number.isFinite(view.scrollTop)) scrollToEnd()
+    else {
+      scroll.value.scrollTop = view.scrollTop
+      trackScroll()
+    }
+  })
 }
 
 function readResourceSelection() {
@@ -151,6 +169,10 @@ defineExpose({
     composer.value?.selectCommand(name),
   revealOutput,
   scrollToEnd,
+  saveView,
+  restoreView,
+  saveComposer: (submitted: boolean) => composer.value?.saveComposer(submitted),
+  resetComposer: () => composer.value?.resetComposer(),
 })
 </script>
 
@@ -421,8 +443,10 @@ defineExpose({
         :operations="operations"
         :context="context"
         :busy="busy"
+        :initial="initialComposer"
         :execute="execute"
         @action="emit('action', $event)"
+        @change="emit('change')"
       />
     </div>
   </section>

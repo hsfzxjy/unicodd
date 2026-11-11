@@ -1,10 +1,11 @@
 import type { MailMessage, Scenario } from './scenario.ts'
 import type { Handoff } from './recovery.ts'
+import type { LevelSave } from './workspace.ts'
 
 export const campaignKey = 'unicodd.campaign'
 type StorageAccess = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 
-interface Save {
+export interface CampaignSnapshot {
   version: 1
   current: string
   completed: string[]
@@ -15,7 +16,11 @@ interface Save {
   handoffs?: Record<string, Handoff>
 }
 
-function validHandoff(handoff: Handoff | undefined): handoff is Handoff {
+interface Save extends CampaignSnapshot {
+  levels?: Record<string, LevelSave>
+}
+
+export function validHandoff(handoff: Handoff | undefined): handoff is Handoff {
   if (!handoff || handoff.version !== 1) return false
   const text = (value: unknown) => typeof value === 'string' && value.length > 0
   const approval = (value: unknown) =>
@@ -61,6 +66,7 @@ export function createCampaign(
   scenarios: readonly Scenario[],
   storage?: StorageAccess,
   direct?: string,
+  replay?: CampaignSnapshot,
 ) {
   const available = scenarios.filter((item) => item.available)
   const byId = new Map(available.map((item) => [item.id, item]))
@@ -74,6 +80,7 @@ export function createCampaign(
   const visitedHosts = new Set<string>()
   const readResources = new Set<string>()
   const handoffs = new Map<string, Handoff>()
+  const levels = new Map<string, LevelSave>()
   let current = ''
   let restoring = true
 
@@ -89,26 +96,34 @@ export function createCampaign(
     visitedHosts.clear()
     readResources.clear()
     handoffs.clear()
+    levels.clear()
     for (const scenario of available) {
       if (scenario.initiallyDiscovered) discovered.add(scenario.id)
     }
     current = available.find(({ id }) => discovered.has(id))?.id ?? ''
   }
 
+  function snapshot(): CampaignSnapshot {
+    return {
+      version: 1,
+      current,
+      completed: [...completed],
+      delivered: [...delivered],
+      read: [...read],
+      visitedHosts: [...visitedHosts],
+      readResources: [...readResources],
+      handoffs: Object.fromEntries(handoffs),
+    }
+  }
+
   function persist() {
-    if (restoring) return
+    if (restoring || !storage) return
     try {
       storage?.setItem(
         campaignKey,
         JSON.stringify({
-          version: 1,
-          current,
-          completed: [...completed],
-          delivered: [...delivered],
-          read: [...read],
-          visitedHosts: [...visitedHosts],
-          readResources: [...readResources],
-          handoffs: Object.fromEntries(handoffs),
+          ...snapshot(),
+          levels: Object.fromEntries(levels),
         } satisfies Save),
       )
     } catch {
@@ -166,7 +181,7 @@ export function createCampaign(
   start()
   try {
     const raw = storage?.getItem(campaignKey)
-    const saved = decode(raw ?? null)
+    const saved = decode(replay ? JSON.stringify(replay) : (raw ?? null))
     if (saved) {
       for (const id of saved.delivered) deliver(id)
       for (const { id, recovery } of available) {
@@ -191,6 +206,10 @@ export function createCampaign(
         if (Array.isArray(values))
           for (const value of values) if (typeof value === 'string') keys.add(value)
       if (selectable(saved.current)) current = saved.current
+      for (const id of discovered) {
+        const level = saved.levels?.[id]
+        if (level?.version === 1) levels.set(id, level)
+      }
     } else if (!raw) {
       for (const message of byId.get(current)?.inbox?.initial ?? []) deliver(message)
       for (const { id } of available) {
@@ -249,6 +268,32 @@ export function createCampaign(
     destinations: () => available.filter(({ id }) => selectable(id)),
     enter,
     complete,
+    snapshot,
+    level: (id: string) => levels.get(id),
+    invalidateHistory(revision: string) {
+      let changed = false
+      for (const [id, level] of levels) {
+        if (level.revision === revision) continue
+        levels.set(id, {
+          ...level,
+          revision,
+          journal: undefined,
+          terminal: undefined,
+          composer: level.composer && {
+            ...level.composer,
+            history: [],
+            index: 0,
+            scratch: undefined,
+          },
+        })
+        changed = true
+      }
+      if (changed) persist()
+    },
+    saveLevel(id: string, level: LevelSave) {
+      levels.set(id, level)
+      persist()
+    },
     reset() {
       start()
       enter(current)

@@ -1,5 +1,15 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, shallowReactive, useId, watch } from 'vue'
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  shallowReactive,
+  useId,
+  watch,
+  watchPostEffect,
+} from 'vue'
 import ComposerArgument from './ComposerArgument.vue'
 import {
   actionCommand,
@@ -18,6 +28,7 @@ import {
 import type { Action, Response } from '../lib/runtime'
 import type { OperationBinding } from '../lib/scenario'
 import { scalarSpan, type Span } from '../lib/unicode'
+import { validDraft, type ComposerSave, type Draft } from '../lib/workspace'
 
 const props = defineProps<{
   prompt: string
@@ -26,9 +37,10 @@ const props = defineProps<{
   context: string
   suggestions: string[]
   operations: readonly OperationBinding[]
+  initial?: ComposerSave
   execute: (action: Action, echo?: string) => Promise<Response | undefined>
 }>()
-const emit = defineEmits<{ action: [Action] }>()
+const emit = defineEmits<{ action: [Action]; change: [] }>()
 const id = useId()
 const root = ref<HTMLElement>()
 const input = ref<HTMLInputElement>()
@@ -47,14 +59,6 @@ const showSuggestions = ref(true)
 const menuOpen = ref(false)
 const menuIndex = ref(0)
 const editors = shallowReactive(new Map<number, InstanceType<typeof ComposerArgument>>())
-type Draft = {
-  name?: CommandName
-  text: string
-  values: string[]
-  active: number
-  spans: Span[]
-  selection?: Span
-}
 const drafts = new Map<CommandName, Draft>()
 const history: Draft[] = []
 let historyIndex = 0
@@ -105,6 +109,9 @@ function snapshot(): Draft {
       ? { start: input.value.selectionStart ?? 0, end: input.value.selectionEnd ?? 0 }
       : undefined,
     spans: fields.value.map((_, index) => editors.get(index)?.context() ?? { start: 0, end: 0 }),
+    tools: fields.value.map(
+      (_, index) => editors.get(index)?.saveView() ?? { expanded: false, page: 0 },
+    ),
   }
 }
 function cache() {
@@ -119,16 +126,47 @@ function reset() {
   text.value = ''
   composing.value = false
 }
+function resetComposer() {
+  reset()
+  drafts.clear()
+  history.length = 0
+  historyIndex = 0
+  scratch = undefined
+}
 watch(
   () => props.context,
   () => {
     reset()
     drafts.clear()
-    history.length = 0
-    historyIndex = 0
+    historyIndex = history.length
     scratch = undefined
   },
 )
+function saveComposer(submitted = false): ComposerSave {
+  return {
+    draft: submitted ? { text: '', values: [], active: 0, spans: [] } : snapshot(),
+    drafts: [...drafts.values()],
+    history: [...history],
+    index: historyIndex,
+    scratch,
+  }
+}
+watchPostEffect(() => {
+  snapshot()
+  if (!pending.value) emit('change')
+})
+onMounted(() => {
+  const saved = props.initial
+  if (!saved) return
+  for (const draft of Array.isArray(saved.drafts) ? saved.drafts.filter(validDraft) : [])
+    if (draft.name) drafts.set(draft.name, draft)
+  if (Array.isArray(saved.history)) history.push(...saved.history.filter(validDraft).slice(-60))
+  historyIndex = Number.isSafeInteger(saved.index)
+    ? Math.max(0, Math.min(saved.index, history.length))
+    : history.length
+  scratch = validDraft(saved.scratch) ? saved.scratch : undefined
+  if (validDraft(saved.draft)) void restore(saved.draft, false)
+})
 function setEditor(index: number, instance: unknown) {
   if (instance) editors.set(index, instance as InstanceType<typeof ComposerArgument>)
   else editors.delete(index)
@@ -140,19 +178,32 @@ async function focusField(index = activeIndex.value, span?: Span) {
   if (editor) editor.focusAt(span ?? editor.context())
   else tag.value?.focus({ preventScroll: true })
 }
-async function restore(draft: Draft) {
+async function restore(draft: Draft, focus = true) {
   selected.value = draft.name
   text.value = draft.text
   values.value = [...draft.values]
-  activeIndex.value = draft.active
+  activeIndex.value = Math.min(draft.active, Math.max(0, fields.value.length - 1))
   menuOpen.value = false
   showSuggestions.value = false
   await nextTick()
   if (draft.name) {
-    draft.spans.forEach((span, index) => editors.get(index)?.focusAt(span, false))
-    await focusField(draft.active, draft.spans[draft.active])
+    draft.spans.forEach((span, index) => {
+      const raw = draft.values[index] ?? ''
+      editors.get(index)?.focusAt(
+        scalarSpan(raw, {
+          start: Math.min(raw.length, span.start),
+          end: Math.min(raw.length, span.end),
+        }),
+        false,
+      )
+    })
+    if (focus) await focusField(activeIndex.value)
+    if (Array.isArray(draft.tools))
+      draft.tools.forEach((view, index) => {
+        if (view) editors.get(index)?.restoreView(view)
+      })
   } else {
-    input.value?.focus({ preventScroll: true })
+    if (focus) input.value?.focus({ preventScroll: true })
     if (draft.selection) input.value?.setSelectionRange(draft.selection.start, draft.selection.end)
   }
 }
@@ -442,6 +493,8 @@ defineExpose({
   canInsert,
   canReplace,
   canInsertCommand,
+  saveComposer,
+  resetComposer,
 })
 </script>
 
@@ -499,6 +552,9 @@ defineExpose({
           dir="auto"
           :readonly="busy"
           @input="freeInput"
+          @select="emit('change')"
+          @keyup="emit('change')"
+          @pointerup="emit('change')"
           @keydown="freeKey"
           @compositionstart="composing = true"
           @compositionend="endFreeComposition"

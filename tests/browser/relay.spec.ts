@@ -37,7 +37,7 @@ async function openRelay(page: Page) {
   await expect(page.getByRole('heading', { name: 'The Relay' })).toBeVisible()
 }
 
-test('plays the entire Relay through graphical actions and restores only objective progress after reload', async ({
+test('plays the entire Relay through graphical actions and restores the session after reload', async ({
   page,
   context,
 }) => {
@@ -116,12 +116,12 @@ test('plays the entire Relay through graphical actions and restores only objecti
   await quick(page, 'Logout').click()
   await expect(panel).toContainText('guest')
   await page.reload()
-  await expect(panel).toContainText('local')
+  await expect(panel).toContainText('relay-07')
   await expect(panel).toContainText('Complete')
   await page.getByRole('button', { name: 'Reset session' }).click()
   await expect(panel).toContainText('Open')
   await page.reload()
-  await expect(panel).toContainText('Complete')
+  await expect(panel).toContainText('Open')
 })
 
 test('reaches equivalent states through typed actions in a different exploration order', async ({
@@ -227,14 +227,95 @@ test('shows host and mail alerts and updates read status in existing lists', asy
 
   await page.reload()
   await quick(page, 'Files').click()
-  await expect(row('index')).toHaveAttribute('data-status', 'Read')
-  await link(page, 'index').click()
+  await expect(row('document')).toHaveAttribute('data-status', 'Read')
   await expect(hosts()).toBeVisible()
   await expect(inbox()).toBeVisible()
   await hosts().click()
-  await link(page, 'annex').click()
+  await expect(row('annex')).not.toHaveAttribute('data-status', 'New')
+  await link(page, 'shelf').click()
   await quick(page, 'Files').click()
-  await expect(row('document')).toHaveAttribute('data-status', 'Read')
+  await expect(row('index')).toHaveAttribute('data-status', 'Read')
+})
+
+test('saves level workspaces and drops their command history when a game text changes', async ({
+  page,
+}, info) => {
+  await routeFixtures(page, true)
+  await page.goto('/')
+  const selector = page.getByRole('combobox', { name: 'Scenario' })
+  const log = terminal(page)
+  const readme = log.getByRole('region', { name: 'File /README' })
+  const readmeEntry = log.locator('.terminal-entry').filter({
+    has: page.locator('.command-line').filter({ hasText: 'cat /README' }),
+  })
+  const disclosure = readmeEntry.getByRole('button', { name: 'Toggle command output' })
+  const tools = page.getByRole('button', { name: 'Code points', exact: true })
+  await run(page, 'connect relay-07')
+  await run(page, 'login ' + compatible)
+  await run(page, 'cat /README')
+  await expect(readme).toContainText('MONONYM Message Services')
+  await disclosure.click()
+  await cmd(page).fill('login ')
+  const draft = String.raw`a🧪é\u000020`
+  await alias(page).fill(draft)
+  await alias(page).evaluate((field: HTMLTextAreaElement) => {
+    field.setSelectionRange(1, 3)
+    field.dispatchEvent(new Event('select'))
+  })
+  await tools.click()
+  await selector.selectOption('demo')
+  await run(page, 'cat /index')
+  await expect(log).toContainText('The annex is available.')
+  await run(page, 'connect annex')
+  await expect(contextPanel(page)).toContainText('annex')
+  await selector.selectOption('001-the-relay')
+  await expect(contextPanel(page)).toContainText('maintenance')
+  await expect(alias(page)).toHaveValue(draft)
+  await expect(tools).toHaveAttribute('aria-expanded', 'true')
+  await expect(disclosure).toHaveAttribute('aria-expanded', 'false')
+  await disclosure.click()
+  await expect(readme).toContainText('MONONYM Message Services')
+  await page.screenshot({ path: info.outputPath('restored-level-desktop.png') })
+
+  await page.reload()
+  await expect(contextPanel(page)).toContainText('maintenance')
+  await expect(alias(page)).toHaveValue(draft)
+  expect(
+    await alias(page).evaluate((field: HTMLTextAreaElement) => [
+      field.selectionStart,
+      field.selectionEnd,
+    ]),
+  ).toEqual([1, 3])
+  await expect(readme).toContainText('MONONYM Message Services')
+  await alias(page).press('Alt+ArrowUp')
+  const path = page.getByRole('textbox', { name: 'path', exact: true })
+  await expect(path).toHaveValue('/README')
+  await path.press('Alt+ArrowDown')
+  await expect(alias(page)).toHaveValue(draft)
+  await page.setViewportSize({ width: 390, height: 435 })
+  await page.screenshot({ path: info.outputPath('restored-level-compact.png') })
+  const session = page.getByRole('button', { name: 'Session', exact: true })
+  await session.click()
+  const saved = () =>
+    page.evaluate(() => JSON.parse(localStorage.getItem('unicodd.campaign')!).levels)
+  expect(JSON.stringify(await saved())).not.toContain('MONONYM Message Services')
+
+  await page.route('**/001-the-relay/files/README.txt', async (route) => {
+    const response = await route.fetch()
+    await route.fulfill({ response, body: (await response.text()) + '\nRevision test.\n' })
+  })
+  await page.reload()
+  await expect(alias(page)).toHaveValue(draft)
+  await expect(contextPanel(page)).toContainText('maintenance')
+  await expect(log.locator('.command-echo')).toHaveCount(0)
+  const levels = await saved()
+  expect(levels['001-the-relay'].composer.history).toEqual([])
+  expect(levels.demo.journal).toBeUndefined()
+  await selector.selectOption('demo')
+  await expect(session).toHaveAttribute('aria-expanded', 'false')
+  await session.click()
+  await expect(contextPanel(page)).toContainText('annex')
+  await expect(log.locator('.command-echo')).toHaveCount(0)
 })
 
 test('supports history, completion, usage feedback, and IME-safe submission', async ({ page }) => {

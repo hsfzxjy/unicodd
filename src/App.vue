@@ -1,12 +1,22 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
-import Terminal, { type Entry } from './components/Terminal.vue'
+import Terminal from './components/Terminal.vue'
+import logicRevision from 'virtual:unicodd-logic-revision'
 import { createCampaign } from './lib/campaign'
 import { actionCommand, puzzleAction } from './lib/commands'
 import type { createContentLoader, ScenarioEntry } from './lib/content'
 import { createRuntime, type Action, type Link, type Session } from './lib/runtime'
 import { type Scenario } from './lib/scenario'
 import { copyText } from './lib/unicode'
+import {
+  historyRevision,
+  replayJournal,
+  scrollbackLimit,
+  type Checkpoint,
+  type ComposerSave,
+  type Entry,
+  type JournalFrame,
+} from './lib/workspace'
 import type { Engine } from './types'
 
 const props = defineProps<{ content: ReturnType<typeof createContentLoader>; engine: Engine }>()
@@ -37,7 +47,52 @@ const operations = computed(() => {
   return [...(host?.operations ?? []), ...(host?.recovery ?? [])]
 })
 let runtime: ReturnType<typeof createRuntime> | undefined
-let sequence = 0
+const initialComposer = shallowRef<ComposerSave>()
+let revision = ''
+let baseline: Checkpoint
+let frames: JournalFrame[] = []
+let includeWelcome = true
+let checkpointNext = false
+let sequence = 1
+let workspaceReady = false
+let saveTimer: number | undefined
+
+function checkpoint(active: NonNullable<typeof runtime>): Checkpoint {
+  return { runtime: active.snapshot(), campaign: campaign!.snapshot() }
+}
+
+function saveLevel(submitted = false) {
+  window.clearTimeout(saveTimer)
+  saveTimer = undefined
+  if (!workspaceReady || !runtime || !scenario.value || !campaign) return
+  campaign.saveLevel(scenario.value.id, {
+    version: 1,
+    revision,
+    runtime: runtime.snapshot(),
+    composer: terminal.value?.saveComposer(submitted),
+    journal: {
+      start: includeWelcome ? baseline : (frames[0]?.before ?? baseline),
+      welcome: includeWelcome,
+      commands: frames.map(({ record }, index) =>
+        index === 0 && !includeWelcome ? { ...record, checkpoint: undefined } : record,
+      ),
+    },
+    terminal: terminal.value?.saveView(),
+    sessionExpanded: sessionExpanded.value,
+  })
+}
+
+function scheduleSave() {
+  if (!workspaceReady) return
+  window.clearTimeout(saveTimer)
+  saveTimer = window.setTimeout(() => {
+    if (!busy.value) saveLevel()
+  }, 180)
+}
+
+function saveOnExit() {
+  if (!busy.value) saveLevel()
+}
 
 const viewport = window.visualViewport
 function updateLayout() {
@@ -55,8 +110,11 @@ onMounted(() => {
   narrowViewport.addEventListener('change', updateLayout)
   if (viewport) viewport.addEventListener('resize', fitViewport)
   else window.addEventListener('resize', fitViewport)
+  window.addEventListener('pagehide', saveOnExit)
 })
 onUnmounted(() => {
+  window.clearTimeout(saveTimer)
+  window.removeEventListener('pagehide', saveOnExit)
   runtime = undefined
   narrowViewport.removeEventListener('change', updateLayout)
   if (viewport) viewport.removeEventListener('resize', fitViewport)
@@ -98,6 +156,7 @@ async function loadCatalog() {
   try {
     catalog.value = await props.content.manifest()
     scenarios.value = await props.content.campaign(catalog.value)
+    revision = await historyRevision(logicRevision, [catalog.value, scenarios.value])
     const direct = import.meta.env.DEV
       ? (new URLSearchParams(location.search).get('scenario') ?? undefined)
       : undefined
@@ -108,6 +167,7 @@ async function loadCatalog() {
       // Continue without persistence if the browser blocks storage.
     }
     campaign = createCampaign(scenarios.value, storage, direct)
+    campaign.invalidateHistory(revision)
     scenarioId.value = campaign.current
   } catch (error) {
     loadingError.value = error instanceof Error ? error.message : String(error)
@@ -116,18 +176,58 @@ async function loadCatalog() {
   }
 }
 
-watch([scenarioId, attempt], ([id]) => {
+watch([scenarioId, attempt], async ([id]) => {
   const loaded = scenarios.value.find((item) => item.id === id)
   if (!loaded || !campaign?.enter(id)) return
-  sessionExpanded.value = false
-  busy.value = false
+  window.clearTimeout(saveTimer)
+  workspaceReady = false
+  busy.value = true
   loadingError.value = ''
-  runtime = createRuntime(loaded, props.engine, campaign)
+  const saved = campaign.level(id)
+  const historyMatches = saved?.revision === revision
+  const active = createRuntime(loaded, props.engine, campaign, saved?.runtime)
+  runtime = active
+  initialComposer.value = saved?.composer
+  sessionExpanded.value = saved?.sessionExpanded === true
   scenario.value = loaded
-  session.value = runtime.state
+  session.value = active.state
   contextVersion.value++
-  transcript.value = [{ id: sequence++, output: runtime.welcome() }]
-  void nextTick(() => terminal.value?.scrollToEnd())
+  baseline = checkpoint(active)
+  frames = []
+  includeWelcome = true
+  checkpointNext = false
+  sequence = 1
+  transcript.value = [{ id: 0, output: active.welcome() }]
+  let restored = false
+  if (historyMatches && saved?.journal) {
+    try {
+      const replay = await replayJournal(
+        saved.journal,
+        loaded,
+        scenarios.value,
+        props.engine,
+        campaign.direct(id),
+      )
+      if (runtime !== active) return
+      baseline = saved.journal.start
+      frames = replay.frames
+      includeWelcome = saved.journal.welcome
+      checkpointNext = true
+      sequence = (frames.at(-1)?.record.id ?? 0) + 1
+      transcript.value = replay.entries
+      restored = true
+    } catch {
+      // A malformed history can be discarded independently of the level state.
+    }
+  }
+  await nextTick()
+  if (runtime !== active) return
+  terminal.value?.restoreView(restored ? saved?.terminal : undefined)
+  await nextTick()
+  if (runtime !== active) return
+  busy.value = false
+  workspaceReady = true
+  saveLevel()
 })
 void loadCatalog()
 
@@ -139,22 +239,27 @@ async function dispatch(action: Action, command?: string) {
     !window.confirm('Clear campaign progress and all local mail?')
   )
     return
+  if (saveTimer !== undefined && action.type !== 'resetCampaign') saveLevel()
   const id = scenarioId.value
   const before = active.state
+  const beforeCommand = checkpoint(active)
   const from = prompt.value
   const isCurrent = () => runtime === active && scenarioId.value === id
   let delayed = false
   let focusBeforePause: Element | null = null
   busy.value = true
   let response
+  let clipboard: boolean | undefined
   try {
     response = await active.dispatch(action)
     if (!isCurrent()) return
     if (response.transfer?.type === 'copy') {
       try {
         await copyText(response.transfer.text)
+        clipboard = true
         response.output = [{ kind: 'message', text: 'Copied.' }]
       } catch {
+        clipboard = false
         response.output = [{ kind: 'error', text: 'Clipboard unavailable.' }]
       }
     } else if (response.transfer?.type === 'insertCommand') {
@@ -165,8 +270,15 @@ async function dispatch(action: Action, command?: string) {
     if (!isCurrent()) return
     const echo = response.compose ? undefined : (command ?? actionCommand(action))
     if (response.clear) {
-      transcript.value = response.output ? [{ id: sequence++, output: response.output }] : []
+      frames = []
+      includeWelcome = Boolean(response.output)
+      baseline = checkpoint(active)
+      checkpointNext = false
+      sequence = 1
+      if (action.type === 'reset') terminal.value?.resetComposer()
+      transcript.value = response.output ? [{ id: 0, output: response.output }] : []
       terminal.value?.scrollToEnd()
+      saveLevel(command !== undefined)
     } else if (response.enter === undefined && (echo || response.output)) {
       const output = response.output ?? []
       const entry: Entry = {
@@ -176,7 +288,23 @@ async function dispatch(action: Action, command?: string) {
         connected: Boolean(before.host),
         output,
       }
-      const history = transcript.value.slice(-79)
+      frames = [
+        ...frames.slice(1 - scrollbackLimit),
+        {
+          before: beforeCommand,
+          record: {
+            id: entry.id,
+            action: clipboard === undefined ? action : { type: 'clipboard', ok: clipboard },
+            echo: echo === actionCommand(action) ? undefined : echo,
+            checkpoint: checkpointNext ? beforeCommand : undefined,
+            transientOutput: response.transient ? output : undefined,
+          },
+        },
+      ]
+      checkpointNext = false
+      if (frames.length === scrollbackLimit) includeWelcome = false
+      const history = transcript.value.slice(1 - scrollbackLimit)
+      saveLevel(command !== undefined && !output.some((row) => row.kind === 'error'))
       const pauses = matchMedia('(prefers-reduced-motion: reduce)').matches
         ? []
         : (scenario.value?.outputTiming?.[action.type] ?? [])
@@ -200,6 +328,7 @@ async function dispatch(action: Action, command?: string) {
   }
   if (!isCurrent()) return
   if (response.enter !== undefined) {
+    if (action.type !== 'resetCampaign' && response.enter !== id) saveLevel(command !== undefined)
     if (response.enter !== scenarioId.value) scenarioId.value = response.enter
     else if (action.type === 'resetCampaign') attempt.value++
     if (response.enter !== id || action.type === 'resetCampaign') {
@@ -217,6 +346,7 @@ async function dispatch(action: Action, command?: string) {
       action.type === 'connect')
   )
     contextVersion.value++
+  scheduleSave()
   if (response.compose) {
     if (narrow.value) sessionExpanded.value = false
     await nextTick()
@@ -247,7 +377,7 @@ async function dispatch(action: Action, command?: string) {
 
 <template>
   <div ref="application" class="application">
-    <main v-if="scenario && session" :key="scenario.id" class="workspace">
+    <main v-if="scenario && session" :key="scenario.id + '/' + attempt" class="workspace">
       <Teleport to="#terminal-context" :disabled="!narrow" defer>
         <aside
           v-show="!narrow || sessionExpanded"
@@ -324,9 +454,11 @@ async function dispatch(action: Action, command?: string) {
         :activity="session"
         :new-hosts="newHosts"
         :unread-mail="unreadMail"
+        :initial-composer="initialComposer"
         :context="scenarioId + '/' + contextVersion"
         :execute="dispatch"
         @action="dispatch"
+        @change="scheduleSave"
       >
         <template #scenario>
           <h1 v-if="destinations.length === 1" class="terminal-scenario">

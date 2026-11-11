@@ -1,0 +1,168 @@
+import { createCampaign, type CampaignSnapshot } from './campaign.ts'
+import { actionCommand, commandDefinition, type CommandName } from './commands.ts'
+import { createRuntime, type Action, type Output, type RuntimeSnapshot } from './runtime.ts'
+import type { Scenario } from './scenario.ts'
+import type { Span } from './unicode.ts'
+import type { Engine } from '../types.ts'
+
+export interface Draft {
+  name?: CommandName
+  text: string
+  values: string[]
+  active: number
+  spans: Span[]
+  selection?: Span
+  tools?: ArgumentView[]
+}
+
+export interface ArgumentView {
+  expanded: boolean
+  page: number
+}
+
+export interface ComposerSave {
+  draft: Draft
+  drafts: Draft[]
+  history: Draft[]
+  index: number
+  scratch?: Draft
+}
+
+export function validDraft(draft: Draft | undefined): draft is Draft {
+  const span = (value?: Span) =>
+    value &&
+    Number.isSafeInteger(value.start) &&
+    Number.isSafeInteger(value.end) &&
+    value.start >= 0 &&
+    value.end >= value.start
+  return Boolean(
+    draft &&
+    typeof draft.text === 'string' &&
+    (draft.name === undefined || commandDefinition(draft.name)) &&
+    Array.isArray(draft.values) &&
+    draft.values.every((value) => typeof value === 'string') &&
+    Array.isArray(draft.spans) &&
+    draft.spans.every(span) &&
+    Number.isSafeInteger(draft.active) &&
+    draft.active >= 0 &&
+    (draft.selection === undefined || span(draft.selection)),
+  )
+}
+
+export interface TerminalView {
+  collapsed: number[]
+  scrollTop: number
+  following: boolean
+}
+
+export interface Checkpoint {
+  runtime: RuntimeSnapshot
+  campaign: CampaignSnapshot
+}
+
+export interface CommandRecord {
+  id: number
+  action: Action | { type: 'clipboard'; ok: boolean }
+  echo?: string
+  checkpoint?: Checkpoint
+  transientOutput?: Output[]
+}
+
+export interface Journal {
+  start: Checkpoint
+  welcome: boolean
+  commands: CommandRecord[]
+}
+
+export interface LevelSave {
+  version: 1
+  revision: string
+  runtime: RuntimeSnapshot
+  composer?: ComposerSave
+  journal?: Journal
+  terminal?: TerminalView
+  sessionExpanded: boolean
+}
+
+export interface Entry {
+  id: number
+  echo?: string
+  prompt?: string
+  connected?: boolean
+  output: Output[]
+  waiting?: boolean
+}
+
+export interface JournalFrame {
+  record: CommandRecord
+  before: Checkpoint
+}
+
+export const scrollbackLimit = 80
+
+export async function historyRevision(logic: string, content: unknown) {
+  const bytes = new TextEncoder().encode(JSON.stringify(content))
+  if (globalThis.crypto?.subtle) {
+    const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))
+    return logic + ':' + Array.from(digest, (byte) => byte.toString(16).padStart(2, '0')).join('')
+  }
+  // Web Crypto is unavailable on plain HTTP development origins.
+  let hash = 0xcbf29ce484222325n
+  for (const byte of bytes) hash = BigInt.asUintN(64, (hash ^ BigInt(byte)) * 0x100000001b3n)
+  return logic + ':fnv64:' + hash.toString(16)
+}
+
+export async function replayJournal(
+  journal: Journal,
+  scenario: Scenario,
+  scenarios: readonly Scenario[],
+  engine: Engine,
+  direct: boolean,
+) {
+  function open(checkpoint: Checkpoint) {
+    if (!checkpoint?.runtime || !checkpoint.campaign) throw new Error('Invalid checkpoint')
+    const campaign = createCampaign(
+      scenarios,
+      undefined,
+      direct ? scenario.id : undefined,
+      checkpoint.campaign,
+    )
+    return { campaign, runtime: createRuntime(scenario, engine, campaign, checkpoint.runtime) }
+  }
+
+  let { campaign, runtime } = open(journal.start)
+  const entries: Entry[] = journal.welcome ? [{ id: 0, output: runtime.welcome() }] : []
+  const frames: JournalFrame[] = []
+  let lastId = 0
+  for (const record of journal.commands.slice(-(scrollbackLimit - entries.length))) {
+    if (
+      !Number.isSafeInteger(record.id) ||
+      record.id <= lastId ||
+      (record.echo !== undefined && typeof record.echo !== 'string')
+    )
+      throw new Error('Invalid command record')
+    lastId = record.id
+    if (record.checkpoint) ({ campaign, runtime } = open(record.checkpoint))
+    const before = { runtime: runtime.snapshot(), campaign: campaign.snapshot() }
+    const { action } = record
+    const output =
+      record.transientOutput ??
+      (action.type === 'clipboard'
+        ? ([
+            {
+              kind: action.ok ? 'message' : 'error',
+              text: action.ok ? 'Copied.' : 'Clipboard unavailable.',
+            },
+          ] as Output[])
+        : ((await runtime.dispatch(action)).output ?? []))
+    entries.push({
+      id: record.id,
+      echo: record.echo ?? (action.type === 'clipboard' ? undefined : actionCommand(action)),
+      prompt: before.runtime.host ?? 'local',
+      connected: Boolean(before.runtime.host),
+      output,
+    })
+    frames.push({ record, before })
+  }
+  return { entries, frames }
+}

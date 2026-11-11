@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ArgumentView } from '../lib/workspace'
 import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch, watchPostEffect } from 'vue'
 import {
   applyNativeEdit,
@@ -287,7 +288,20 @@ function copy(value: string) {
   emit('copy', value)
 }
 
-defineExpose({ apply, focusAt, context: () => ({ ...selection.value }) })
+function restoreView(view: ArgumentView) {
+  expanded.value = view.expanded === true
+  page.value = Number.isSafeInteger(view.page)
+    ? Math.max(0, Math.min(view.page, pages.value - 1))
+    : 0
+}
+
+defineExpose({
+  apply,
+  focusAt,
+  context: () => ({ ...selection.value }),
+  saveView: (): ArgumentView => ({ expanded: expanded.value, page: page.value }),
+  restoreView,
+})
 </script>
 
 <template>

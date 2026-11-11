@@ -430,17 +430,14 @@ defineExpose({
                 ? `Byte offset 0x${byteGroups[index].offset}, ${byteGroups[index].hex}, ${point.notation}`
                 : `${page * pageSize + index + 1}. ${point.notation}, ${point.glyph}`
             "
+            :title="byteGroups[index] ? `Byte offset 0x${byteGroups[index].offset}` : undefined"
             :aria-pressed="point.start >= selection.start && point.end <= selection.end"
             @click="selectPoint(point)"
           >
-            <template v-if="byteGroups[index]">
-              <code class="argument-byte-values">{{ byteGroups[index].hex }}</code>
-              <code>0x{{ byteGroups[index].offset }}</code>
-            </template>
-            <template v-else>
-              <bdi>{{ point.glyph }}</bdi>
-              <code>{{ point.notation }}</code>
-            </template>
+            <bdi>{{ point.glyph }}</bdi>
+            <code :class="{ 'argument-byte-values': byteGroups[index] }">
+              {{ byteGroups[index]?.hex ?? point.notation }}
+            </code>
             <span
               v-if="
                 caretOffset === point.start ||

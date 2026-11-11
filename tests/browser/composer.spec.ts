@@ -178,6 +178,7 @@ test('inspects UTF-8 byte groups and selects their source scalar', async ({ page
   const grid = page.getByRole('group', { name: 'Account alias UTF-8 bytes' })
   await alias.fill('a🧪é\u200b')
   await bytes.click()
+  await expect(grid.locator('button > bdi')).toHaveText(['a', '🧪', 'e', '◌́', 'ZWSP'])
   await expect(grid.locator('.argument-byte-values')).toHaveText([
     '61',
     'F0 9F A7 AA',
@@ -188,6 +189,9 @@ test('inspects UTF-8 byte groups and selects their source scalar', async ({ page
   await page.screenshot({ path: info.outputPath('utf8-bytes-desktop.png') })
   await page.setViewportSize({ width: 390, height: 435 })
   const emoji = grid.getByRole('button', { name: 'Byte offset 0x0001, F0 9F A7 AA, U+1F9EA' })
+  expect((await emoji.boundingBox())!.width).toBeGreaterThan(
+    (await grid.getByRole('button').first().boundingBox())!.width,
+  )
   await emoji.click()
   await expect(emoji).toHaveAttribute('aria-pressed', 'true')
   expect(

@@ -165,7 +165,8 @@ textarea {
   gap: 4px;
 }
 .argument-byte-grid {
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
 }
 .point {
   position: relative;
@@ -200,8 +201,10 @@ textarea {
   font-size: 11px;
   color: var(--muted);
 }
-.point .argument-byte-values {
-  color: var(--text);
+.argument-byte-grid .point {
+  min-width: 69px;
+}
+.argument-byte-values {
   white-space: nowrap;
 }
 .point-actions {

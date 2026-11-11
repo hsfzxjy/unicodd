@@ -4,6 +4,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::{case_fold, international::*, normalize, skeleton, EngineError, ErrorCode, Form};
 
+mod archive;
 mod audit;
 mod queue;
 
@@ -22,6 +23,7 @@ pub struct Dataset {
     audit_samples: Vec<audit::Sample>,
     cursors: BTreeMap<String, queue::Cursor>,
     rollback_ready: bool,
+    archive: Option<archive::Archive>,
 }
 
 #[derive(Deserialize)]
@@ -66,9 +68,26 @@ pub struct Handoff {
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(tag = "kind", rename_all = "lowercase", deny_unknown_fields)]
 enum Evidence {
-    Appeals { records: Vec<String> },
-    Approvals { approvals: Vec<Approval> },
-    Release { identities: Vec<RestoredIdentity> },
+    Appeals {
+        records: Vec<String>,
+    },
+    Approvals {
+        approvals: Vec<Approval>,
+    },
+    Release {
+        identities: Vec<RestoredIdentity>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        outbox: Vec<archive::Source>,
+    },
+    Dispatch {
+        evidence: archive::Dispatch,
+    },
+    Ingestion {
+        evidence: archive::Ingestion,
+    },
+    Mirror {
+        evidence: archive::Mirror,
+    },
 }
 
 #[derive(Clone, Deserialize, Serialize, PartialEq, Eq)]
@@ -79,7 +98,7 @@ struct Approval {
     receipt: String,
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 struct RestoredIdentity {
     canonical: String,
@@ -169,6 +188,12 @@ pub enum Operation {
     Preview,
     Verify,
     Commit,
+    Resolve,
+    Dispatch,
+    Capture,
+    Deframe,
+    Identifier,
+    Mirror,
 }
 
 impl Operation {
@@ -214,6 +239,12 @@ impl Operation {
                 }
                 checks
             }
+            Self::Resolve
+            | Self::Dispatch
+            | Self::Capture
+            | Self::Deframe
+            | Self::Identifier
+            | Self::Mirror => archive::checks(self).to_vec(),
         }
     }
 }
@@ -265,6 +296,8 @@ pub struct Row {
     inspect: Vec<String>,
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     audit: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    hex: Option<archive::HexRow>,
 }
 
 impl Report {
@@ -305,6 +338,7 @@ impl Report {
             serialized: None,
             inspect: Vec::new(),
             audit: false,
+            hex: None,
         });
         self.rows.last_mut().expect("inserted row")
     }
@@ -415,6 +449,9 @@ pub fn validate_dataset(data: &Dataset) -> Result<(), EngineError> {
     }
     queue::validate_cursors(data)?;
     audit::validate_samples(&data.audit_samples)?;
+    if let Some(archive) = &data.archive {
+        archive.validate(data)?;
+    }
     Ok(())
 }
 
@@ -746,12 +783,21 @@ pub fn run(request: Request) -> Result<Report, EngineError> {
         }
         (Operation::Verify | Operation::Commit, []) => {
             if matches!(command, Operation::Commit) {
-                if let Some(Evidence::Release { identities }) =
+                if let Some(Evidence::Release { identities, outbox }) =
                     data.prior_evidence(committed.as_ref())
                 {
-                    report.check("restored", valid_release(&data, identities));
+                    report.check(
+                        "restored",
+                        valid_release(&data, identities)
+                            && (outbox.is_empty()
+                                || data
+                                    .archive
+                                    .as_ref()
+                                    .is_some_and(|archive| &archive.sources == outbox)),
+                    );
                     if report.solved {
                         release_rows(&data, identities, &mut report);
+                        archive::queued_rows(outbox, &mut report);
                     }
                     return Ok(report);
                 }
@@ -800,12 +846,37 @@ pub fn run(request: Request) -> Result<Report, EngineError> {
                     report.check("restored", valid_release(&data, &identities));
                     if report.solved {
                         release_rows(&data, &identities, &mut report);
-                        report.handoff = Some(data.handoff(Evidence::Release { identities }));
+                        let outbox = data
+                            .archive
+                            .as_ref()
+                            .map(|archive| archive.sources.clone())
+                            .unwrap_or_default();
+                        archive::queued_rows(&outbox, &mut report);
+                        report.handoff =
+                            Some(data.handoff(Evidence::Release { identities, outbox }));
                     }
                 }
             } else {
                 report.context.verified = report.solved;
             }
+        }
+        (
+            Operation::Resolve
+            | Operation::Dispatch
+            | Operation::Capture
+            | Operation::Deframe
+            | Operation::Identifier
+            | Operation::Mirror,
+            _,
+        ) => {
+            archive::run(
+                &data,
+                command,
+                &args,
+                prior,
+                data.prior_evidence(committed.as_ref()),
+                &mut report,
+            )?;
         }
         _ => {
             return Err(bad_input(

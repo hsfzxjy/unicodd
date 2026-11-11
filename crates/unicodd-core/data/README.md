@@ -33,3 +33,16 @@ The recovery API exposes `en-US` and `sv-SE` with primary, secondary and tertiar
 Audit boundaries are UTF-8 byte offsets into the original string. The preview checks whether a candidate cut lands on one of those boundaries, measures the final serialized UTF-8 line, and uses UAX #9 resolved levels to test the ordering of fixed anchors around a dynamic field. The DOM keeps fields in separate `bdi` elements. Copy uses a serialized line with balanced FSI/PDI and visible escapes for formatting controls. Original fields remain exact.
 
 The size-optimized WASM build uses the upstream ICU4X compiled tables. Game commands expose the supported locales above, and the artifact includes the linked ICU4X tailoring tables. Builds require no separate locale downloads. See the [collation data](https://docs.rs/icu_collator_data/2.1.1/src/icu_collator_data/lib.rs.html), [case mapping data](https://docs.rs/icu_casemap_data/2.1.1/src/icu_casemap_data/lib.rs.html), and [ICU 78 Unicode release notes](https://unicode-org.github.io/icu/download/78.html).
+
+## IDNA and versioned identifiers
+
+The virtual gateway uses UTS #46 through `idna` 1.1.0 and `idna_adapter` 1.2.0 with the locked ICU4X 1.5 Unicode 15.1 data. The DNS profile checks STD3, hyphens, Bidi, ContextJ, DNS lengths and A-label round-trip. A historical preprocessing option implements the UTS #46 deviation mappings before the shared validator. The restricted HTTPS IRI profile parses authority and percent-decodes path segments separately. Resource paths are compared as exact UTF-8. No resolver operation makes a network request. [UTS #46](https://www.unicode.org/reports/tr46/)
+
+The identifier command reads sorted General_Category, XID_Start and XID_Continue ranges compiled from the two checked-in Unicode versions. Full default folding uses C and F records from the same version, including the existing 15.1 tables. The identifier grammar is XID_Start followed by zero or more XID_Continue characters. The archive's ASCII reference rules are a separate application constraint. [UAX #31](https://www.unicode.org/reports/tr31/)
+
+| Vendored file                       | Unicode source                                                                               | SHA-256                                                            |
+| ----------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `15.1.0/DerivedGeneralCategory.txt` | [UCD 15.1.0](https://www.unicode.org/Public/15.1.0/ucd/extracted/DerivedGeneralCategory.txt) | `760720ac034f96b630a3055879a744e0907184e8aa811e89ba34583a7a487e85` |
+| `18.0.0/DerivedGeneralCategory.txt` | [UCD 18.0.0](https://www.unicode.org/Public/18.0.0/ucd/extracted/DerivedGeneralCategory.txt) | `d6b151d2d40ee9b1876d26f417980f45ffae47b6055ccf7203cb31f07a030f94` |
+| `18.0.0/DerivedCoreProperties.txt`  | [UCD 18.0.0](https://www.unicode.org/Public/18.0.0/ucd/DerivedCoreProperties.txt)            | `09c928886a178fcafd93c29e4bd59073a058e5a100b716d425cb563ab50f68c9` |
+| `18.0.0/CaseFolding.txt`            | [UCD 18.0.0](https://www.unicode.org/Public/18.0.0/ucd/CaseFolding.txt)                      | `a004797658a457bec4dc11683e39f69249ea3b595b752dbea6721c4c9f587b0d` |

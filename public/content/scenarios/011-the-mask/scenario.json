@@ -1,0 +1,270 @@
+{
+  "version": 1,
+  "title": "The Mask",
+  "introduction": "The catalog selection is ready for review. The client team needs technical evidence from the reports without the duty contacts.",
+  "roles": ["release-reviewer"],
+  "flags": ["publication_verified"],
+  "local": {
+    "user": "release-reviewer",
+    "role": "release-reviewer"
+  },
+  "initialHost": "review-16",
+  "dossier": {
+    "dataset": "dossier/summer-duty.json",
+    "prior": "010-the-needle"
+  },
+  "hosts": [
+    {
+      "id": "review-16",
+      "name": "MONONYM disclosure review",
+      "guest": {
+        "user": "release-reviewer",
+        "role": "release-reviewer"
+      },
+      "welcome": "Authorized review workspace. Original JSON and the disclosure ledger are read-only.",
+      "status": [
+        {
+          "label": "Release review",
+          "value": "Candidate pending",
+          "after": {
+            "flag": "publication_verified",
+            "value": "Public outputs verified"
+          }
+        }
+      ],
+      "resources": [
+        {
+          "id": "mail",
+          "path": "/mail",
+          "type": "directory"
+        },
+        {
+          "id": "policy",
+          "path": "/policy",
+          "type": "directory"
+        },
+        {
+          "id": "logs",
+          "path": "/logs",
+          "type": "directory"
+        },
+        {
+          "id": "tools",
+          "path": "/tools",
+          "type": "directory"
+        },
+        {
+          "id": "reports",
+          "path": "/reports",
+          "type": "directory"
+        },
+        {
+          "id": "readme",
+          "path": "/README",
+          "type": "file",
+          "content": "files/readme.txt"
+        },
+        {
+          "id": "policy-contract",
+          "path": "/policy/disclosure.txt",
+          "type": "file",
+          "content": "files/policy-contract.txt"
+        },
+        {
+          "id": "history",
+          "path": "/logs/redaction-history.log",
+          "type": "file",
+          "content": "files/history.txt"
+        },
+        {
+          "id": "source-tools",
+          "path": "/tools/spans.txt",
+          "type": "file",
+          "content": "files/source-tools.txt"
+        },
+        {
+          "id": "publish-tools",
+          "path": "/tools/projection.txt",
+          "type": "file",
+          "content": "files/publish-tools.txt"
+        },
+        {
+          "id": "final-report",
+          "path": "/reports/publication.txt",
+          "type": "file",
+          "content": "files/final-report.txt",
+          "access": {
+            "flag": "publication_verified"
+          },
+          "denied": "Run the full verification before opening this report."
+        },
+        {
+          "id": "01-preview",
+          "path": "/mail/01-preview",
+          "type": "mail",
+          "content": "mail/01-preview.json"
+        },
+        {
+          "id": "02-escapes",
+          "path": "/mail/02-escapes",
+          "type": "mail",
+          "content": "mail/02-escapes.json"
+        },
+        {
+          "id": "03-scope",
+          "path": "/mail/03-scope",
+          "type": "mail",
+          "content": "mail/03-scope.json"
+        }
+      ],
+      "recovery": [
+        {
+          "command": "source",
+          "actionLabel": "Inspect selected source",
+          "label": "Inspect selected source",
+          "submitLabel": "Run source",
+          "fields": [
+            {
+              "input": "record",
+              "label": "Record",
+              "initial": "selected",
+              "kind": "text"
+            },
+            {
+              "input": "view",
+              "label": "View",
+              "initial": "body",
+              "kind": "text"
+            }
+          ],
+          "quick": true,
+          "success": [],
+          "failure": "The current attempt did not pass review."
+        },
+        {
+          "command": "map-span",
+          "actionLabel": "Translate source range",
+          "label": "Translate source range",
+          "submitLabel": "Run map-span",
+          "fields": [
+            {
+              "input": "record",
+              "label": "Record",
+              "initial": "FR-202",
+              "kind": "text"
+            },
+            {
+              "input": "space",
+              "label": "Offset space",
+              "initial": "utf16",
+              "kind": "text"
+            },
+            {
+              "input": "range",
+              "label": "Range",
+              "initial": "",
+              "kind": "text"
+            }
+          ],
+          "quick": true,
+          "success": [],
+          "failure": "The current attempt did not pass review."
+        },
+        {
+          "command": "json-check",
+          "actionLabel": "Check JSON interchange",
+          "label": "Check JSON interchange",
+          "submitLabel": "Run json-check",
+          "fields": [
+            {
+              "input": "json",
+              "label": "JSON or sample",
+              "initial": "paired",
+              "kind": "json"
+            }
+          ],
+          "quick": true,
+          "success": [],
+          "failure": "The current attempt did not pass review."
+        },
+        {
+          "command": "redact",
+          "actionLabel": "Stage release projection",
+          "label": "Stage release projection",
+          "submitLabel": "Run redact",
+          "fields": [
+            {
+              "input": "selector",
+              "label": "Span selector",
+              "initial": "literal",
+              "kind": "text"
+            },
+            {
+              "input": "replacement",
+              "label": "Replacement",
+              "initial": "marker",
+              "kind": "text"
+            },
+            {
+              "input": "exports",
+              "label": "Export pipeline",
+              "initial": "preview",
+              "kind": "text"
+            }
+          ],
+          "quick": true,
+          "success": [],
+          "failure": "The current attempt did not pass review.",
+          "invalidates": ["publication_verified"]
+        },
+        {
+          "command": "surfaces",
+          "actionLabel": "Inspect candidate output",
+          "label": "Inspect candidate output",
+          "submitLabel": "Run surfaces",
+          "fields": [
+            {
+              "input": "surface",
+              "label": "Surface",
+              "initial": "json",
+              "kind": "text"
+            }
+          ],
+          "quick": true,
+          "success": [],
+          "failure": "The current attempt did not pass review."
+        },
+        {
+          "command": "audit",
+          "actionLabel": "Audit all outputs",
+          "label": "Audit all outputs",
+          "submitLabel": "Run audit",
+          "fields": [],
+          "quick": true,
+          "success": [
+            {
+              "type": "flag",
+              "flag": "publication_verified"
+            },
+            {
+              "type": "resourceLink",
+              "resource": "final-report"
+            }
+          ],
+          "failure": "The current attempt did not pass review.",
+          "invalidates": ["publication_verified"]
+        }
+      ]
+    }
+  ],
+  "objective": {
+    "text": "Prepare a public projection and read the approved publication report.",
+    "read": "final-report",
+    "dossier": "publication",
+    "message": "Mara has approved the public regression corpus for delivery."
+  },
+  "inbox": {
+    "content": "mail/inbox.json",
+    "initial": ["dossier-disclosure"]
+  }
+}

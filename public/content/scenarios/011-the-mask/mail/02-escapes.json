@@ -1,0 +1,12 @@
+{
+  "messages": [
+    {
+      "id": "02-escapes",
+      "from": "Rowan / MONONYM",
+      "to": "Local operator",
+      "subject": "Offsets from two readers",
+      "body": "The old adapter handed a UTF-16 offset to the byte slicer. That happened to work on the early samples. One report now has a symbol from a surrogate pair before the contact, and another serializes the accent as an escape. Trace the span to the sealed source.",
+      "date": "2026-09-04"
+    }
+  ]
+}

@@ -94,5 +94,88 @@
         "diagnostics": "contrôle de jointure"
       }
     }
-  ]
+  ],
+  "publication": {
+    "version": "release-policy-2",
+    "literalContact": "Élise",
+    "marker": "[withheld]",
+    "documents": [
+      {
+        "record": "FR-201",
+        "json": "{\"title\":\"ÉTÉ — service de garde\",\"body\":\"Le journal d’été conserve deux accusés. 📨 En été, le client change de fuseau.\\n📨 Duty contact: Élise — internal annotation.\",\"sample\":\"Élise\",\"contact\":\"Élise\",\"email\":\"elise+desk1@staff.example\",\"filename\":\"Notes-Élise-desk1.txt\",\"owner\":\"owner-desk41\"}",
+        "contactBytes": [107, 113],
+        "assets": [
+          {
+            "id": "pub-01",
+            "name": "Été.txt",
+            "part": "body"
+          },
+          {
+            "id": "pub-03",
+            "name": "Report.txt",
+            "part": "sample"
+          }
+        ]
+      },
+      {
+        "record": "FR-202",
+        "json": "{\"title\":\"Horodatage du relais\",\"body\":\"Le rapport été montre un décalage de 60 minutes.\\n\\uD83D\\uDC69\\u200D\\uD83D\\uDCBB Duty contact: E\\u0301lise (desk notes).\",\"sample\":\"Marque combinante après un caractère supplémentaire.\",\"contact\":\"E\\u0301lise\",\"email\":\"elise+desk2@staff.example\",\"filename\":\"Notes-E\\u0301lise-desk2.txt\",\"owner\":\"owner-desk42\"}",
+        "contactBytes": [80, 87],
+        "assets": [
+          {
+            "id": "pub-02",
+            "name": "Été.txt",
+            "part": "body"
+          },
+          {
+            "id": "pub-04",
+            "name": "report.txt",
+            "part": "sample"
+          }
+        ]
+      },
+      {
+        "record": "FR-203",
+        "json": "{\"title\":\"Accusé manquant\",\"body\":\"À l’été — une notification sur deux arrive après la relève.\\n✉ Duty contact: \\u00C9lise — internal annotation.\",\"sample\":\"\\u00C9lise\",\"contact\":\"\\u00C9lise\",\"email\":\"elise+desk3@staff.example\",\"filename\":\"Notes-\\u00C9lise-desk3.txt\",\"owner\":\"owner-desk43\"}",
+        "contactBytes": [87, 93],
+        "assets": [
+          {
+            "id": "pub-05",
+            "name": "NUL.txt",
+            "part": "record"
+          },
+          {
+            "id": "pub-07",
+            "name": "review.txt.",
+            "part": "sample"
+          }
+        ]
+      },
+      {
+        "record": "FR-204",
+        "json": "{\"title\":\"Table de permanence\",\"body\":\"La relève d'été utilise un nouveau calendrier.\\n✉ Duty contact: Élise (desk notes).\",\"sample\":\"Chaîne de contrôle : « é ».\",\"contact\":\"Élise\",\"email\":\"elise+desk4@staff.example\",\"filename\":\"Notes-Élise-desk4.txt\",\"owner\":\"owner-desk44\"}",
+        "contactBytes": [70, 77],
+        "assets": [
+          {
+            "id": "pub-06",
+            "name": "notes／draft.txt",
+            "part": "index"
+          },
+          {
+            "id": "pub-08",
+            "name": "handoff.txt ",
+            "part": "body"
+          }
+        ]
+      }
+    ],
+    "jsonSamples": {
+      "literal": "{\"note\":\"É\",\"sample\":\"📨\"}",
+      "paired": "{\"note\":\"\\u00C9\",\"sample\":\"\\uD83D\\uDCE8\"}",
+      "lone": "{\"sample\":\"\\uDEAD\"}",
+      "duplicate": "{\"note\":\"first\",\"\\u006Eote\":\"second\"}",
+      "doubled": "{\"note\":\"\\\\u00C9\"}",
+      "decomposed": "{\"note\":\"E\\u0301\"}"
+    }
+  }
 }

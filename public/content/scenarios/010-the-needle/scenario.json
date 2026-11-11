@@ -214,7 +214,8 @@
     "text": "Reconcile the authorized summer-duty matches and read the selection report.",
     "read": "final-report",
     "dossier": "selection",
-    "message": "The summer-duty source selection is filed for disclosure review."
+    "message": "The summer-duty source selection is filed for disclosure review.",
+    "onComplete": [{ "type": "discover", "scenario": "011-the-mask" }]
   },
   "inbox": {
     "content": "mail/inbox.json",

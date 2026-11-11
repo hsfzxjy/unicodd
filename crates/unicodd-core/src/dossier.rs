@@ -1,3 +1,5 @@
+mod json;
+mod publication;
 mod search;
 mod spans;
 
@@ -18,6 +20,8 @@ pub struct Dataset {
     query: String,
     approved_fields: Vec<String>,
     records: Vec<Record>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    publication: Option<publication::Policy>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -66,7 +70,26 @@ pub fn validate(dataset: &Dataset) -> Result<String, EngineError> {
             "Archive field matches and the eligibility ledger disagree.",
         ));
     }
-    Ok(digest_json(dataset))
+    if let Some(policy) = &dataset.publication {
+        publication::validate(dataset, policy)?;
+    }
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Catalog<'a> {
+        version: u32,
+        revision: &'a str,
+        query: &'a str,
+        approved_fields: &'a [String],
+        records: &'a [Record],
+    }
+    // Keep the catalog seal stable when a downstream policy is added.
+    Ok(digest_json(&Catalog {
+        version: dataset.version,
+        revision: &dataset.revision,
+        query: &dataset.query,
+        approved_fields: &dataset.approved_fields,
+        records: &dataset.records,
+    }))
 }
 
 fn identifier(text: &str) -> bool {
@@ -91,6 +114,12 @@ enum Command {
     Search,
     Tokens,
     Select,
+    Source,
+    MapSpan,
+    JsonCheck,
+    Redact,
+    Surfaces,
+    Audit,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -99,6 +128,15 @@ struct Receipt {
     version: u32,
     snapshot: String,
     selection: Vec<String>,
+    digest: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    publication: Option<Review>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct Review {
+    args: Vec<String>,
     digest: String,
 }
 
@@ -110,6 +148,7 @@ pub struct Request {
     command: Command,
     args: Vec<String>,
     candidate: Option<Vec<String>>,
+    prior: Option<Receipt>,
 }
 
 #[derive(Serialize)]
@@ -192,11 +231,18 @@ pub fn run(request: Request) -> Result<Report, EngineError> {
         command,
         args,
         candidate,
+        prior,
     } = request;
     let (arity, checks): (usize, &[_]) = match command {
         Command::Search => (3, &["profile"]),
         Command::Tokens => (3, &["profile"]),
         Command::Select => (0, &["candidate", "record-set", "source-spans"]),
+        Command::Source => (2, &["selection", "source"]),
+        Command::MapSpan => (3, &["selection", "source"]),
+        Command::JsonCheck => (1, &["json"]),
+        Command::Redact => (3, &["selection", "candidate"]),
+        Command::Surfaces => (1, &["selection", "candidate", "surface"]),
+        Command::Audit => (0, publication::CHECKS),
     };
     if version != VERSION || args.len() != arity || args.iter().any(|arg| arg.len() > 2048) {
         return Err(EngineError::new(
@@ -217,6 +263,37 @@ pub fn run(request: Request) -> Result<Report, EngineError> {
         Command::Search => search::stage(&dataset, &mut report, args),
         Command::Tokens => search::tokens(&dataset, &mut report, &args),
         Command::Select => search::select(&dataset, &mut report, snapshot),
+        Command::JsonCheck => {
+            publication::check_json(dataset.publication.as_ref(), &mut report, &args[0]);
+            Ok(())
+        }
+        _ => {
+            let policy = dataset.publication.as_ref().ok_or_else(|| {
+                EngineError::new(
+                    ErrorCode::InvalidProgram,
+                    "This snapshot does not define a publication policy.",
+                )
+            })?;
+            let prior = prior.as_ref();
+            match command {
+                Command::Source => {
+                    publication::inspect(&dataset, policy, &mut report, &args, prior, &snapshot)
+                }
+                Command::MapSpan => {
+                    publication::map_span(&dataset, policy, &mut report, &args, prior, &snapshot)
+                }
+                Command::Redact => {
+                    publication::stage(&dataset, policy, &mut report, args, prior, &snapshot)
+                }
+                Command::Surfaces => {
+                    publication::surfaces(&dataset, policy, &mut report, &args[0], prior, &snapshot)
+                }
+                Command::Audit => {
+                    publication::audit(&dataset, policy, &mut report, prior, &snapshot)
+                }
+                _ => unreachable!(),
+            }
+        }
     }?;
     Ok(report)
 }

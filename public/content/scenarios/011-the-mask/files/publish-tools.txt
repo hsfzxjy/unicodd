@@ -1,0 +1,3 @@
+Selectors: ledger (protected range references), literal (historical spelling substitution), fold (canonical folded substitution), units-as-bytes (old offset adapter), edit-source (in-place trial), or bytes:<record>=<start>-<end>,... (explicit decoded UTF-8 edges).
+Replacement: omit or marker. Export pipelines: preview, cache, source-json, source-name, source-digest, source-log, double-encode, fresh.
+Use surfaces to read body, json, index, metadata, names, manifest or log. Audit compares the candidate against both the disclosure ledger and the sealed originals.

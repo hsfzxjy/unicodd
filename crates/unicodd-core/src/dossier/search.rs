@@ -243,7 +243,7 @@ fn field<'a>(dataset: &'a Dataset, id: &str, field: &str) -> Option<&'a str> {
         .map(String::as_str)
 }
 
-fn context(text: &str, span: Coordinates) -> Source {
+pub(super) fn context(text: &str, span: Coordinates) -> Source {
     let [start, end] = span.utf8;
     let left = text[..start]
         .char_indices()
@@ -440,6 +440,7 @@ pub(super) fn verify(
         snapshot: snapshot.into(),
         selection: args.to_vec(),
         digest: digest_json(&(snapshot, &hits)),
+        publication: None,
     };
     Ok(Ok((receipt, hits)))
 }

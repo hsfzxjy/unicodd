@@ -1,0 +1,4 @@
+08:45 preview job replaced a visible spelling
+09:03 renderer switched to sealed span ledger
+09:09 printout verified visually; serializer still reading original cache
+09:18 disclosure review withheld pending output inspection

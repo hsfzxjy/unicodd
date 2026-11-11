@@ -4,7 +4,8 @@ import { dossierArity, type DossierCommand } from './dossier.ts'
 import { puzzleArity, type OperationBinding, type OperationCommand } from './scenario.ts'
 import { decodeUnicodeEscapes, readUnicodeEscape, scalarSpan, type Span } from './unicode.ts'
 
-export type ArgumentKind = 'text' | 'path' | 'host' | 'message' | 'scenario' | 'scalar' | 'payload'
+export type ArgumentKind =
+  'text' | 'path' | 'host' | 'message' | 'scenario' | 'scalar' | 'payload' | 'json'
 export interface CommandArgument {
   name: string
   label: string
@@ -24,13 +25,14 @@ export const operationArity = { ...puzzleArity, ...recoveryArity, ...dossierArit
 function recoveryCommand<T extends RecoveryCommand | DossierCommand>(
   name: T,
   description: string,
-  ...fields: string[]
+  ...fields: (string | CommandArgument)[]
 ) {
+  const args = fields.map((field) => (typeof field === 'string' ? argument(field, 'text') : field))
   return {
     name,
-    usage: [name, ...fields.map((field) => '<' + field + '>')].join(' '),
+    usage: [name, ...args.map(({ name }) => '<' + name + '>')].join(' '),
     description,
-    arguments: fields.map((field) => argument(field, 'text')),
+    arguments: args,
   }
 }
 
@@ -179,6 +181,33 @@ export const commandRegistry = [
     'profile',
   ),
   recoveryCommand('select', 'Reconcile the staged catalog search against the review ledger.'),
+  recoveryCommand(
+    'source',
+    'Open a selected sealed record or inspect its spans.',
+    'record',
+    'view',
+  ),
+  recoveryCommand(
+    'map-span',
+    'Map a range between decoded body and raw JSON.',
+    'record',
+    'offset-space',
+    'range',
+  ),
+  recoveryCommand(
+    'json-check',
+    'Check strict JSON interchange and examine decoded fields.',
+    argument('sample-or-json', 'json'),
+  ),
+  recoveryCommand(
+    'redact',
+    'Build a candidate release projection.',
+    'selector',
+    'replacement',
+    'exports',
+  ),
+  recoveryCommand('surfaces', 'Inspect an output from the candidate release.', 'surface'),
+  recoveryCommand('audit', 'Verify the candidate publication across its output surfaces.'),
   {
     name: 'campaign',
     usage: 'campaign',
@@ -239,7 +268,8 @@ function tokenize(source: string, draft = false) {
   for (let index = 0; index < source.length; index++) {
     const char = source[index]
     const next = source[index + 1]
-    const escape = char === '\\' ? readUnicodeEscape(source, index) : undefined
+    const json = commandDefinition(args[0])?.arguments[args.length - 1]?.kind === 'json'
+    const escape = char === '\\' && !json ? readUnicodeEscape(source, index) : undefined
     if (escape) {
       if ('error' in escape && !draft) return { args, quote, error: escape.error }
       token += draft ? source.slice(index, escape.end) : 'text' in escape ? escape.text : ''
@@ -249,7 +279,7 @@ function tokenize(source: string, draft = false) {
       char === '\\' &&
       (next === '\\' || next === (quote || '"') || (!quote && next === "'"))
     ) {
-      token += draft && next === '\\' ? '\\u00005C' : next
+      token += draft && !json && next === '\\' ? '\\u00005C' : next
       started = true
       index++
     } else if (quote) {
@@ -329,7 +359,8 @@ export function composerAction(
   const fields = composerArguments(name, operations)
   const decoded: string[] = []
   for (const [index, field] of fields.entries()) {
-    const result = decodeUnicodeEscapes(values[index] ?? field.initial)
+    const value = values[index] ?? field.initial
+    const result = field.kind === 'json' ? { text: value } : decodeUnicodeEscapes(value)
     if ('error' in result) return { type: 'invalid', message: field.label + ' · ' + result.error }
     if (result.text !== '' || field.required) decoded.push(result.text)
   }
@@ -432,6 +463,11 @@ export function actionCommand(action: Action): string | undefined {
     case 'route':
     case 'reconstruct':
       return [action.type, ...(action.payloads?.map(quote) ?? [])].join(' ')
+    case 'json-check':
+      return [
+        action.type,
+        ...(action.payloads?.map((value) => '"' + value.replace(/[\\"]/gu, '\\$&') + '"') ?? []),
+      ].join(' ')
     case 'reconcile':
       return action.payload === undefined ? action.type : `${action.type} ${quote(action.payload)}`
     case 'scenario':

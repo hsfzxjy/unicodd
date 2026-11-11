@@ -266,7 +266,11 @@ export function createCampaign(
     let newMail = false
     if (scenario?.objective.handoff && handoff?.kind !== scenario.objective.handoff)
       return { destinations, newMail }
-    if (scenario?.objective.dossier && !validDossierReceipt(receipt, scenario.dossier!.snapshot))
+    if (
+      scenario?.objective.dossier &&
+      (!validDossierReceipt(receipt, scenario.dossier!.snapshot, scenario.objective.dossier) ||
+        (scenario.dossier?.prior && !dossierReceipts.has(scenario.dossier.prior)))
+    )
       return { destinations, newMail }
     if (scenario && !completed.has(id)) {
       completed.add(id)

@@ -93,7 +93,13 @@ const matches = computed(() => {
   if (!focused.value || composing.value || !showSuggestions.value || menuOpen.value) return []
   if (!selected.value) return matchSuggestions(text.value, props.suggestions).slice(0, 5)
   const field = fields.value[activeIndex.value]
-  if (!field || field.kind === 'payload' || field.kind === 'scalar' || field.kind === 'text')
+  if (
+    !field ||
+    field.kind === 'payload' ||
+    field.kind === 'scalar' ||
+    field.kind === 'text' ||
+    field.kind === 'json'
+  )
     return []
   const source = selected.value + ' ' + (values.value[activeIndex.value] ?? '')
   return matchSuggestions(source, props.suggestions).slice(0, 5)
@@ -596,7 +602,7 @@ defineExpose({
           :inline="fields.length === 1"
           :model-value="values[index] ?? ''"
           :active="activeIndex === index"
-          :unicode="field.kind === 'payload' || field.kind === 'scalar'"
+          :unicode="field.kind === 'payload' || field.kind === 'scalar' || field.kind === 'json'"
           :last="index === fields.length - 1"
           :disabled="busy || pending"
           @update:model-value="updateValue(index, $event)"

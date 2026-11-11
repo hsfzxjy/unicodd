@@ -1,0 +1,1 @@
+Review the selected originals before approving the publication. The old preview and the serialized export were built by different jobs. Use source selected body for the incoming inventory and /policy/disclosure.txt for Mara’s scope.

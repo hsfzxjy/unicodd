@@ -1,0 +1,1 @@
+Release review approved the listed public artifacts. The exported digests cover public payloads. The contact ledger and the sealed originals stay with the review desk.

@@ -1,0 +1,2 @@
+Release scope: exact report title, technical body, public test sample, public record and file references. Omit or mark the ledger’s staff-contact span. Contact fields, mail addresses, internal owner associations, private filenames and original digests stay on the review side.
+Every output counts: body, JSON, search index and excerpts, record metadata, filenames, manifest and export log. The same spelling in an approved test sample remains evidence.

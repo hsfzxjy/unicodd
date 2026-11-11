@@ -11,6 +11,9 @@ import { actionCommand, commandHelp, operationArity } from './commands.ts'
 import {
   dossierStages,
   isDossierCommand,
+  receiptArgs,
+  sameReceipt,
+  stagesDossierCandidate,
   validArguments,
   validDossierReceipt,
   type DossierCommand,
@@ -46,8 +49,7 @@ export type Action =
   | { type: 'mail'; id?: string }
   | { type: 'login'; alias?: string }
   | { type: 'reconcile'; payload?: string }
-  | { type: 'route' | 'reconstruct'; payloads?: string[] }
-  | { type: RecoveryCommand | DossierCommand; payloads?: string[] }
+  | { type: 'route' | 'reconstruct' | RecoveryCommand | DossierCommand; payloads?: string[] }
   | { type: 'scenario'; id: string }
   | { type: 'inspect'; character?: string }
   | { type: 'copy'; text: string }
@@ -216,6 +218,7 @@ export function createRuntime(
         recovery,
         dossier:
           scenario.dossier &&
+          scenario.objective.dossier &&
           Object.fromEntries(
             scenario.hosts.flatMap(({ id }) => {
               const draft = saved.dossier?.[id]
@@ -226,7 +229,11 @@ export function createRuntime(
                   {
                     snapshot: draft.snapshot,
                     candidate: validArguments(draft.candidate, 3) ? draft.candidate : undefined,
-                    receipt: validDossierReceipt(draft.receipt, draft.snapshot)
+                    receipt: validDossierReceipt(
+                      draft.receipt,
+                      draft.snapshot,
+                      scenario.objective.dossier!,
+                    )
                       ? draft.receipt
                       : undefined,
                   },
@@ -498,16 +505,19 @@ export function createRuntime(
           dataset: scenario.dossier.dataset,
           command: dossierStages[scenario.objective.dossier],
           args: [],
-          candidate: stored.selection,
+          candidate: receiptArgs(stored, scenario.objective.dossier),
+          prior: scenario.dossier.prior
+            ? campaign.dossierReceipt(scenario.dossier.prior)
+            : undefined,
         })
         if (state !== before) return {}
         if (!checked.ok)
           return { ...error(checked.error.message), transient: isTransient(checked.error.code) }
-        if (checked.value.handoff?.digest !== stored.digest)
+        if (!sameReceipt(checked.value.handoff, stored))
           return error(
             'The stored review does not match this archive snapshot. Run verification again.',
           )
-        receipt = checked.value.handoff
+        receipt = checked.value.handoff!
         dossierReport = { kind: 'report', rows: checked.value.rows }
       } finally {
         if (pending === before) pending = undefined
@@ -615,6 +625,12 @@ export function createRuntime(
       case 'search':
       case 'tokens':
       case 'select':
+      case 'source':
+      case 'map-span':
+      case 'json-check':
+      case 'redact':
+      case 'surfaces':
+      case 'audit':
       case 'mirror': {
         const binding = availableOperations().find(({ command }) => command === action.type)
         if (!binding) return error(`${action.type} is unavailable with the current access.`)
@@ -652,6 +668,7 @@ export function createRuntime(
                     command: binding.command,
                     args: values,
                     candidate: draft?.candidate,
+                    prior: dossier?.prior ? campaign.dossierReceipt(dossier.prior) : undefined,
                   })
                 : await engine.runRecovery({
                     version: 1,
@@ -690,7 +707,13 @@ export function createRuntime(
                 [hostId]: {
                   snapshot: dossier!.snapshot,
                   candidate: candidate ?? undefined,
-                  receipt: handoff ?? (action.type === 'tokens' ? draft?.receipt : undefined),
+                  receipt:
+                    handoff ??
+                    (isDossierCommand(action.type) &&
+                    !stagesDossierCandidate(action.type) &&
+                    action.type !== dossierStages[scenario.objective.dossier!]
+                      ? draft?.receipt
+                      : undefined),
                 },
               },
               flags:

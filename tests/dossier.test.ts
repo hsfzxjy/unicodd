@@ -1,4 +1,5 @@
 import { expect, it } from 'vitest'
+import { actionCommand, commandDraft, composerAction, parseCommand } from '../src/lib/commands'
 import { engine } from './scenario-content'
 
 const dataset = {
@@ -53,3 +54,32 @@ it('rejects malformed UTF-16 before search transport', async () => {
     error: { code: 'invalid_input', path: 'args.0', offset: 2 },
   })
 })
+
+it('preserves JSON escape syntax through structured and quoted command editing', async () => {
+  const raw = String.raw`{"value":"\uD83D\uDCE8","escape":"\\u00C9"}`
+  const action = composerAction('json-check', [raw], [])
+  const quoted = actionCommand(action)!
+  expect(parseCommand(quoted)).toEqual(action)
+  expect(commandDraft(quoted)?.values).toEqual([raw])
+  const result = await engine.runDossier({
+    version: 1,
+    dataset,
+    command: 'json-check',
+    args: [raw],
+  })
+  expect(result.ok && result.value.rows[0]?.serialized).toBe(
+    String.raw`{"escape":"\\u00C9","value":"📨"}`,
+  )
+})
+
+it.each([String.raw`{"x":"\uDEAD"}`, String.raw`{"x":"first","\u0078":"second"}`])(
+  'rejects non-interoperable interchange %s',
+  async (raw) => {
+    await expect(
+      engine.runDossier({ version: 1, dataset, command: 'json-check', args: [raw] }),
+    ).resolves.toMatchObject({
+      ok: true,
+      value: { solved: false, checks: [{ id: 'json', passed: false }] },
+    })
+  },
+)

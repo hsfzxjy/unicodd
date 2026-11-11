@@ -59,6 +59,12 @@
       "label": "The Needle",
       "scenario": "scenarios/010-the-needle/scenario.json",
       "initiallyDiscovered": false
+    },
+    {
+      "id": "011-the-mask",
+      "label": "The Mask",
+      "scenario": "scenarios/011-the-mask/scenario.json",
+      "initiallyDiscovered": false
     }
   ]
 }

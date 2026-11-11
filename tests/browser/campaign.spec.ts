@@ -399,7 +399,7 @@ test('switches levels in a debug session and keeps the campaign save separate', 
   await openCampaign(page, '/?debug=1&scenario=006-the-release')
   const levels = page.getByRole('combobox', { name: 'Debug level' })
   await expect(levels).toHaveValue('006-the-release')
-  await expect(levels.getByRole('option')).toHaveCount(10)
+  await expect(levels.getByRole('option')).toHaveCount(11)
   await run(page, 'prepare registration preserve')
   await expect(transcript(page)).toContainText('Identity mapping staged.')
   await page.getByRole('textbox', { name: 'Terminal command' }).fill('preview grapheme')

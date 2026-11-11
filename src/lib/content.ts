@@ -1,6 +1,12 @@
 import type { Engine, EngineError, Program } from '../types.ts'
 import { commandRegistry } from './commands.ts'
-import { dossierArity, dossierStages, isDossierCommand, type DossierStage } from './dossier.ts'
+import {
+  dossierArity,
+  dossierPredecessor,
+  dossierStages,
+  isDossierCommand,
+  type DossierStage,
+} from './dossier.ts'
 import {
   archiveStages,
   recoveryArity,
@@ -422,7 +428,7 @@ export function createContentLoader(
             initial: field('initial').text(true),
             kind:
               field('kind').optional((kind) =>
-                kind.ref(['text', 'payload'] as const, 'argument kind'),
+                kind.ref(['text', 'payload', 'json'] as const, 'argument kind'),
               ) ?? 'text',
           }
         })
@@ -868,6 +874,28 @@ export function createContentLoader(
       const messages = new Set<string>()
       for (const [index, scenario] of scenarios.entries()) {
         const file = entries[index].scenario
+        if (scenario.dossier) {
+          const stage = scenario.objective.dossier
+          const prior = scenario.dossier.prior
+          const needed = stage && dossierPredecessor[stage]
+          const predecessor = scenarios.slice(0, index).find(({ id }) => id === prior)
+          if (
+            !stage ||
+            Boolean(prior) !== Boolean(needed) ||
+            (needed &&
+              (!predecessor?.available ||
+                predecessor.objective.dossier !== needed ||
+                predecessor.dossier?.path !== scenario.dossier.path ||
+                !predecessor.objective.onComplete.some(
+                  (effect) => effect.type === 'discover' && effect.scenario === scenario.id,
+                )))
+          )
+            invalid(
+              file,
+              'dossier.prior',
+              'Expected the preceding stage of this dossier and its discovery link.',
+            )
+        }
         const prior = scenario.recovery?.prior
         if (prior) {
           const predecessor = scenarios.slice(0, index).find(({ id }) => id === prior)

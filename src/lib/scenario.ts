@@ -21,7 +21,7 @@ export interface PuzzleField {
   label: string
   initial: string
   fixed?: string
-  kind?: 'text' | 'payload'
+  kind?: 'text' | 'payload' | 'json'
 }
 
 export type ProgressEffect =

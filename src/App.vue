@@ -125,13 +125,6 @@ watch([scenarioId, attempt], ([id]) => {
 })
 void loadCatalog()
 
-function echoText(value: string) {
-  if (value.length <= 512) return value
-  const limit =
-    /[\uD800-\uDBFF]/u.test(value[511]) && /[\uDC00-\uDFFF]/u.test(value[512]) ? 511 : 512
-  return value.slice(0, limit) + '…'
-}
-
 async function dispatch(action: Action, command?: string) {
   const active = runtime
   if (!active || busy.value) return
@@ -172,7 +165,7 @@ async function dispatch(action: Action, command?: string) {
       const output = response.output ?? []
       const entry: Entry = {
         id: sequence++,
-        echo: echo === undefined ? undefined : echoText(echo),
+        echo,
         prompt: from,
         connected: Boolean(before.host),
         output,

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { nextTick, onMounted, onUnmounted, reactive, ref, useId, watch } from 'vue'
 import CommandComposer from './CommandComposer.vue'
 import type { OperationBinding } from '../lib/scenario'
 import TerminalFile from './TerminalFile.vue'
@@ -30,11 +30,28 @@ const props = defineProps<{
   execute: (action: Action, echo?: string) => Promise<import('../lib/runtime').Response | undefined>
 }>()
 const emit = defineEmits<{ action: [Action, string?] }>()
+const outputPrefix = useId() + '-output-'
 const scroll = ref<HTMLDivElement>()
 const frame = ref<HTMLElement>()
 const composer = ref<InstanceType<typeof CommandComposer>>()
 const following = ref(true)
 const selectedScalar = ref<string>()
+const collapsed = reactive(new Set<number>())
+
+function echoText(value: string) {
+  if (value.length <= 512) return value
+  const limit =
+    /[\uD800-\uDBFF]/u.test(value[511]) && /[\uDC00-\uDFFF]/u.test(value[512]) ? 511 : 512
+  return value.slice(0, limit) + '…'
+}
+
+async function toggleOutput(id: number) {
+  if (collapsed.has(id)) collapsed.delete(id)
+  else collapsed.add(id)
+  await nextTick()
+  trackScroll()
+  readResourceSelection()
+}
 
 function scrollToEnd() {
   if (scroll.value) scroll.value.scrollTop = scroll.value.scrollHeight
@@ -57,6 +74,7 @@ function readResourceSelection() {
     start &&
     start === end &&
     scroll.value?.contains(start) &&
+    start.getClientRects().length &&
     Array.from(text).length === 1 &&
     unpairedSurrogate(text) === undefined
       ? text
@@ -77,7 +95,10 @@ onUnmounted(() => {
 
 watch(
   () => props.transcript,
-  () => {
+  (entries) => {
+    for (const id of collapsed) {
+      if (!entries.some((entry) => entry.id === id)) collapsed.delete(id)
+    }
     if (following.value) scrollToEnd()
   },
   { flush: 'post' },
@@ -89,6 +110,8 @@ function revealOutput(
   followOnly = false,
 ) {
   if (followOnly && !following.value) return
+  const entry = props.transcript.at(-1)
+  if (!entry || collapsed.has(entry.id)) return
   const box = scroll.value
   const selector = kind === 'inspection' ? '.inspection' : '.terminal-' + kind
   const latest = box?.lastElementChild?.querySelector<HTMLElement>(selector)
@@ -141,145 +164,182 @@ defineExpose({
       tabindex="0"
       @scroll="trackScroll"
     >
-      <article v-for="entry in transcript" :key="entry.id" class="terminal-entry">
-        <p
+      <article
+        v-for="entry in transcript"
+        :key="entry.id"
+        class="terminal-entry"
+        :class="{ 'has-command': entry.echo !== undefined, 'remote-entry': entry.connected }"
+      >
+        <div
           v-if="entry.echo !== undefined"
           class="command-echo"
           :class="{ remote: entry.connected }"
         >
-          <span class="prompt-host" :class="{ remote: entry.connected }"
-            >{{ entry.connected ? '@' : '' }}{{ entry.prompt }} ›</span
-          >
-          <bdi>{{ entry.echo }}</bdi>
-        </p>
-        <div v-if="entry.output.length" class="entry-output">
-          <template v-for="(row, index) in entry.output" :key="index">
-            <div v-if="row.kind === 'listing'" class="terminal-list">
-              <p class="listing-path">
-                <bdi>{{ row.path ?? row.title ?? 'Known hosts' }}</bdi>
-              </p>
-              <p v-if="!row.links.length" class="meta">{{ row.empty ?? 'Empty directory.' }}</p>
-              <ul v-else>
-                <li v-for="link in row.links" :key="link.label">
-                  <button
-                    type="button"
-                    class="terminal-link"
-                    :aria-disabled="busy || undefined"
-                    @click="emit('action', link.action)"
-                  >
-                    <bdi>{{ link.label }}</bdi>
-                  </button>
-                  <span v-if="link.detail" class="listing-detail"
-                    ><bdi>{{ link.detail }}</bdi></span
-                  >
-                </li>
-              </ul>
-            </div>
-            <TerminalFile
-              v-else-if="row.kind === 'file'"
-              :path="row.path"
-              :text="row.text"
-              :inspect-lines="row.inspectLines"
-              :inspect-notation="row.inspectNotation"
-              :busy="busy"
-              @action="emit('action', $event)"
-            />
-            <TerminalMail
-              v-else-if="row.kind === 'mail'"
-              :path="row.path"
-              :messages="row.messages"
-            />
-            <button
-              v-else-if="row.kind === 'mailNotice'"
-              type="button"
-              class="terminal-link mail-notice"
-              aria-label="New mail, open inbox"
-              :aria-disabled="busy || undefined"
-              @click="emit('action', { type: 'mail' })"
+          <p class="command-line">
+            <span class="prompt-host" :class="{ remote: entry.connected }"
+              >{{ entry.connected ? '@' : '' }}{{ entry.prompt }} ›</span
             >
-              NEW MAIL
+            <bdi>{{ echoText(entry.echo) }}</bdi>
+          </p>
+          <div class="entry-actions">
+            <button
+              type="button"
+              aria-label="Reuse command"
+              title="Copy into command input"
+              :disabled="!composer?.canReuse"
+              @click="composer?.reuseCommand(entry.echo)"
+            >
+              Reuse
             </button>
-            <TerminalInspection
-              v-else-if="row.kind === 'inspection'"
-              :row="row"
-              :can-insert-payload="Boolean(composer?.canInsert)"
-              :can-insert-command="Boolean(composer?.canInsertCommand)"
-              :can-replace="Boolean(composer?.canReplace)"
-              :busy="busy"
-              @action="emit('action', $event)"
-            />
-            <div v-else-if="row.kind === 'report'" class="terminal-report" tabindex="-1">
-              <div
-                v-for="(record, number) in row.rows"
-                :key="number"
-                class="report-row"
-                :class="{ 'audit-row': record.audit }"
-              >
-                <strong
-                  ><bdi>{{ record.label }}</bdi></strong
-                >
-                <span v-if="record.details" class="report-details">
-                  <bdi v-for="(detail, index) in record.details" :key="index">{{ detail }}</bdi>
-                </span>
-                <span class="report-fields" data-resource-text>
-                  <bdi v-for="(field, index) in record.fields" :key="index">{{ field }}</bdi>
-                </span>
-                <button
-                  v-if="record.serialized !== undefined"
-                  type="button"
-                  class="terminal-link"
-                  :aria-disabled="busy || undefined"
-                  @click="emit('action', { type: 'copy', text: record.serialized })"
-                >
-                  Copy {{ record.audit ? 'line' : 'cursor' }}
-                </button>
-                <span v-if="record.inspect" class="report-points">
-                  <template v-for="(field, index) in record.inspect" :key="index">
+            <button
+              v-if="entry.output.length || entry.waiting"
+              type="button"
+              class="output-toggle"
+              aria-label="Toggle command output"
+              :aria-controls="outputPrefix + entry.id"
+              :aria-expanded="!collapsed.has(entry.id)"
+              :title="collapsed.has(entry.id) ? 'Show output' : 'Hide output'"
+              @click="toggleOutput(entry.id)"
+            >
+              <span aria-hidden="true">{{ collapsed.has(entry.id) ? '▸' : '▾' }}</span>
+            </button>
+          </div>
+        </div>
+        <div
+          v-if="entry.output.length || entry.waiting"
+          v-show="!collapsed.has(entry.id)"
+          :id="outputPrefix + entry.id"
+          class="entry-body"
+        >
+          <div v-if="entry.output.length" class="entry-output">
+            <template v-for="(row, index) in entry.output" :key="index">
+              <div v-if="row.kind === 'listing'" class="terminal-list">
+                <p class="listing-path">
+                  <bdi>{{ row.path ?? row.title ?? 'Known hosts' }}</bdi>
+                </p>
+                <p v-if="!row.links.length" class="meta">{{ row.empty ?? 'Empty directory.' }}</p>
+                <ul v-else>
+                  <li v-for="link in row.links" :key="link.label">
                     <button
-                      v-for="point in inspectRange(field, 0, 24)"
-                      :key="point.start"
                       type="button"
                       class="terminal-link"
                       :aria-disabled="busy || undefined"
-                      @click="emit('action', { type: 'inspect', character: point.scalar })"
+                      @click="emit('action', link.action)"
                     >
-                      {{ point.notation }}
+                      <bdi>{{ link.label }}</bdi>
                     </button>
-                  </template>
-                </span>
+                    <span v-if="link.detail" class="listing-detail"
+                      ><bdi>{{ link.detail }}</bdi></span
+                    >
+                  </li>
+                </ul>
               </div>
-            </div>
-            <div v-else-if="row.kind === 'help'" class="command-help">
-              <dl>
-                <template
-                  v-for="[usage, detail] in commandHelp.filter(([usage]) =>
-                    row.commands.includes(usage.split(' ')[0]),
-                  )"
-                  :key="usage"
+              <TerminalFile
+                v-else-if="row.kind === 'file'"
+                :path="row.path"
+                :text="row.text"
+                :inspect-lines="row.inspectLines"
+                :inspect-notation="row.inspectNotation"
+                :busy="busy"
+                @action="emit('action', $event)"
+              />
+              <TerminalMail
+                v-else-if="row.kind === 'mail'"
+                :path="row.path"
+                :messages="row.messages"
+              />
+              <button
+                v-else-if="row.kind === 'mailNotice'"
+                type="button"
+                class="terminal-link mail-notice"
+                aria-label="New mail, open inbox"
+                :aria-disabled="busy || undefined"
+                @click="emit('action', { type: 'mail' })"
+              >
+                NEW MAIL
+              </button>
+              <TerminalInspection
+                v-else-if="row.kind === 'inspection'"
+                :row="row"
+                :can-insert-payload="Boolean(composer?.canInsert)"
+                :can-insert-command="Boolean(composer?.canInsertCommand)"
+                :can-replace="Boolean(composer?.canReplace)"
+                :busy="busy"
+                @action="emit('action', $event)"
+              />
+              <div v-else-if="row.kind === 'report'" class="terminal-report" tabindex="-1">
+                <div
+                  v-for="(record, number) in row.rows"
+                  :key="number"
+                  class="report-row"
+                  :class="{ 'audit-row': record.audit }"
                 >
-                  <dt>{{ usage }}</dt>
-                  <dd>{{ detail }}</dd>
-                </template>
-              </dl>
-              <p>
-                {{
-                  row.connected
-                    ? 'File paths start at the host root.'
-                    : 'Choose a host to begin exploring.'
-                }}
-              </p>
-            </div>
-            <p v-else :class="['terminal-line', row.kind]" dir="auto">{{ row.text }}</p>
-          </template>
+                  <strong
+                    ><bdi>{{ record.label }}</bdi></strong
+                  >
+                  <span v-if="record.details" class="report-details">
+                    <bdi v-for="(detail, index) in record.details" :key="index">{{ detail }}</bdi>
+                  </span>
+                  <span class="report-fields" data-resource-text>
+                    <bdi v-for="(field, index) in record.fields" :key="index">{{ field }}</bdi>
+                  </span>
+                  <button
+                    v-if="record.serialized !== undefined"
+                    type="button"
+                    class="terminal-link"
+                    :aria-disabled="busy || undefined"
+                    @click="emit('action', { type: 'copy', text: record.serialized })"
+                  >
+                    Copy {{ record.audit ? 'line' : 'cursor' }}
+                  </button>
+                  <span v-if="record.inspect" class="report-points">
+                    <template v-for="(field, index) in record.inspect" :key="index">
+                      <button
+                        v-for="point in inspectRange(field, 0, 24)"
+                        :key="point.start"
+                        type="button"
+                        class="terminal-link"
+                        :aria-disabled="busy || undefined"
+                        @click="emit('action', { type: 'inspect', character: point.scalar })"
+                      >
+                        {{ point.notation }}
+                      </button>
+                    </template>
+                  </span>
+                </div>
+              </div>
+              <div v-else-if="row.kind === 'help'" class="command-help">
+                <dl>
+                  <template
+                    v-for="[usage, detail] in commandHelp.filter(([usage]) =>
+                      row.commands.includes(usage.split(' ')[0]),
+                    )"
+                    :key="usage"
+                  >
+                    <dt>{{ usage }}</dt>
+                    <dd>{{ detail }}</dd>
+                  </template>
+                </dl>
+                <p>
+                  {{
+                    row.connected
+                      ? 'File paths start at the host root.'
+                      : 'Choose a host to begin exploring.'
+                  }}
+                </p>
+              </div>
+              <p v-else :class="['terminal-line', row.kind]" dir="auto">{{ row.text }}</p>
+            </template>
+          </div>
+          <p
+            v-if="entry.waiting"
+            class="output-wait meta"
+            role="status"
+            aria-label="Waiting for output"
+          >
+            …
+          </p>
         </div>
-        <p
-          v-if="entry.waiting"
-          class="output-wait meta"
-          role="status"
-          aria-label="Waiting for output"
-        >
-          …
-        </p>
       </article>
     </div>
     <div class="terminal-controls">

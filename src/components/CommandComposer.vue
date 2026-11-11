@@ -77,6 +77,7 @@ const canReplace = computed(() => {
   return canInsert.value && Boolean(span && span.end > span.start)
 })
 const canInsertCommand = computed(() => !selected.value && !composing.value)
+const canReuse = computed(() => !props.busy && !composing.value && !pending.value)
 const available = computed(() => {
   const names = new Set(props.suggestions)
   const priority = props.operations.map((operation) => operation.command as string)
@@ -420,10 +421,24 @@ function insertCommand(value: string) {
   text.value = field.value
   field.focus({ preventScroll: true })
 }
+async function reuseCommand(value: string) {
+  if (!canReuse.value) return
+  cache()
+  reset()
+  historyIndex = history.length
+  scratch = undefined
+  text.value = value
+  showSuggestions.value = false
+  await nextTick()
+  input.value?.focus({ preventScroll: true })
+  input.value?.setSelectionRange(value.length, value.length)
+}
 defineExpose({
   selectCommand,
   applyText,
   insertCommand,
+  reuseCommand,
+  canReuse,
   canInsert,
   canReplace,
   canInsertCommand,

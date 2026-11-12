@@ -206,11 +206,17 @@ function revealOutput(
   const selector = kind === 'inspection' ? '.inspection' : '.terminal-' + kind
   const latest = box?.lastElementChild?.querySelector<HTMLElement>(selector)
   if (!box || !latest) return
-  if (latest.offsetHeight + 12 > box.clientHeight) {
-    box.scrollTop += latest.getBoundingClientRect().top - box.getBoundingClientRect().top - 6
+  const start =
+    kind === 'report' ? (latest.closest<HTMLElement>('.entry-output') ?? latest) : latest
+  if (start.offsetHeight + 12 > box.clientHeight) {
+    box.scrollTop += start.getBoundingClientRect().top - box.getBoundingClientRect().top - 6
     trackScroll()
-    if (entry.freshProgress && entry.output.some((row) => 'progress' in row && row.progress))
-      unseenProgress.value = true
+    if (entry.freshProgress) {
+      const band = box.lastElementChild?.querySelector('.progress-band')
+      unseenProgress.value = Boolean(
+        band && band.getBoundingClientRect().bottom > box.getBoundingClientRect().bottom,
+      )
+    }
   } else {
     scrollToEnd()
   }

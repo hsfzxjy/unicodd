@@ -1,7 +1,7 @@
 {
   "version": 1,
   "title": "The Boundary",
-  "introduction": "Both receivers have the verified source evidence. Their identifier profiles disagree on what can be indexed.",
+  "introduction": "The two verified receipts join three other records in the archive batch. The legacy reader rejects labels the newer reader accepts.",
   "roles": ["bridge-reviewer"],
   "flags": ["mirror_verified"],
   "local": {
@@ -23,7 +23,7 @@
         "user": "bridge-reviewer",
         "role": "bridge-reviewer"
       },
-      "welcome": "Archive exchange review. Source rows and owner assignments are read-only.",
+      "welcome": "Archive review. Original labels and owner assignments are read-only.",
       "status": [
         {
           "label": "Archive exchange",
@@ -163,7 +163,12 @@
           "success": [
             {
               "type": "flag",
-              "flag": "mirror_verified"
+              "flag": "mirror_verified",
+              "milestone": {
+                "id": "mirror-verified",
+                "title": "Archive references verified",
+                "text": "Both readers can resolve the same five records while retaining their original labels."
+              }
             },
             {
               "type": "resourceLink",
@@ -217,7 +222,7 @@
     "text": "Reconcile the full batch across both Unicode profiles and read the archive report.",
     "read": "final-report",
     "handoff": "mirror",
-    "message": "The archive exchange is reconciled and the work item is closed.",
+    "message": "Both archive readers can resolve the same verified records. The archival work item is closed.",
     "onComplete": [
       {
         "type": "deliverMail",
@@ -227,7 +232,8 @@
         "type": "discover",
         "scenario": "010-the-needle"
       }
-    ]
+    ],
+    "completionBand": true
   },
   "inbox": {
     "content": "mail/inbox.json",

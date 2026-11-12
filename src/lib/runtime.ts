@@ -920,7 +920,7 @@ export function createRuntime(
               )
                 messages.set(stage, message)
             }
-            output.push({
+            output.unshift({
               kind: 'error',
               text: [...messages.values()].join('\n') || binding.failure,
             })
@@ -933,17 +933,12 @@ export function createRuntime(
             output.push(message('Transaction already applied.'))
             return { output }
           }
-          if (scenario.objective.action === action.type && output.length) {
-            const report = output.pop()!
-            apply(binding.success, output, 'message', action.type)
+          const report = output.pop()
+          apply(binding.success, output, action.type === 'login' ? 'auth' : 'message', action.type)
+          if (report) {
+            const milestone = output.findIndex(({ kind }) => kind === 'milestone')
+            if (milestone > 0) output.unshift(...output.splice(milestone, 1))
             output.push(report)
-          } else {
-            apply(
-              binding.success,
-              output,
-              action.type === 'login' ? 'auth' : 'message',
-              action.type,
-            )
           }
           if (scenario.objective.action === action.type)
             completeObjective(output, action.type, handoff)

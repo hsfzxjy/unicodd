@@ -1,7 +1,7 @@
 {
   "version": 1,
   "title": "The Mask",
-  "introduction": "The catalog selection is ready for review. The client team needs technical evidence from the reports without the duty contacts.",
+  "introduction": "The catalog selection is filed. Mara needs a public copy that keeps the technical examples and removes protected staff details.",
   "roles": ["release-reviewer"],
   "flags": ["publication_verified"],
   "local": {
@@ -21,11 +21,11 @@
         "user": "release-reviewer",
         "role": "release-reviewer"
       },
-      "welcome": "Authorized review workspace. Original JSON and the disclosure ledger are read-only.",
+      "welcome": "Disclosure review. The sealed originals and disclosure ledger are read-only.",
       "status": [
         {
           "label": "Release review",
-          "value": "Candidate pending",
+          "value": "Audit pending",
           "after": {
             "flag": "publication_verified",
             "value": "Public outputs verified"
@@ -213,7 +213,12 @@
             }
           ],
           "quick": true,
-          "success": [],
+          "success": [
+            {
+              "type": "message",
+              "text": "Candidate projection staged. Publication audit is pending."
+            }
+          ],
           "failure": "The current attempt did not pass review.",
           "invalidates": ["publication_verified"]
         },
@@ -244,14 +249,19 @@
           "success": [
             {
               "type": "flag",
-              "flag": "publication_verified"
+              "flag": "publication_verified",
+              "milestone": {
+                "id": "audit-verified",
+                "title": "Publication audit passed",
+                "text": "The public outputs match the approved disclosure scope and preserve the technical evidence."
+              }
             },
             {
               "type": "resourceLink",
               "resource": "final-report"
             }
           ],
-          "failure": "The current attempt did not pass review.",
+          "failure": "This candidate failed the publication audit.",
           "invalidates": ["publication_verified"]
         }
       ]
@@ -262,7 +272,13 @@
     "read": "final-report",
     "dossier": "publication",
     "message": "Mara has approved the public regression corpus for delivery.",
-    "onComplete": [{ "type": "discover", "scenario": "012-the-parcel" }]
+    "onComplete": [
+      {
+        "type": "discover",
+        "scenario": "012-the-parcel"
+      }
+    ],
+    "completionBand": true
   },
   "inbox": {
     "content": "mail/inbox.json",

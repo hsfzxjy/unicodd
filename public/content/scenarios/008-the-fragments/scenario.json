@@ -1,7 +1,7 @@
 {
   "version": 1,
   "title": "The Fragments",
-  "introduction": "The receiver retained the entire transport capture. Its application log dropped part of the sweep.",
+  "introduction": "Gateway delivery is confirmed. The receiver kept the full capture, but its application recorded no acknowledgments.",
   "roles": ["spool-reviewer"],
   "flags": ["ingestion_verified"],
   "local": {
@@ -23,7 +23,7 @@
         "user": "spool-reviewer",
         "role": "spool-reviewer"
       },
-      "welcome": "Receiver replay access. The original link capture is read-only.",
+      "welcome": "Receiver replay. The capture is read-only and the sender kept an independent acknowledgment ledger.",
       "status": [
         {
           "label": "Receiver",
@@ -187,7 +187,12 @@
           "success": [
             {
               "type": "flag",
-              "flag": "ingestion_verified"
+              "flag": "ingestion_verified",
+              "milestone": {
+                "id": "deframe-verified",
+                "title": "Receiver acknowledgments verified",
+                "text": "Both original payloads match the ledger and the corresponding receipt."
+              }
             },
             {
               "type": "resourceLink",
@@ -241,7 +246,8 @@
         "type": "discover",
         "scenario": "009-the-boundary"
       }
-    ]
+    ],
+    "completionBand": true
   },
   "inbox": {
     "content": "mail/inbox.json",

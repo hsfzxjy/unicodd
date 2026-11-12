@@ -1,7 +1,7 @@
 {
   "version": 1,
   "title": "The Parcel",
-  "introduction": "The dossier is approved. The receiving teams use three different extraction targets and have reported different results.",
+  "introduction": "Mara approved the public corpus. The receiving teams get different results when they unpack the same filenames.",
   "roles": ["delivery-operator"],
   "flags": ["delivery_verified"],
   "local": {
@@ -21,11 +21,11 @@
         "user": "delivery-operator",
         "role": "delivery-operator"
       },
-      "welcome": "Virtual extraction desk. Each trial stages an isolated tree from the approved public inventory.",
+      "welcome": "Virtual delivery desk. Each trial uses the approved public files in an isolated tree.",
       "status": [
         {
           "label": "Dossier delivery",
-          "value": "Target trials pending",
+          "value": "Receiver readback pending",
           "after": {
             "flag": "delivery_verified",
             "value": "All target reads verified"
@@ -183,8 +183,13 @@
             }
           ],
           "quick": true,
-          "success": [],
-          "failure": "The current attempt did not pass review.",
+          "success": [
+            {
+              "type": "message",
+              "text": "Sandbox trial staged. Receiver readback is pending."
+            }
+          ],
+          "failure": "This sandbox extraction trial was rejected.",
           "invalidates": ["delivery_verified"]
         },
         {
@@ -197,14 +202,19 @@
           "success": [
             {
               "type": "flag",
-              "flag": "delivery_verified"
+              "flag": "delivery_verified",
+              "milestone": {
+                "id": "roundtrip-verified",
+                "title": "Receiver readback verified",
+                "text": "All three receivers matched every approved source reference and payload."
+              }
             },
             {
               "type": "resourceLink",
               "resource": "final-report"
             }
           ],
-          "failure": "The current attempt did not pass review.",
+          "failure": "Readback verification failed for this parcel trial.",
           "invalidates": ["delivery_verified"]
         }
       ]
@@ -214,13 +224,14 @@
     "text": "Verify the approved parcel on all three targets and read the delivery report.",
     "read": "final-report",
     "dossier": "bundle",
-    "message": "The dossier delivery is complete. The receivers verified every approved source file.",
+    "message": "The receivers verified every approved file and its source reference. The client dossier is delivered.",
     "onComplete": [
       {
         "type": "deliverMail",
         "message": "dossier-delivered"
       }
-    ]
+    ],
+    "completionBand": true
   },
   "inbox": {
     "content": "mail/inbox.json",

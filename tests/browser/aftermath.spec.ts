@@ -96,10 +96,18 @@ for (const [width, height] of [
       await field(page, 'Host profile').fill('nontransitional')
       await submit()
       await expect(last(page)).toContainText('application ingestion pending')
+      const dispatch = transcript(page).getByRole('heading', { name: 'Both destinations verified' })
+      await expect(dispatch).toBeInViewport()
+      const gatewayComplete = transcript(page).getByRole('heading', {
+        name: 'The Other Side · Complete',
+      })
+      await expect(gatewayComplete).toHaveCount(0)
       await page.reload()
       await expect(scenario(page)).toHaveValue('007-the-other-side')
+      await expect(dispatch).toHaveCount(1)
       await expect(link(page, '/reports/gateway.txt')).toBeVisible()
       await act(link(page, '/reports/gateway.txt'))
+      await expect(gatewayComplete).toBeVisible()
       await act(link(page, 'The Fragments'))
       await expect(scenario(page)).toHaveValue('008-the-fragments')
 
@@ -134,11 +142,17 @@ for (const [width, height] of [
       await field(page, 'Chunk boundaries').fill('2,4,16,17,18,24,29,30,47,48')
       await submit()
       await expect(last(page)).toContainText('Both owner-bound ACKs verified.')
+      await expect(
+        last(page).getByRole('heading', { name: 'Receiver acknowledgments verified' }),
+      ).toBeInViewport()
       await expect(last(page)).toContainText('bytes 23..25 · frame resumes at 27')
       await link(page, 'Use offset 0x0017 for byte E2').scrollIntoViewIfNeeded()
       await snap('02-receiver')
       if (width < 600) await page.setViewportSize({ width, height })
       await act(link(page, '/reports/ingestion.txt'))
+      await expect(
+        last(page).getByRole('heading', { name: 'The Fragments · Complete' }),
+      ).toBeVisible()
       await act(link(page, 'The Boundary'))
       await expect(scenario(page)).toHaveValue('009-the-boundary')
 
@@ -169,10 +183,15 @@ for (const [width, height] of [
       await field(page, 'Legacy handle policy').fill('prefix:case_')
       await submit()
       await expect(last(page)).toContainText('5 verified and queryable records')
+      await expect(
+        last(page).getByRole('heading', { name: 'Archive references verified' }),
+      ).toBeInViewport()
       await expect(last(page)).toContainText('18.0.0 search collision')
       await snap('03-bridge')
       await act(link(page, '/reports/reconciliation.txt'))
-      await expect(last(page)).toContainText('The archive exchange is reconciled')
+      await expect(
+        last(page).getByRole('heading', { name: 'The Boundary · Complete' }),
+      ).toBeVisible()
       await page.reload()
       await expect(scenario(page)).toHaveValue('009-the-boundary')
       await act(quick(page, 'local campaign'))

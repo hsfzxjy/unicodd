@@ -1,7 +1,7 @@
 {
   "version": 1,
   "title": "The Other Side",
-  "introduction": "The local split is closed. The next morning’s gateway reconciliation found an empty destination slot.",
+  "introduction": "The local split is closed. The gateway accepted both archival submissions, but one vault has no record of its receipt.",
   "roles": ["gateway-reviewer"],
   "flags": ["dispatch_verified"],
   "local": {
@@ -23,7 +23,7 @@
         "user": "gateway-reviewer",
         "role": "gateway-reviewer"
       },
-      "welcome": "Gateway review. The virtual registry and outbound receipts are in scope.",
+      "welcome": "Gateway review. The registry assigns each receipt to a verified vault.",
       "status": [
         {
           "label": "Dispatch",
@@ -181,7 +181,12 @@
           "success": [
             {
               "type": "flag",
-              "flag": "dispatch_verified"
+              "flag": "dispatch_verified",
+              "milestone": {
+                "id": "dispatch-verified",
+                "title": "Both destinations verified",
+                "text": "Each receipt reached its registered vault and matched its authorized resource."
+              }
             },
             {
               "type": "resourceLink",
@@ -220,7 +225,7 @@
     "text": "Confirm the authorized destinations and read the gateway reconciliation.",
     "read": "final-report",
     "handoff": "dispatch",
-    "message": "The archival receipts reached their separate authorized destinations.",
+    "message": "The two archival receipts reached their own vaults. Application ingestion is still pending.",
     "onComplete": [
       {
         "type": "deliverMail",
@@ -230,7 +235,8 @@
         "type": "discover",
         "scenario": "008-the-fragments"
       }
-    ]
+    ],
+    "completionBand": true
   },
   "inbox": {
     "content": "mail/inbox.json",

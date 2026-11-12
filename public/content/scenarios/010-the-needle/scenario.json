@@ -1,7 +1,7 @@
 {
   "version": 1,
   "title": "The Needle",
-  "introduction": "The client team needs a small French regression corpus. The duty ledger and the catalog search disagree.",
+  "introduction": "The archive exchange is closed. Helena’s new assignment is a French regression corpus for the client team.",
   "roles": ["catalog-reviewer"],
   "flags": ["selection_verified"],
   "local": {
@@ -20,11 +20,11 @@
         "user": "catalog-reviewer",
         "role": "catalog-reviewer"
       },
-      "welcome": "Read-only archive. Candidate searches are staged in this workspace.",
+      "welcome": "Read-only catalog review. The current search falls short of the signed duty ledger.",
       "status": [
         {
           "label": "Catalog review",
-          "value": "Search pending",
+          "value": "Selection pending",
           "after": {
             "flag": "selection_verified",
             "value": "Occurrences verified"
@@ -153,7 +153,12 @@
               "kind": "text"
             }
           ],
-          "success": [],
+          "success": [
+            {
+              "type": "message",
+              "text": "Search candidate staged. Selection review is pending."
+            }
+          ],
           "failure": "The catalog could not reconcile this attempt.",
           "quick": true,
           "invalidates": ["selection_verified"]
@@ -196,14 +201,19 @@
           "success": [
             {
               "type": "flag",
-              "flag": "selection_verified"
+              "flag": "selection_verified",
+              "milestone": {
+                "id": "select-verified",
+                "title": "Source selection verified",
+                "text": "The selected records and original occurrences match the approved summer-duty scope."
+              }
             },
             {
               "type": "resourceLink",
               "resource": "final-report"
             }
           ],
-          "failure": "The catalog could not reconcile this attempt.",
+          "failure": "Selection review rejected the staged search.",
           "quick": true,
           "invalidates": ["selection_verified"]
         }
@@ -215,7 +225,13 @@
     "read": "final-report",
     "dossier": "selection",
     "message": "The summer-duty source selection is filed for disclosure review.",
-    "onComplete": [{ "type": "discover", "scenario": "011-the-mask" }]
+    "onComplete": [
+      {
+        "type": "discover",
+        "scenario": "011-the-mask"
+      }
+    ],
+    "completionBand": true
   },
   "inbox": {
     "content": "mail/inbox.json",

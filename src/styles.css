@@ -490,6 +490,12 @@ h1.terminal-scenario {
   font: 14px/1.52 var(--mono);
   overflow-wrap: anywhere;
 }
+.transcript::after {
+  display: block;
+  height: var(--transcript-scroll-space, 0px);
+  overflow-anchor: none;
+  content: '';
+}
 .transcript:focus-visible {
   outline-offset: -2px;
 }

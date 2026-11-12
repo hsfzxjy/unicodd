@@ -304,6 +304,51 @@ test('collapses individual results and reuses the full command as an editable dr
   await expect(field(page, 'Account alias')).toHaveValue(String.raw`\u000041`)
 })
 
+for (const [width, height] of [
+  [1280, 800],
+  [390, 435],
+]) {
+  test.describe(`transcript at ${width} × ${height}`, () => {
+    test.use({ viewport: { width, height }, hasTouch: width < 600, isMobile: width < 600 })
+
+    test('keeps the last command header in place when toggling its output', async ({
+      page,
+    }, info) => {
+      await page.emulateMedia({ reducedMotion: 'reduce' })
+      await relay(page)
+      for (let i = 0; i < 12; i++) await quick(page, 'ls').click()
+      await typed(page, 'ls ./notes')
+      const entry = log(page).locator('.terminal-entry').last()
+      await expect(entry.getByRole('button', { name: 'keypad.txt' })).toBeVisible()
+      const header = entry.locator('.command-echo')
+      const toggle = header.getByRole('button', { name: 'Toggle command output' })
+      const measure = () => header.evaluate((element) => element.getBoundingClientRect().top)
+      await expect(toggle).toBeInViewport({ ratio: 1 })
+      expect(await log(page).evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+      const top = await measure()
+      const activate = () => (width < 600 ? toggle.tap() : toggle.click())
+      await activate()
+      await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+      expect(Math.abs((await measure()) - top)).toBeLessThanOrEqual(1)
+      await page.screenshot({ path: info.outputPath('collapsed-near-end.png') })
+
+      await toggle.press('Enter')
+      await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+      expect(Math.abs((await measure()) - top)).toBeLessThanOrEqual(1)
+      await activate()
+      await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+      await typed(page, 'whoami')
+      await expect(entry).toContainText('guest · guest')
+      const endGap = await entry.evaluate((element) => {
+        const transcript = element.closest('.transcript')!
+        return transcript.getBoundingClientRect().bottom - element.getBoundingClientRect().bottom
+      })
+      expect(endGap).toBeGreaterThanOrEqual(0)
+      expect(endGap).toBeLessThanOrEqual(18)
+    })
+  })
+}
+
 test('switches commands without execution, navigates the menu and restores scoped drafts and UTF-16 selections', async ({
   page,
 }) => {

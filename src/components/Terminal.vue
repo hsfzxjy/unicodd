@@ -35,6 +35,7 @@ const sourceCoordinates = [
   ['graphemes', 'Graphemes'],
 ] as const
 const outputPrefix = useId() + '-output-'
+const scrollSpace = '--transcript-scroll-space'
 const scroll = ref<HTMLDivElement>()
 const frame = ref<HTMLElement>()
 const composer = ref<InstanceType<typeof CommandComposer>>()
@@ -56,22 +57,48 @@ function echoText(value: string) {
 }
 
 async function toggleOutput(id: number) {
+  const box = scroll.value
+  const top = box?.scrollTop ?? 0
   if (collapsed.has(id)) collapsed.delete(id)
   else collapsed.add(id)
   await nextTick()
+  if (box && box === scroll.value) {
+    const last = box.lastElementChild
+    if (last && top > 0) {
+      // The last entry gives the natural end even when the content fits inside the viewport.
+      const contentEnd =
+        last.getBoundingClientRect().bottom -
+        box.getBoundingClientRect().top +
+        box.scrollTop +
+        Number.parseFloat(getComputedStyle(box).paddingBottom)
+      const space = Math.ceil(top + box.clientHeight - contentEnd)
+      if (space > 0) box.style.setProperty(scrollSpace, `${space}px`)
+      else box.style.removeProperty(scrollSpace)
+    }
+    box.scrollTop = top
+  }
   trackScroll()
   readResourceSelection()
 }
 
 function scrollToEnd() {
-  if (scroll.value) scroll.value.scrollTop = scroll.value.scrollHeight
+  const box = scroll.value
+  if (box) {
+    box.style.removeProperty(scrollSpace)
+    box.scrollTop = box.scrollHeight
+  }
   following.value = true
   unseenProgress.value = false
 }
 
 function trackScroll() {
   const box = scroll.value
-  if (box) following.value = box.scrollHeight - box.scrollTop - box.clientHeight < 28
+  if (box) {
+    const space = Number.parseFloat(box.style.getPropertyValue(scrollSpace))
+    const distance = box.scrollHeight - box.scrollTop - box.clientHeight
+    if (space && (box.scrollTop === 0 || distance >= space)) box.style.removeProperty(scrollSpace)
+    following.value = box.scrollHeight - box.scrollTop - box.clientHeight < 28
+  }
   if (following.value) unseenProgress.value = false
   emit('change')
 }
@@ -92,6 +119,7 @@ function restoreView(view?: TerminalView) {
   following.value = view?.following !== false
   void nextTick(() => {
     if (!scroll.value) return
+    scroll.value.style.removeProperty(scrollSpace)
     const opening = !view && props.transcript.length === 1 && props.transcript[0].id === 0
     if (opening || (view?.following === false && Number.isFinite(view.scrollTop))) {
       scroll.value.scrollTop = view?.scrollTop ?? 0

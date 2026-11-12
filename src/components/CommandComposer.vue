@@ -28,7 +28,7 @@ import {
 import type { Action, Response } from '../lib/runtime'
 import type { OperationBinding } from '../lib/scenario'
 import { scalarSpan, type Span } from '../lib/unicode'
-import { validDraft, type ComposerSave, type Draft } from '../lib/workspace'
+import { restoreComposerDraft, type ComposerSave, type Draft } from '../lib/workspace'
 
 const props = defineProps<{
   prompt: string
@@ -84,25 +84,19 @@ const canInsertCommand = computed(() => !selected.value && !composing.value)
 const canReuse = computed(() => !props.busy && !composing.value && !pending.value)
 const available = computed(() => {
   const names = new Set(props.suggestions)
-  const priority = props.operations.map((operation) => operation.command as string)
+  const operations = new Set<string>(props.operations.map(({ command }) => command))
+  const local = selected.value?.startsWith('local ')
+  const priority = (name: CommandName) => {
+    if (local && name.startsWith('local ')) return 2
+    return operations.has(name) ? 1 : 0
+  }
   return commandRegistry
     .filter((command) => names.has(command.name))
-    .sort((a, b) => Number(priority.includes(b.name)) - Number(priority.includes(a.name)))
+    .sort((a, b) => priority(b.name) - priority(a.name))
 })
 const matches = computed(() => {
   if (!focused.value || composing.value || !showSuggestions.value || menuOpen.value) return []
   if (!selected.value) return matchSuggestions(text.value, props.suggestions).slice(0, 5)
-  if (selected.value === 'local') {
-    const [command = '', argument = ''] = values.value
-    return (
-      activeIndex.value === 0
-        ? matchSuggestions(
-            'local ' + command,
-            props.suggestions.filter((item) => /^local [a-z]+$/u.test(item)),
-          )
-        : matchSuggestions(`local ${command} ${argument}`, props.suggestions)
-    ).slice(0, 5)
-  }
   const field = fields.value[activeIndex.value]
   if (
     !field ||
@@ -175,14 +169,25 @@ watchPostEffect(() => {
 onMounted(() => {
   const saved = props.initial
   if (!saved) return
-  for (const draft of Array.isArray(saved.drafts) ? saved.drafts.filter(validDraft) : [])
-    if (draft.name) drafts.set(draft.name, draft)
-  if (Array.isArray(saved.history)) history.push(...saved.history.filter(validDraft).slice(-60))
+  if (Array.isArray(saved.drafts)) {
+    for (const cached of saved.drafts) {
+      const draft = restoreComposerDraft(cached)
+      if (draft?.name) drafts.set(draft.name, draft)
+    }
+  }
+  if (Array.isArray(saved.history))
+    history.push(
+      ...saved.history
+        .map(restoreComposerDraft)
+        .filter((draft) => draft !== undefined)
+        .slice(-60),
+    )
   historyIndex = Number.isSafeInteger(saved.index)
     ? Math.max(0, Math.min(saved.index, history.length))
     : history.length
-  scratch = validDraft(saved.scratch) ? saved.scratch : undefined
-  if (validDraft(saved.draft)) void restore(saved.draft, false)
+  scratch = restoreComposerDraft(saved.scratch)
+  const draft = restoreComposerDraft(saved.draft)
+  if (draft) void restore(draft, false)
 })
 function setEditor(index: number, instance: unknown) {
   if (instance) editors.set(index, instance as InstanceType<typeof ComposerArgument>)
@@ -425,8 +430,7 @@ async function complete(value: string) {
   const draft = commandDraft(value)
   if (!draft) return
   if (selected.value) {
-    values.value[activeIndex.value] =
-      draft.values[selected.value === 'local' ? activeIndex.value : 0] ?? ''
+    values.value[activeIndex.value] = draft.values[0] ?? ''
     showSuggestions.value = false
     const length = values.value[activeIndex.value].length
     await focusField(activeIndex.value, { start: length, end: length })

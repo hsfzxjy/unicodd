@@ -164,8 +164,7 @@ const goalStatus = computed(() =>
 interface StatusControl {
   key: string
   name: string
-  label: string
-  compactLabel?: string
+  label?: string
   detail: string
   mark: string
   reached: boolean
@@ -178,10 +177,9 @@ const hostChecks = computed<StatusControl[]>(() =>
           {
             key: 'host-' + index,
             name: `${label}: ${value}`,
-            label: `${label} · ${value}`,
-            compactLabel: value,
+            label,
             detail: `${label}: ${value}`,
-            mark: reached ? '✓' : '○',
+            mark: reached ? '✓' : '',
             reached,
           },
         ],
@@ -195,19 +193,15 @@ const titleStatus = computed<StatusControl[]>(() => {
     {
       key: 'session',
       name: 'Session',
-      label: active.host ? role : 'Local console',
-      compactLabel: active.host ? (role.includes(' ') ? 'Remote' : role) : 'Local',
       detail: `${active.host ? 'Connected to ' + active.host.id : 'Local console'}. Signed in as ${active.identity.user}. Permissions: ${role}.`,
-      mark: '›_',
+      mark: active.host ? '›_' : '⌂',
       reached: Boolean(active.host && active.identity.role !== active.host.guest.role),
     },
     {
       key: 'goal',
       name: 'Goal: ' + goalStatus.value,
-      label: 'Goal · ' + goalStatus.value,
-      compactLabel: 'Goal ' + goalStatus.value.toLowerCase(),
       detail: 'Goal: ' + goalStatus.value,
-      mark: caseComplete.value ? '✓' : '◎',
+      mark: active.completed ? '✓' : caseComplete.value ? '↺' : '•',
       reached: caseComplete.value,
     },
     ...(campaignFinished.value
@@ -215,9 +209,8 @@ const titleStatus = computed<StatusControl[]>(() => {
           {
             key: 'campaign',
             name: 'All available scenarios complete',
-            label: 'Campaign',
             detail: 'All available scenarios complete',
-            mark: '✓',
+            mark: '⚑',
             reached: true,
           },
         ]
@@ -225,6 +218,10 @@ const titleStatus = computed<StatusControl[]>(() => {
     ...hostChecks.value,
   ]
 })
+const hostCheckCount = computed(
+  () => `${hostChecks.value.filter(({ reached }) => reached).length}/${hostChecks.value.length}`,
+)
+const hostCheckDetails = computed(() => hostChecks.value.map(({ detail }) => detail).join('\n'))
 const changedStatus = shallowRef(new Set<string>())
 const statusAnnouncement = ref('')
 watch(titleStatus, (current, previous) => {
@@ -564,6 +561,7 @@ async function dispatch(action: Action, command?: string) {
               type="button"
               :class="{
                 'host-status-item': item.key.startsWith('host-'),
+                'goal-status': item.key === 'goal',
                 'status-reached': item.reached,
                 'status-changing': changedStatus.has(item.key),
                 'status-selected': sessionExpanded && sessionSection === item.key,
@@ -575,8 +573,7 @@ async function dispatch(action: Action, command?: string) {
               @click="toggleSession(item.key)"
             >
               <span :key="item.detail" class="status-mark" aria-hidden="true">{{ item.mark }}</span>
-              <bdi :class="{ 'status-full': item.compactLabel }">{{ item.label }}</bdi>
-              <bdi v-if="item.compactLabel" class="status-compact">{{ item.compactLabel }}</bdi>
+              <bdi v-if="item.label && hostChecks.length > 1">{{ item.label }}</bdi>
             </button>
             <button
               v-if="hostChecks.length > 1"
@@ -586,11 +583,14 @@ async function dispatch(action: Action, command?: string) {
                 'status-selected': sessionExpanded && sessionSection.startsWith('host-'),
                 'status-changing': hostChecks.some(({ key }) => changedStatus.has(key)),
               }"
+              aria-label="Host status"
+              :title="hostCheckDetails"
               aria-controls="session-details"
               :aria-expanded="sessionExpanded"
               @click="toggleSession('host-summary')"
             >
-              Host status
+              <span :key="hostCheckDetails" class="status-mark" aria-hidden="true">☷</span>
+              <span class="status-count" aria-hidden="true">{{ hostCheckCount }}</span>
             </button>
           </div>
           <p class="milestone-announcement" role="status" dir="auto">{{ statusAnnouncement }}</p>

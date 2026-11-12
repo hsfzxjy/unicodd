@@ -21,10 +21,14 @@ const argument = (name: string, kind: ArgumentKind, required = true): CommandArg
   initial: '',
 })
 export const operationArity = { ...puzzleArity, ...recoveryArity, ...dossierArity }
-export const consoleCommands = ['hosts', 'mail', 'connect', 'campaign', 'scenario'] as const
+const consoleCommands = ['hosts', 'mail', 'connect', 'campaign', 'scenario'] as const
 type ConsoleCommand = (typeof consoleCommands)[number]
 export const isConsoleCommand = (name: string): name is ConsoleCommand =>
   consoleCommands.some((command) => command === name)
+const localCommands = ['help', ...consoleCommands] as const
+export function scopedConsoleCommand(name: string) {
+  return localCommands.find((command) => name === `local ${command}`)
+}
 
 function recoveryCommand<T extends RecoveryCommand | DossierCommand>(
   name: T,
@@ -42,7 +46,7 @@ function recoveryCommand<T extends RecoveryCommand | DossierCommand>(
 
 // Parsing, help, completion and the composer share this vocabulary. Scenario bindings
 // supply puzzle field labels, defaults and fixed context, never another input UI.
-export const commandRegistry = [
+const baseCommands = [
   { name: 'help', usage: 'help', description: 'Show this command reference.', arguments: [] },
   { name: 'hosts', usage: 'hosts', description: 'List known hosts.', arguments: [] },
   {
@@ -56,13 +60,6 @@ export const commandRegistry = [
     usage: 'connect <host>',
     description: 'Open a guest session on a host from the local console.',
     arguments: [argument('host', 'host')],
-  },
-  {
-    name: 'local',
-    usage: 'local <command> [argument]',
-    description:
-      'Use the local console from a remote session. Supports hosts, mail, connect, campaign and scenario.',
-    arguments: [argument('command', 'text'), argument('argument', 'text', false)],
   },
   {
     name: 'ls',
@@ -265,10 +262,20 @@ export const commandRegistry = [
   },
   { name: 'clear', usage: 'clear', description: 'Clear terminal scrollback.', arguments: [] },
 ] as const
+export const commandRegistry = [
+  ...baseCommands,
+  ...localCommands.map((name) => {
+    const definition = baseCommands.find((command) => command.name === name)!
+    return {
+      ...definition,
+      name: `local ${name}` as const,
+      usage: `local ${definition.usage}`,
+      description:
+        name === 'help' ? 'Show commands for the local console.' : definition.description,
+    }
+  }),
+]
 export type CommandName = (typeof commandRegistry)[number]['name']
-export const commandHelp = commandRegistry.map(
-  ({ usage, description }) => [usage, description] as const,
-)
 export function commandDefinition(name: string) {
   return commandRegistry.find((command) => command.name === name)
 }
@@ -292,7 +299,7 @@ export function composerArguments(
 }
 export function spaceCommand(source: string, composing = false): CommandName | undefined {
   if (composing) return
-  const match = /^([a-z-]+) $/u.exec(source)
+  const match = /^((?:local )?[a-z-]+) $/u.exec(source)
   return match ? commandDefinition(match[1])?.name : undefined
 }
 
@@ -339,9 +346,11 @@ function tokenize(source: string, draft = false) {
 
 export function commandDraft(source: string) {
   const parsed = tokenize(source, true)
-  const definition = commandDefinition(parsed.args[0])
+  const [command, subcommand] = parsed.args
+  const scoped = command === 'local'
+  const definition = commandDefinition(scoped ? `local ${subcommand}` : command)
   if (!definition || parsed.quote || parsed.error) return
-  return { name: definition.name, values: parsed.args.slice(1) }
+  return { name: definition.name, values: parsed.args.slice(scoped ? 2 : 1) }
 }
 
 // Map a one-line native selection into the parameter draft without treating decoded
@@ -349,13 +358,15 @@ export function commandDraft(source: string) {
 export function commandDraftSelection(source: string, selection: Span) {
   const draft = commandDraft(source)
   if (!draft?.values.length) return
+  const commandWords = draft.name.startsWith('local ') ? 2 : 1
   const position = (offset: number) => {
     const prefix = tokenize(source.slice(0, offset), true)
     const index = Math.min(
       draft.values.length - 1,
-      Math.max(0, prefix.args.length - (prefix.started ? 2 : 1)),
+      Math.max(0, prefix.args.length - commandWords - Number(prefix.started)),
     )
-    const local = prefix.started && prefix.args.length > 1 ? prefix.args.at(-1)!.length : 0
+    const local =
+      prefix.started && prefix.args.length > commandWords ? prefix.args.at(-1)!.length : 0
     return { index, offset: Math.min(local, draft.values[index].length) }
   }
   const start = position(selection.start)
@@ -372,11 +383,15 @@ export function parseCommand(source: string): Action | undefined {
   if (error) return { type: 'invalid', message: error }
   if (quote) return { type: 'invalid', message: 'Close the quoted argument.' }
   if (!args.length) return
-  const [command] = args
-  const definition = commandDefinition(command)
+  const [command, subcommand] = args
+  const scoped = command === 'local'
+  const definition = commandDefinition(scoped ? `local ${subcommand}` : command)
+  if (!definition && scoped)
+    return { type: 'invalid', message: `Local console commands: ${localCommands.join(', ')}.` }
   if (!definition)
     return { type: 'invalid', message: `Unknown command "${command}". Type help for commands.` }
-  const count = args.length - 1
+  const values = args.slice(scoped ? 2 : 1)
+  const count = values.length
   const minimum =
     Object.hasOwn(operationArity, command) && !count
       ? 0
@@ -384,7 +399,7 @@ export function parseCommand(source: string): Action | undefined {
   if (count < minimum || count > definition.arguments.length)
     return { type: 'invalid', message: `Usage: ${definition.usage}` }
 
-  return commandAction(command as CommandName, args.slice(1))
+  return commandAction(definition.name, values)
 }
 
 export function composerAction(
@@ -407,19 +422,10 @@ export function commandAction(command: CommandName, values: string[] = []): Acti
   if (Object.hasOwn(operationArity, command))
     return puzzleAction(command as OperationCommand, values.length ? values : undefined)
   const argument = values[0]
+  const local = scopedConsoleCommand(command)
+  if (local) return { ...consoleAction(local, argument), scope: 'local' }
   if (isConsoleCommand(command)) return consoleAction(command, argument)
   switch (command) {
-    case 'local': {
-      if (!isConsoleCommand(argument))
-        return {
-          type: 'invalid',
-          message: 'Local console commands: hosts, mail, connect, campaign, scenario.',
-        }
-      const { arguments: fields, usage } = commandDefinition(argument)!
-      if (values.length - 1 > fields.length || (fields[0]?.required && values[1] === undefined))
-        return { type: 'invalid', message: `Usage: local ${usage}` }
-      return { ...consoleAction(argument, values[1]), scope: 'local' }
-    }
     case 'ls':
       return { type: 'ls', path: argument }
     case 'cat':
@@ -436,7 +442,7 @@ export function commandAction(command: CommandName, values: string[] = []): Acti
   }
 }
 
-function consoleAction(command: ConsoleCommand, argument: string): ConsoleAction {
+function consoleAction(command: (typeof localCommands)[number], argument: string): ConsoleAction {
   switch (command) {
     case 'connect':
       return { type: 'connect', host: argument }
@@ -446,6 +452,7 @@ function consoleAction(command: ConsoleCommand, argument: string): ConsoleAction
       return { type: 'scenario', id: argument }
     case 'hosts':
     case 'campaign':
+    case 'help':
       return { type: command }
   }
 }
@@ -528,6 +535,7 @@ export function actionCommand(action: Action, includeScope = true): string | und
       return `${prefix}scenario ${quote(action.id)}`
     case 'hosts':
     case 'campaign':
+    case 'help':
       return prefix + action.type
     case 'inspect':
       return action.character === undefined ? undefined : `inspect ${quote(action.character)}`

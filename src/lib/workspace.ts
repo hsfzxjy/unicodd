@@ -1,8 +1,8 @@
 import { createCampaign, type CampaignSnapshot, type DirectEntry } from './campaign.ts'
-import { actionCommand, commandDefinition, type CommandName } from './commands.ts'
+import { actionCommand, commandDefinition, commandInsertion, type CommandName } from './commands.ts'
 import { createRuntime, type Action, type Output, type RuntimeSnapshot } from './runtime.ts'
 import type { Scenario } from './scenario.ts'
-import type { Span } from './unicode.ts'
+import { decodeUnicodeEscapes, type Span } from './unicode.ts'
 import type { Engine } from '../types.ts'
 
 export interface Draft {
@@ -29,7 +29,7 @@ export interface ComposerSave {
   scratch?: Draft
 }
 
-export function validDraft(draft: Draft | undefined): draft is Draft {
+function validDraft(draft: Draft | undefined): draft is Draft {
   const span = (value?: Span) =>
     value &&
     Number.isSafeInteger(value.start) &&
@@ -48,6 +48,34 @@ export function validDraft(draft: Draft | undefined): draft is Draft {
     draft.active >= 0 &&
     (draft.selection === undefined || span(draft.selection)),
   )
+}
+
+export function restoreComposerDraft(
+  draft?: Draft | (Omit<Draft, 'name'> & { name: 'local' }),
+): Draft | undefined {
+  if (draft?.name !== 'local') return validDraft(draft) ? draft : undefined
+  const previous = { ...draft, name: undefined }
+  if (!validDraft(previous)) return
+  const [subcommand = '', argument] = previous.values
+  const decoded = decodeUnicodeEscapes(subcommand)
+  const command = 'text' in decoded && commandDefinition(`local ${decoded.text}`)
+  if (command && (command.arguments.length || !argument)) {
+    return {
+      ...previous,
+      name: command.name,
+      values: previous.values.slice(1, 1 + command.arguments.length),
+      active: 0,
+      spans: previous.spans.slice(1),
+      tools: Array.isArray(previous.tools) ? previous.tools.slice(1) : undefined,
+    }
+  }
+  // Keep unfinished legacy subcommands editable in the single-line prompt.
+  return {
+    text: ['local', ...previous.values].join(' ').replace(/[\r\n]/gu, commandInsertion),
+    values: [],
+    active: 0,
+    spans: [],
+  }
 }
 
 export interface TerminalView {

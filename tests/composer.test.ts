@@ -10,6 +10,7 @@ import {
   spaceCommand,
 } from '../src/lib/commands'
 import { decodeUnicodeEscapes } from '../src/lib/unicode'
+import { restoreComposerDraft } from '../src/lib/workspace'
 import { production } from './scenario-content'
 
 describe('authoritative command metadata', () => {
@@ -23,21 +24,23 @@ describe('authoritative command metadata', () => {
       expect(spaceCommand(command.name)).toBeUndefined()
       expect(spaceCommand(command.name + ' argument')).toBeUndefined()
     }
-    for (const text of ['lo ', 'unknown ', ' Login ', 'login  '])
+    for (const text of ['lo ', 'local ', 'local ls ', 'unknown ', ' Login ', 'login  '])
       expect(spaceCommand(text)).toBeUndefined()
   })
   it('uses the same actions for every typed and structured command', () => {
     for (const command of commandRegistry) {
-      const values =
-        command.name === 'local'
-          ? ['mail', 'a🧪é\u200b 1']
-          : command.arguments.map((_, index) => 'a🧪é\u200b ' + index)
+      const values = command.arguments.map((_, index) => 'a🧪é\u200b ' + index)
       const action = composerAction(command.name, values, [])
       expect(parseCommand(actionCommand(action)!)).toEqual(action)
     }
     expect(composerAction('ls', [''], [])).toEqual(parseCommand('ls'))
     expect(composerAction('mail', [''], [])).toEqual(parseCommand('mail'))
     expect(parseCommand('local mail')).toEqual({ type: 'mail', scope: 'local', id: undefined })
+    expect(parseCommand('local help')).toEqual({ type: 'help', scope: 'local' })
+    expect(parseCommand('local help extra')).toEqual({
+      type: 'invalid',
+      message: 'Usage: local help',
+    })
     expect(parseCommand('local connect')).toEqual({
       type: 'invalid',
       message: 'Usage: local connect <host>',
@@ -46,6 +49,33 @@ describe('authoritative command metadata', () => {
     expect(composerAction('route', ['  x y  ', 'a\r\nb\0🧪'], [])).toEqual({
       type: 'route',
       payloads: ['  x y  ', 'a\r\nb\0🧪'],
+    })
+  })
+  it('uses scoped arguments in one-line drafts and retains previously saved local drafts', () => {
+    const source = 'local\tconnect "a🧪b"'
+    expect(commandDraft(source)).toEqual({ name: 'local connect', values: ['a🧪b'] })
+    expect(commandDraftSelection(source, { start: 16, end: 18 })).toEqual({
+      index: 0,
+      span: { start: 1, end: 3 },
+    })
+    const legacy = {
+      name: 'local' as const,
+      text: '',
+      values: ['connect', 'a🧪b'],
+      active: 1,
+      spans: [
+        { start: 0, end: 0 },
+        { start: 1, end: 3 },
+      ],
+    }
+    expect(restoreComposerDraft(legacy)).toMatchObject({
+      name: 'local connect',
+      values: ['a🧪b'],
+      active: 0,
+      spans: [{ start: 1, end: 3 }],
+    })
+    expect(restoreComposerDraft({ ...legacy, values: ['con'] })).toMatchObject({
+      text: 'local con',
     })
   })
   it('retains quoted Unicode and escape spellings for one-line retry and history', () => {

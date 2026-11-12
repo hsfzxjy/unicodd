@@ -6,7 +6,7 @@ import TerminalFile from './TerminalFile.vue'
 import TerminalInspection from './TerminalInspection.vue'
 import TerminalMail from './TerminalMail.vue'
 import TerminalProgress from './TerminalProgress.vue'
-import { commandHelp } from '../lib/commands'
+import { commandRegistry } from '../lib/commands'
 import { linkStatus, type Action, type Link, type Session } from '../lib/runtime'
 import { inspectRange, notation, unpairedSurrogate } from '../lib/unicode'
 import type { ComposerSave, Entry, TerminalView } from '../lib/workspace'
@@ -549,13 +549,13 @@ defineExpose({
               <div v-else-if="row.kind === 'help'" class="command-help">
                 <dl>
                   <template
-                    v-for="[usage, detail] in commandHelp.filter(([usage]) =>
-                      row.commands.includes(usage.split(' ')[0]),
+                    v-for="{ usage, description } in commandRegistry.filter(({ name }) =>
+                      row.commands.includes(name),
                     )"
                     :key="usage"
                   >
                     <dt>{{ usage }}</dt>
-                    <dd>{{ detail }}</dd>
+                    <dd>{{ description }}</dd>
                   </template>
                 </dl>
                 <p>

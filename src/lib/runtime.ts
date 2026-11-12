@@ -11,9 +11,9 @@ import {
   actionCommand,
   commandDefinition,
   commandRegistry,
-  consoleCommands,
   isConsoleCommand,
   operationArity,
+  scopedConsoleCommand,
 } from './commands.ts'
 import {
   dossierArity,
@@ -50,7 +50,7 @@ import {
 import { describe, lookup, scalarCategory, unpairedSurrogate, type Point } from './unicode.ts'
 
 export type ConsoleAction = (
-  | { type: 'hosts' | 'campaign' }
+  | { type: 'hosts' | 'campaign' | 'help' }
   | { type: 'connect'; host: string }
   | { type: 'mail'; id?: string }
   | { type: 'scenario'; id: string }
@@ -58,7 +58,7 @@ export type ConsoleAction = (
 
 export type Action =
   | ConsoleAction
-  | { type: 'whoami' | 'logout' | 'help' | 'clear' | 'reset' | 'resetCampaign' }
+  | { type: 'whoami' | 'logout' | 'clear' | 'reset' | 'resetCampaign' }
   | { type: 'ls'; path?: string; host?: string }
   | { type: 'cat'; path: string; host?: string }
   | { type: 'login'; alias?: string }
@@ -463,15 +463,18 @@ export function createRuntime(
     )
   }
 
-  function commands() {
-    const available = new Set<string>(availableOperations().map(({ command }) => command))
+  function commands(connected: boolean) {
+    const available = new Set<string>(
+      connected ? availableOperations().map(({ command }) => command) : [],
+    )
     return commandRegistry
       .map(({ name }) => name)
       .filter((command) => {
+        const local = scopedConsoleCommand(command)
+        if (local) return connected && (local !== 'mail' || campaign.hasInbox)
         if (isConsoleCommand(command))
-          return !state.host && (command !== 'mail' || campaign.hasInbox)
-        if (command === 'local' || command === 'ls' || command === 'cat' || command === 'logout')
-          return Boolean(state.host)
+          return !connected && (command !== 'mail' || campaign.hasInbox)
+        if (command === 'ls' || command === 'cat' || command === 'logout') return connected
         return !Object.hasOwn(operationArity, command) || available.has(command)
       })
   }
@@ -485,16 +488,7 @@ export function createRuntime(
     const paths = (state.host?.resources ?? [])
       .filter((item) => resourceChain(item).every(({ discover }) => allows(discover)))
       .map((resource) => actionCommand(pathAction(resource))!)
-    return [
-      ...commands(),
-      ...(state.host
-        ? consoleCommands
-            .filter((command) => command !== 'mail' || campaign.hasInbox)
-            .map((command) => 'local ' + command)
-        : []),
-      ...consoleLinks,
-      ...paths,
-    ]
+    return [...commands(Boolean(state.host)), ...consoleLinks, ...paths]
   }
 
   function apply(
@@ -718,8 +712,10 @@ export function createRuntime(
         `${action.type} runs on the local console. Use local ${commandDefinition(action.type)!.usage} from this session.`,
       )
     switch (action.type) {
-      case 'help':
-        return { output: [{ kind: 'help', connected: Boolean(state.host), commands: commands() }] }
+      case 'help': {
+        const connected = Boolean(state.host) && action.scope !== 'local'
+        return { output: [{ kind: 'help', connected, commands: commands(connected) }] }
+      }
       case 'campaign':
         return {
           output: [

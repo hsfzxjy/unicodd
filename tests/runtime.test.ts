@@ -190,8 +190,27 @@ it('limits network commands to their console and leaves remote access active dur
   })
   expect(runtime.state.readMail).toEqual([])
   expect(runtime.suggestions()).toEqual(
-    expect.arrayContaining(['local mail favor', 'ls', 'logout']),
+    expect.arrayContaining(['local help', 'local mail favor', 'ls', 'logout']),
   )
+  const help = await run('local help')
+  expect(help.output).toEqual([
+    {
+      kind: 'help',
+      connected: false,
+      commands: [
+        'help',
+        'hosts',
+        'mail',
+        'connect',
+        'whoami',
+        'campaign',
+        'scenario',
+        'inspect',
+        'clear',
+      ],
+    },
+  ])
+  expect(runtime.state).toBe(remote)
   expect(runtime.suggestions()).not.toContain('mail')
   expect(runtime.suggestions()).not.toContain('local connect relay-07')
   expect(await run('local mail favor')).toMatchObject({ output: [{ kind: 'mail' }] })

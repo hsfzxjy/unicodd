@@ -82,8 +82,9 @@ test('recovers Dead Letter by graphical actions from the development entry', asy
   await openCampaign(page, '/?scenario=002-dead-letter')
   await expect(panel(page)).toContainText('guest')
   const notice = page.getByRole('button', { name: 'Notice 2917: Delivery paused' })
-  await expect(notice.getByText('Delivery paused', { exact: true })).toBeInViewport()
+  await expect(notice.locator('.status-mark')).toBeInViewport()
   await notice.click()
+  await expect(panel(page).getByText('Delivery paused', { exact: true })).toBeInViewport()
   await expect(
     panel(page).getByText('A paused notice stays in the delivery queue.', { exact: false }),
   ).toBeInViewport()

@@ -299,8 +299,9 @@ h1.terminal-scenario {
 }
 .session-layer {
   padding: 8px 12px;
-  border-bottom: 1px solid var(--line);
-  background: var(--surface);
+  border-bottom: 1px solid #435966;
+  background: #1b2931;
+  font: 12px/1.45 var(--sans);
 }
 .short-viewport .terminal-frame {
   grid-template-rows: max-content minmax(0, max-content) minmax(52px, 1fr) auto;
@@ -315,8 +316,9 @@ h1.terminal-scenario {
   gap: 8px;
   margin-bottom: 6px;
 }
-.session-layer-heading h2 {
-  font: 650 13px var(--mono);
+.session-layer-heading h2,
+.session-layer .objective-heading h3 {
+  font-size: 12px;
 }
 .session-layer-heading button {
   min-height: 30px;
@@ -360,11 +362,13 @@ h1.terminal-scenario {
 .frame-title .session-indicators button {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  min-width: 32px;
   max-width: 100%;
   gap: 4px;
   padding: 3px 5px;
   background: transparent;
-  font: 12px var(--mono);
+  font: 11px var(--sans);
 }
 .session-indicators bdi {
   min-width: 0;
@@ -375,15 +379,17 @@ h1.terminal-scenario {
 .frame-title .session-indicators button:is(.status-selected, .status-reached) {
   color: var(--accent);
 }
-.session-indicators .status-selected {
+.frame-title .session-indicators button:is(:hover, .status-selected) {
   background: var(--raised);
 }
-.session-indicators .status-compact,
 .frame-title .session-indicators .host-status-summary {
   display: none;
 }
 .frame-title .session-indicators .host-status-summary.status-changing {
   color: var(--accent);
+}
+.status-count {
+  font-variant-numeric: tabular-nums;
 }
 .status-mark {
   display: inline-grid;
@@ -392,7 +398,16 @@ h1.terminal-scenario {
   min-width: 18px;
   height: 18px;
   border-radius: 2px;
-  font-weight: 700;
+  font: 700 15px/1 var(--sans);
+  white-space: nowrap;
+}
+.goal-status .status-mark,
+.host-status-item .status-mark {
+  border: 1px solid currentColor;
+  font-size: 12px;
+}
+.goal-status .status-mark {
+  border-radius: 50%;
 }
 .status-reached .status-mark {
   background: #22382f;
@@ -454,14 +469,14 @@ h1.terminal-scenario {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr));
   gap: 6px 12px;
-  font-family: var(--mono);
 }
 .session-details dt {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
 }
 .session-details dd {
   margin: 0;
+  font-weight: 550;
   overflow-wrap: anywhere;
 }
 .host-details {
@@ -474,7 +489,7 @@ h1.terminal-scenario {
   display: block;
   margin-top: 2px;
   color: var(--muted);
-  font: 13px/1.4 var(--sans);
+  font-weight: 400;
 }
 .objective {
   margin-top: 9px;
@@ -489,7 +504,7 @@ h1.terminal-scenario {
 }
 .objective-heading span {
   color: var(--muted);
-  font: 12px var(--mono);
+  font: 11px var(--sans);
 }
 .objective .objective-done,
 .terminal-line.auth,
@@ -919,7 +934,7 @@ h1.terminal-scenario {
 .startup p {
   margin-block: 6px 10px;
 }
-@media (max-width: 1024px) {
+@media (max-width: 700px) {
   .terminal-frame .frame-title {
     flex-wrap: wrap;
     row-gap: 0;
@@ -1023,16 +1038,11 @@ h1.terminal-scenario {
   }
 }
 @media (max-width: 600px) {
-  .session-indicators .status-full,
   .frame-title .grouped-host-status .host-status-item {
     display: none;
   }
-  .session-indicators .status-compact,
   .frame-title .grouped-host-status .host-status-summary {
     display: inline-flex;
-  }
-  .session-indicators .status-mark {
-    min-width: 12px;
   }
   .session-details {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1290,7 +1300,7 @@ h1.terminal-scenario {
 }
 .command-menu button {
   display: grid;
-  grid-template-columns: 12ch minmax(0, 1fr);
+  grid-template-columns: 16ch minmax(0, 1fr);
   gap: 8px;
   text-align: start;
   width: 100%;

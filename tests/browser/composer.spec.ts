@@ -597,6 +597,10 @@ for (const [width, height] of [
       page,
     }, info) => {
       await relay(page)
+      const frame = page.getByRole('region', { name: 'Terminal', exact: true })
+      const frameBox = (await frame.boundingBox())!
+      expect(frameBox.width).toBe(Math.min(1200, width - (width <= 830 ? 16 : 32)))
+      expect(Math.abs(frameBox.x - (width - frameBox.width) / 2)).toBeLessThan(1)
       const capture = async (name: string) => {
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
         await expect(run(page)).toBeInViewport({ ratio: 1 })
@@ -617,12 +621,20 @@ for (const [width, height] of [
       const tagBox = (await tag(page).boundingBox())!
       const pathBox = (await path.boundingBox())!
       const runBox = (await run(page).boundingBox())!
-      expect(Math.abs(pathBox.y + pathBox.height / 2 - tagBox.y - tagBox.height / 2)).toBeLessThan(
-        2,
-      )
-      expect(pathBox.x).toBeGreaterThan(tagBox.x + tagBox.width)
-      expect(pathBox.x + pathBox.width).toBeLessThanOrEqual(runBox.x)
-      await capture('03-inline-path')
+      if (width <= 600) {
+        const formBox = (await page.getByRole('form', { name: 'Command composer' }).boundingBox())!
+        expect(pathBox.y).toBeGreaterThanOrEqual(
+          Math.max(tagBox.y + tagBox.height, runBox.y + runBox.height),
+        )
+        expect(pathBox.width).toBeGreaterThanOrEqual(formBox.width - 12)
+      } else {
+        expect(
+          Math.abs(pathBox.y + pathBox.height / 2 - tagBox.y - tagBox.height / 2),
+        ).toBeLessThan(2)
+        expect(pathBox.x).toBeGreaterThan(tagBox.x + tagBox.width)
+        expect(pathBox.x + pathBox.width).toBeLessThanOrEqual(runBox.x)
+      }
+      await capture('03-path')
       await run(page).click()
       await expect(log(page).locator('.terminal-entry').last()).toContainText('/')
       await quick(page, 'login').click()
@@ -647,6 +659,10 @@ for (const [width, height] of [
       }
       await page.getByRole('button', { name: 'Code points', exact: true }).click()
       await expect(page.getByRole('group', { name: 'Account alias code points' })).toBeVisible()
+      await expect(
+        page.getByRole('region', { name: 'Account alias Unicode inspector' }),
+      ).toBeInViewport({ ratio: 1 })
+      await expect(alias).toBeInViewport({ ratio: 1 })
       await capture('07-code-points')
     })
   })

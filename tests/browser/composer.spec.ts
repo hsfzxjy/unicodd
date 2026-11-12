@@ -38,7 +38,7 @@ async function selection(input: ReturnType<typeof field>, start: number, end: nu
   )
 }
 
-test('tags all 16 commands, expands required input, leaves unknown text alone and executes zero arguments', async ({
+test('tags every command, expands required input, leaves unknown text alone and executes zero arguments', async ({
   page,
 }) => {
   await relay(page)
@@ -466,7 +466,19 @@ test('retains failed arguments and cursor context, recalls structured history an
   await alias.fill('draft with spaces')
   await alias.press('Shift+Enter')
   await expect(alias).toHaveValue('draft with spaces\n')
+  await page.getByRole('button', { name: /^Open local inbox/ }).click()
+  await log(page).getByRole('button', { name: 'A favor', exact: true }).last().click()
+  await expect(log(page).getByRole('region', { name: 'Inbox message' })).toBeVisible()
+  const mailEntry = log(page).locator('.terminal-entry').last()
+  await expect(mailEntry.locator('.command-line')).toHaveText(/local.*mail favor/)
+  await expect(mailEntry.locator('.command-line')).not.toContainText('@relay-07')
+  await expect(alias).toHaveValue('draft with spaces\n')
+  await page.reload()
+  await expect(mailEntry.locator('.command-line')).toHaveText(/local.*mail favor/)
+  await expect(alias).toHaveValue('draft with spaces\n')
   await quick(page, 'logout').click()
+  await expect(page.locator('.prompt-host').last()).toHaveText('local ›')
+  await log(page).getByRole('button', { name: 'relay-07', exact: true }).last().click()
   await quick(page, 'login').click()
   await expect(alias).not.toHaveValue('draft with spaces\n')
 })

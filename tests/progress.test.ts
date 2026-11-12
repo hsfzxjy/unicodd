@@ -27,7 +27,7 @@ it('reconstructs milestone rows from a journal without duplicating campaign rece
     { type: 'cat', path: '/index' },
     { type: 'cat', path: '/index' },
     { type: 'login', alias: '🧪' },
-    { type: 'connect', host: 'annex' },
+    { type: 'connect', host: 'annex', scope: 'local' },
     { type: 'cat', path: '/document' },
     { type: 'cat', path: '/document' },
   ]

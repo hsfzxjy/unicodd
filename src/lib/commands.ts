@@ -1,4 +1,4 @@
-import type { Action } from './runtime.ts'
+import type { Action, ConsoleAction } from './runtime.ts'
 import { recoveryArity, type RecoveryCommand } from './recovery.ts'
 import { dossierArity, type DossierCommand } from './dossier.ts'
 import { puzzleArity, type OperationBinding, type OperationCommand } from './scenario.ts'
@@ -21,6 +21,10 @@ const argument = (name: string, kind: ArgumentKind, required = true): CommandArg
   initial: '',
 })
 export const operationArity = { ...puzzleArity, ...recoveryArity, ...dossierArity }
+export const consoleCommands = ['hosts', 'mail', 'connect', 'campaign', 'scenario'] as const
+type ConsoleCommand = (typeof consoleCommands)[number]
+export const isConsoleCommand = (name: string): name is ConsoleCommand =>
+  consoleCommands.some((command) => command === name)
 
 function recoveryCommand<T extends RecoveryCommand | DossierCommand>(
   name: T,
@@ -50,8 +54,15 @@ export const commandRegistry = [
   {
     name: 'connect',
     usage: 'connect <host>',
-    description: 'Start a guest session on a host.',
+    description: 'Open a guest session on a host from the local console.',
     arguments: [argument('host', 'host')],
+  },
+  {
+    name: 'local',
+    usage: 'local <command> [argument]',
+    description:
+      'Use the local console from a remote session. Supports hosts, mail, connect, campaign and scenario.',
+    arguments: [argument('command', 'text'), argument('argument', 'text', false)],
   },
   {
     name: 'ls',
@@ -240,7 +251,12 @@ export const commandRegistry = [
     description: 'Enter a discovered scenario.',
     arguments: [argument('id', 'scenario')],
   },
-  { name: 'logout', usage: 'logout', description: 'Return to guest access.', arguments: [] },
+  {
+    name: 'logout',
+    usage: 'logout',
+    description: 'Close the remote session and return to the local console.',
+    arguments: [],
+  },
   {
     name: 'inspect',
     usage: 'inspect <character>',
@@ -391,22 +407,25 @@ export function commandAction(command: CommandName, values: string[] = []): Acti
   if (Object.hasOwn(operationArity, command))
     return puzzleAction(command as OperationCommand, values.length ? values : undefined)
   const argument = values[0]
+  if (isConsoleCommand(command)) return consoleAction(command, argument)
   switch (command) {
-    case 'connect':
-      return { type: 'connect', host: argument }
+    case 'local': {
+      if (!isConsoleCommand(argument))
+        return {
+          type: 'invalid',
+          message: 'Local console commands: hosts, mail, connect, campaign, scenario.',
+        }
+      const { arguments: fields, usage } = commandDefinition(argument)!
+      if (values.length - 1 > fields.length || (fields[0]?.required && values[1] === undefined))
+        return { type: 'invalid', message: `Usage: local ${usage}` }
+      return { ...consoleAction(argument, values[1]), scope: 'local' }
+    }
     case 'ls':
       return { type: 'ls', path: argument }
     case 'cat':
       return { type: 'cat', path: argument }
-    case 'mail':
-      return { type: 'mail', id: argument }
-    case 'scenario':
-      return { type: 'scenario', id: argument }
-    case 'campaign':
-      return { type: 'campaign' }
     case 'inspect':
       return { type: 'inspect', character: argument }
-    case 'hosts':
     case 'help':
     case 'whoami':
     case 'logout':
@@ -414,6 +433,20 @@ export function commandAction(command: CommandName, values: string[] = []): Acti
       return { type: command }
     default:
       throw new Error('Unsupported command: ' + command)
+  }
+}
+
+function consoleAction(command: ConsoleCommand, argument: string): ConsoleAction {
+  switch (command) {
+    case 'connect':
+      return { type: 'connect', host: argument }
+    case 'mail':
+      return { type: 'mail', id: argument }
+    case 'scenario':
+      return { type: 'scenario', id: argument }
+    case 'hosts':
+    case 'campaign':
+      return { type: command }
   }
 }
 
@@ -468,16 +501,17 @@ export function commandInsertion(text: string): string {
   return text.replace(/["'\\\p{White_Space}\p{Cc}]/gu, scalarEscape)
 }
 
-export function actionCommand(action: Action): string | undefined {
+export function actionCommand(action: Action, includeScope = true): string | undefined {
+  const prefix = includeScope && 'scope' in action && action.scope === 'local' ? 'local ' : ''
   switch (action.type) {
     case 'connect':
-      return `connect ${quote(action.host)}`
+      return `${prefix}connect ${quote(action.host)}`
     case 'ls':
       return action.path === undefined ? 'ls' : `ls ${quote(action.path)}`
     case 'cat':
       return `cat ${quote(action.path)}`
     case 'mail':
-      return action.id === undefined ? 'mail' : `mail ${quote(action.id)}`
+      return prefix + (action.id === undefined ? 'mail' : `mail ${quote(action.id)}`)
     case 'login':
       return action.alias === undefined ? 'login' : `login ${quote(action.alias)}`
     case 'route':
@@ -491,7 +525,10 @@ export function actionCommand(action: Action): string | undefined {
     case 'reconcile':
       return action.payload === undefined ? action.type : `${action.type} ${quote(action.payload)}`
     case 'scenario':
-      return `scenario ${quote(action.id)}`
+      return `${prefix}scenario ${quote(action.id)}`
+    case 'hosts':
+    case 'campaign':
+      return prefix + action.type
     case 'inspect':
       return action.character === undefined ? undefined : `inspect ${quote(action.character)}`
     case 'invalid':

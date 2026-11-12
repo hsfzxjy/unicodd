@@ -10,6 +10,7 @@ import { type Scenario } from './lib/scenario'
 import { copyText } from './lib/unicode'
 import {
   historyRevision,
+  entryContext,
   replayJournal,
   scrollbackLimit,
   type Checkpoint,
@@ -132,17 +133,19 @@ onUnmounted(() => {
 
 const shortcuts = computed((): Link[] => {
   if (!session.value) return []
-  const actions: Link[] = [{ label: 'Hosts', action: { type: 'hosts' } }]
-  if (campaign?.hasInbox) actions.push({ label: 'Mail', action: { type: 'mail' } })
+  const actions: Link[] = []
   if (session.value.host) {
     actions.push({ label: 'Files', action: { type: 'ls' } })
     for (const operation of runtime?.operations ?? [])
       if (!('quick' in operation) || operation.quick)
         actions.push({ label: operation.actionLabel, action: puzzleAction(operation.command) })
-    if (session.value.identity !== session.value.host.guest)
-      actions.push({ label: 'Logout', action: { type: 'logout' } })
+    actions.push({ label: 'Return to the local console', action: { type: 'logout' } })
+  } else {
+    actions.push({ label: 'Local host directory', action: { type: 'hosts' } })
+    if (campaign?.hasInbox) actions.push({ label: 'Local inbox', action: { type: 'mail' } })
   }
-  if (catalog.value.length > 1) actions.push({ label: 'Campaign', action: { type: 'campaign' } })
+  if (catalog.value.length > 1)
+    actions.push({ label: 'Local campaign', action: { type: 'campaign', scope: 'local' } })
   actions.push(
     { label: 'Inspect', action: { type: 'inspect' } },
     { label: 'Help', action: { type: 'help' } },
@@ -337,7 +340,6 @@ async function dispatch(action: Action, command?: string) {
   const id = scenarioId.value
   const before = active.state
   const beforeCommand = checkpoint(active)
-  const from = prompt.value
   const isCurrent = () => runtime === active && scenarioId.value === id
   let delayed = false
   let focusBeforePause: Element | null = null
@@ -378,8 +380,7 @@ async function dispatch(action: Action, command?: string) {
       const entry: Entry = {
         id: sequence++,
         echo,
-        prompt: from,
-        connected: Boolean(before.host),
+        ...entryContext(action, before.host?.id),
         output,
         freshProgress: output.some((row) => 'progress' in row && Boolean(row.progress)),
       }
@@ -513,7 +514,13 @@ async function dispatch(action: Action, command?: string) {
             class="terminal-scenario"
             :aria-label="debugSelector?.label ?? 'Scenario'"
             :disabled="busy"
-            @change="dispatch({ type: 'scenario', id: ($event.target as HTMLSelectElement).value })"
+            @change="
+              dispatch({
+                type: 'scenario',
+                id: ($event.target as HTMLSelectElement).value,
+                scope: 'local',
+              })
+            "
           >
             <option v-for="entry in destinations" :key="entry.id" :value="entry.id">
               {{ entry.label + (debugSelector?.optionSuffix ?? '') }}

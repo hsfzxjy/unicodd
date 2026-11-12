@@ -96,7 +96,7 @@ for (const [width, height] of [
       await seedIndexSave(page)
       await page.goto('/')
       await expect(page.getByRole('combobox', { name: 'Scenario' })).toHaveValue('003-the-index')
-      await act(quick(page, 'campaign'))
+      await act(quick(page, 'local campaign'))
       await act(link(page, 'The Backlog'))
       await act(link(page, 'I reopened both cases'))
       await expect(last(page)).toContainText('The database says there are two')
@@ -252,10 +252,10 @@ for (const [width, height] of [
       await last(page).getByRole('button', { name: 'U+0456', exact: true }).scrollIntoViewIfNeeded()
       await capture('03-restored-identities')
 
-      await act(quick(page, 'mail'))
+      await act(page.getByRole('button', { name: /^Open local inbox/ }))
       await act(link(page, 'It worked'))
       await expect(last(page)).toContainText('Only mine.')
-      await act(quick(page, 'mail'))
+      await act(page.getByRole('button', { name: /^Open local inbox/ }))
       await act(link(page, 'Thank you'))
       await expect(last(page)).toContainText('Please tell Support both cases can close.')
       await capture('04-ending')
@@ -265,7 +265,7 @@ for (const [width, height] of [
         'Complete',
       )
       await act(page.getByRole('button', { name: 'Session', exact: true }))
-      await act(quick(page, 'mail'))
+      await act(page.getByRole('button', { name: /^Open local inbox/ }))
       await expect(last(page)).toContainText('it-worked · Mira / Registration 0002917 · Read')
       await expect(last(page).getByRole('button', { name: 'Thank you', exact: true })).toHaveCount(
         1,

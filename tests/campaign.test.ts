@@ -28,7 +28,7 @@ it('keeps campaign progression and inbox separate from replayable sessions', asy
   expect(campaign.completed(relay.id)).toBe(false)
   await run('cat /queue/8c2f.msg')
   expect(campaign.destinations()).toEqual([relay, dead])
-  await run('mail missing-notice')
+  await run('local mail missing-notice')
   await runtime.dispatch({ type: 'reset' })
   expect(runtime.state.completed).toBe(false)
   expect(campaign.completed(relay.id)).toBe(true)

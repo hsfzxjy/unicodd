@@ -237,7 +237,7 @@ it('continues a pre-Recovery save and persists evidence through the atomic relea
   expect(campaign.handoff(release.id)).toEqual(committed)
   expect(campaign.finished).toBe(false)
   expect(campaign.completed(release.id)).toBe(true)
-  const restored = await play(release.id, ['mail it-worked', 'commit'])
+  const restored = await play(release.id, ['local mail it-worked', 'commit'])
   expect(restored.state.completed).toBe(true)
   await restored.dispatch({ type: 'reset' })
   expect(restored.state.completed).toBe(true)

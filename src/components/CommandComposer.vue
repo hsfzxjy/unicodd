@@ -92,6 +92,17 @@ const available = computed(() => {
 const matches = computed(() => {
   if (!focused.value || composing.value || !showSuggestions.value || menuOpen.value) return []
   if (!selected.value) return matchSuggestions(text.value, props.suggestions).slice(0, 5)
+  if (selected.value === 'local') {
+    const [command = '', argument = ''] = values.value
+    return (
+      activeIndex.value === 0
+        ? matchSuggestions(
+            'local ' + command,
+            props.suggestions.filter((item) => /^local [a-z]+$/u.test(item)),
+          )
+        : matchSuggestions(`local ${command} ${argument}`, props.suggestions)
+    ).slice(0, 5)
+  }
   const field = fields.value[activeIndex.value]
   if (
     !field ||
@@ -414,7 +425,8 @@ async function complete(value: string) {
   const draft = commandDraft(value)
   if (!draft) return
   if (selected.value) {
-    values.value[activeIndex.value] = draft.values[0] ?? ''
+    values.value[activeIndex.value] =
+      draft.values[selected.value === 'local' ? activeIndex.value : 0] ?? ''
     showSuggestions.value = false
     const length = values.value[activeIndex.value].length
     await focusField(activeIndex.value, { start: length, end: length })

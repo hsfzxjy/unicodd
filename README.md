@@ -29,11 +29,17 @@ npm run test:browser
 
 With `npm run dev`, open `/?debug=1` to switch between all available levels from the terminal title bar. Add `&scenario=<id>` to start on a specific level. The debug session uses direct-entry evidence and keeps its workspaces in memory for the lifetime of the page.
 
+## Local console and remote sessions
+
+The local console holds the inbox, host directory, and campaign. Use `connect <host>` to open a host listed in the current case's directory. The remote prompt starts with `@`. On that host, `ls`, `cat`, and any available host operations use its own files and access rules. `logout` closes the connection and returns you to the local console.
+
+While connected, use the title-bar inbox or host directory, or type `local mail` and `local hosts`. They run at the local console and leave your remote session active. `local connect <host>` can switch to another reachable host in the same case. The campaign selector and `local scenario <id>` open discovered cases in their own workspaces.
+
 ## Composing commands
 
 Type a command followed by Space to select its tag and edit its arguments in the terminal prompt. Click the tag to switch commands without executing them. Enter on a bare command with required arguments opens its fields. Complete one-line commands, including quoted arguments, still work.
 
-Enter moves to the next parameter or runs from the last. Shift+Enter inserts a newline. Tab and Shift+Tab move between parameters. Run submits from any field. Escape returns to command-name editing and keeps the structured draft cached. Up/Down recall history in the ordinary prompt. Use Alt+Up/Down from an argument. Rejected commands keep their arguments and selection for retry. Each scenario saves its drafts and command history. Reconnecting, changing hosts, and logging out clear the active draft context.
+Enter moves to the next parameter or runs from the last. Shift+Enter inserts a newline. Tab and Shift+Tab move between parameters. Run submits from any field. Escape returns to command-name editing and keeps the structured draft cached. Up/Down recall history in the ordinary prompt. Use Alt+Up/Down from an argument. Rejected commands keep their arguments and selection for retry. Each scenario saves its drafts and command history. Opening or closing a remote connection clears the active draft context.
 
 Code points, UTF-8 bytes, and Inspect operate on the active parameter. The byte view shows the exact draft, including literal escape spelling. Clicking a byte group selects its source character. Clicking a character in terminal output inspects it without changing the draft. Explicit Insert and Replace actions use the active parameter's remembered selection. Reuse opens a transcript command as an editable tag and arguments when the composer can represent it.
 
@@ -83,7 +89,7 @@ The Rust/WASM recovery interface accepts typed version-1 requests and returns ch
 
 Archived mail and an optional local inbox use JSON assets with an ordered `messages` array. Each entry has a unique `id`, single-line `from`, `to`, and `subject` fields, an optional `date`, and a `body` string. Players open archived threads with `cat` or by clicking a resource.
 
-Set `inbox.content` to a mail asset and `inbox.initial` to the ordered IDs delivered at scenario start. An `onRead` or login `success` effect with `type: "deliverMail"` and `message` set to an inbox message ID can deliver later mail. Players open the inbox with `mail` or the Mail action and can read a message with `mail <id>`. Message IDs must be unique across scenario inboxes. Delivered mail is available from any scenario. Delivery and read status persist across reloads and session resets.
+Set `inbox.content` to a mail asset and `inbox.initial` to the ordered IDs delivered at scenario start. An `onRead` or login `success` effect with `type: "deliverMail"` and `message` set to an inbox message ID can deliver later mail. Players open the local inbox from the title bar or with `mail` at the local console, and can read a message with `mail <id>`. While connected, the explicit command form is `local mail [id]`. Message IDs must be unique across scenario inboxes. Delivered mail is available from any scenario. Delivery and read status persist across reloads and session resets.
 
 ### Program schema v1
 

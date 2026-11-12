@@ -28,12 +28,21 @@ describe('authoritative command metadata', () => {
   })
   it('uses the same actions for every typed and structured command', () => {
     for (const command of commandRegistry) {
-      const values = command.arguments.map((_, index) => 'a🧪é\u200b ' + index)
+      const values =
+        command.name === 'local'
+          ? ['mail', 'a🧪é\u200b 1']
+          : command.arguments.map((_, index) => 'a🧪é\u200b ' + index)
       const action = composerAction(command.name, values, [])
       expect(parseCommand(actionCommand(action)!)).toEqual(action)
     }
     expect(composerAction('ls', [''], [])).toEqual(parseCommand('ls'))
     expect(composerAction('mail', [''], [])).toEqual(parseCommand('mail'))
+    expect(parseCommand('local mail')).toEqual({ type: 'mail', scope: 'local', id: undefined })
+    expect(parseCommand('local connect')).toEqual({
+      type: 'invalid',
+      message: 'Usage: local connect <host>',
+    })
+    expect(parseCommand('local ls /')).toMatchObject({ type: 'invalid' })
     expect(composerAction('route', ['  x y  ', 'a\r\nb\0🧪'], [])).toEqual({
       type: 'route',
       payloads: ['  x y  ', 'a\r\nb\0🧪'],

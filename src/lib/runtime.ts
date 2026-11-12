@@ -7,7 +7,14 @@ import {
   type ScalarDetails,
 } from '../types.ts'
 import { createCampaign, validHandoff } from './campaign.ts'
-import { actionCommand, commandHelp, operationArity } from './commands.ts'
+import {
+  actionCommand,
+  commandDefinition,
+  commandRegistry,
+  consoleCommands,
+  isConsoleCommand,
+  operationArity,
+} from './commands.ts'
 import {
   dossierArity,
   dossierCandidates,
@@ -42,19 +49,21 @@ import {
 } from './scenario.ts'
 import { describe, lookup, scalarCategory, unpairedSurrogate, type Point } from './unicode.ts'
 
-export type Action =
-  | {
-      type:
-        'hosts' | 'whoami' | 'logout' | 'help' | 'clear' | 'reset' | 'resetCampaign' | 'campaign'
-    }
+export type ConsoleAction = (
+  | { type: 'hosts' | 'campaign' }
   | { type: 'connect'; host: string }
-  | { type: 'ls'; path?: string }
-  | { type: 'cat'; path: string }
   | { type: 'mail'; id?: string }
+  | { type: 'scenario'; id: string }
+) & { scope?: 'local' }
+
+export type Action =
+  | ConsoleAction
+  | { type: 'whoami' | 'logout' | 'help' | 'clear' | 'reset' | 'resetCampaign' }
+  | { type: 'ls'; path?: string; host?: string }
+  | { type: 'cat'; path: string; host?: string }
   | { type: 'login'; alias?: string }
   | { type: 'reconcile'; payload?: string }
   | { type: 'route' | 'reconstruct' | RecoveryCommand | DossierCommand; payloads?: string[] }
-  | { type: 'scenario'; id: string }
   | { type: 'inspect'; character?: string }
   | { type: 'copy'; text: string }
   | { type: 'insertCommand'; text: string }
@@ -320,7 +329,7 @@ export function createRuntime(
       : []),
     ...(state.host ? [message(state.host.welcome)] : []),
     ...welcomeMail(),
-    ...(state.host ? [] : [hosts()]),
+    ...(state.host ? [] : hosts()),
   ]
 
   function allows(guard?: Guard): boolean {
@@ -332,24 +341,37 @@ export function createRuntime(
 
   function hostLinks(): Link[] {
     return scenario.hosts
-      .filter(({ discover }) => !discover || state.flags.includes(discover))
+      .filter(
+        ({ id, discover }) =>
+          id !== state.host?.id && (!discover || state.flags.includes(discover)),
+      )
       .map((host) => ({
         label: host.id,
         detail: host.name,
         tracking: { kind: 'host', key: hostKey(host) },
-        action: { type: 'connect', host: host.id },
+        action: { type: 'connect', host: host.id, scope: 'local' },
       }))
   }
 
-  function hostDirectory(): Link[] {
-    return [
-      ...hostLinks(),
-      ...destinationLinks(campaign.destinations().filter(({ id }) => id !== scenario.id)),
-    ]
+  function otherDestinations(): Link[] {
+    return destinationLinks(campaign.destinations().filter(({ id }) => id !== scenario.id))
   }
 
-  function hosts(): Output {
-    return { kind: 'listing', links: hostDirectory(), empty: 'No known hosts.' }
+  function hosts(): Output[] {
+    const destinations = otherDestinations()
+    const output: Output[] = [
+      {
+        kind: 'listing',
+        title: 'Local host directory',
+        links: hostLinks(),
+        empty: state.host
+          ? 'No other reachable hosts in this case.'
+          : 'No reachable hosts in this case.',
+      },
+    ]
+    if (destinations.length)
+      output.push({ kind: 'listing', title: 'Discovered destinations', links: destinations })
+    return output
   }
 
   function mailLink(id: string, includeId = false): Link {
@@ -358,7 +380,7 @@ export function createRuntime(
       label: message.subject,
       detail: includeId ? id + ' · ' + message.from : message.from,
       tracking: { kind: 'mail', key: id },
-      action: { type: 'mail', id },
+      action: { type: 'mail', id, scope: 'local' },
     }
   }
 
@@ -379,7 +401,7 @@ export function createRuntime(
     if (!campaign.hasInbox) return error('No local inbox is configured.')
     if (id === undefined) {
       const links = state.deliveredMail.map((id) => mailLink(id, true))
-      return { output: [{ kind: 'listing', title: 'Inbox', empty: 'No messages.', links }] }
+      return { output: [{ kind: 'listing', title: 'Local inbox', empty: 'No messages.', links }] }
     }
     const message = campaign.message(id)
     if (!message) return error(`No such inbox message: ${id}`)
@@ -399,7 +421,7 @@ export function createRuntime(
     return chain
   }
 
-  function pathAction(resource: Resource): Action {
+  function pathAction(resource: Resource): Extract<Action, { type: 'ls' | 'cat' }> {
     return resource.type === 'directory'
       ? { type: 'ls', path: resource.path }
       : { type: 'cat', path: resource.path }
@@ -413,7 +435,7 @@ export function createRuntime(
         resource.type === 'directory'
           ? undefined
           : { kind: 'resource', key: resourceKey(host, resource) },
-      action: pathAction(resource),
+      action: { ...pathAction(resource), host: host.id },
     }
   }
 
@@ -428,7 +450,7 @@ export function createRuntime(
           .filter(Boolean)
           .join(' · '),
         tracking: host ? { kind: 'host', key: hostKey(host, id) } : undefined,
-        action: { type: 'scenario', id },
+        action: { type: 'scenario', id, scope: 'local' },
       }
     })
   }
@@ -443,22 +465,36 @@ export function createRuntime(
 
   function commands() {
     const available = new Set<string>(availableOperations().map(({ command }) => command))
-    return commandHelp
-      .map(([usage]) => usage.split(' ')[0])
-      .filter((command) => command !== 'mail' || campaign.hasInbox)
-      .filter((command) => !Object.hasOwn(operationArity, command) || available.has(command))
+    return commandRegistry
+      .map(({ name }) => name)
+      .filter((command) => {
+        if (isConsoleCommand(command))
+          return !state.host && (command !== 'mail' || campaign.hasInbox)
+        if (command === 'local' || command === 'ls' || command === 'cat' || command === 'logout')
+          return Boolean(state.host)
+        return !Object.hasOwn(operationArity, command) || available.has(command)
+      })
   }
 
   function suggestions(): string[] {
-    const contextual = [
+    const consoleLinks = [
       ...destinationLinks(campaign.destinations()).map(({ action }) => action),
       ...hostLinks().map(({ action }) => action),
-      ...state.deliveredMail.map((id): Action => ({ type: 'mail', id })),
-      ...(state.host?.resources ?? [])
-        .filter((item) => resourceChain(item).every(({ discover }) => allows(discover)))
-        .map(pathAction),
+      ...state.deliveredMail.map((id) => mailLink(id).action),
+    ].map((action) => actionCommand(action, Boolean(state.host))!)
+    const paths = (state.host?.resources ?? [])
+      .filter((item) => resourceChain(item).every(({ discover }) => allows(discover)))
+      .map((resource) => actionCommand(pathAction(resource))!)
+    return [
+      ...commands(),
+      ...(state.host
+        ? consoleCommands
+            .filter((command) => command !== 'mail' || campaign.hasInbox)
+            .map((command) => 'local ' + command)
+        : []),
+      ...consoleLinks,
+      ...paths,
     ]
-    return [...commands(), ...contextual.map((action) => actionCommand(action)!)]
   }
 
   function apply(
@@ -671,6 +707,16 @@ export function createRuntime(
       return { enter }
     }
     if (pending) return error('An action is in progress.')
+    if (action.type === 'connect' && action.host === state.host?.id)
+      return error(`Already connected to ${state.host.id}.`)
+    if (
+      state.host &&
+      isConsoleCommand(action.type) &&
+      (!('scope' in action) || action.scope !== 'local')
+    )
+      return error(
+        `${action.type} runs on the local console. Use local ${commandDefinition(action.type)!.usage} from this session.`,
+      )
     switch (action.type) {
       case 'help':
         return { output: [{ kind: 'help', connected: Boolean(state.host), commands: commands() }] }
@@ -694,26 +740,32 @@ export function createRuntime(
           ? { enter: action.id }
           : error(`Unknown destination: ${action.id}`)
       case 'hosts':
-        return { output: [hosts()] }
+        return { output: hosts() }
       case 'mail':
         return inboxAction(action.id)
       case 'connect': {
         const host = scenario.hosts.find(({ id }) => id === action.host)
         if (!host || (host.discover && !state.flags.includes(host.discover)))
-          return error(`Unknown host: ${action.host}`)
+          return error(`Unknown host in the local directory: ${action.host}`)
         campaign.visitHost(hostKey(host))
         state = { ...state, host, identity: host.guest, visitedHosts: campaign.visitedHosts }
         return { output: [message(host.welcome)] }
       }
       case 'ls':
       case 'cat':
+        if (action.host && action.host !== state.host?.id)
+          return error(
+            `This resource link belongs to ${action.host}. Open it from that host’s session.`,
+          )
         return resourceAction(action)
       case 'whoami':
         return { output: [message(`${state.identity.user} · ${state.identity.role}`)] }
-      case 'logout':
-        if (!state.host) return error('Connect to a host first.')
-        state = { ...state, identity: state.host.guest }
-        return { output: [message(`Session returned to ${state.identity.user}.`)] }
+      case 'logout': {
+        if (!state.host) return error('No remote session is open.')
+        const host = state.host.id
+        state = { ...state, host: undefined, identity: scenario.local }
+        return { output: [message(`Disconnected from ${host}. Local console active.`), ...hosts()] }
+      }
       case 'login':
       case 'route':
       case 'reconstruct':
@@ -749,6 +801,7 @@ export function createRuntime(
       case 'extract':
       case 'roundtrip':
       case 'mirror': {
+        if (!state.host) return error('Connect to a host first.')
         const binding = availableOperations().find(({ command }) => command === action.type)
         if (!binding) return error(`${action.type} is unavailable with the current access.`)
         const payload =
@@ -975,7 +1028,9 @@ export function createRuntime(
       })
     },
     get newHosts() {
-      return hostDirectory().filter((link) => linkStatus(link, state) === 'New').length
+      return [...hostLinks(), ...otherDestinations()].filter(
+        (link) => linkStatus(link, state) === 'New',
+      ).length
     },
     welcome,
     suggestions,

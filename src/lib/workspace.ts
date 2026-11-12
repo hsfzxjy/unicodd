@@ -90,9 +90,19 @@ export interface Entry {
   echo?: string
   prompt?: string
   connected?: boolean
+  localScope?: boolean
   output: Output[]
   waiting?: boolean
   freshProgress?: boolean
+}
+
+export function entryContext(action: CommandRecord['action'], host?: string) {
+  const localScope = 'scope' in action && action.scope === 'local'
+  return {
+    prompt: localScope ? 'local' : (host ?? 'local'),
+    connected: Boolean(host) && !localScope,
+    localScope,
+  }
 }
 
 export interface JournalFrame {
@@ -155,8 +165,7 @@ export async function replayJournal(
     entries.push({
       id: record.id,
       echo: record.echo ?? (action.type === 'clipboard' ? undefined : actionCommand(action)),
-      prompt: before.runtime.host ?? 'local',
-      connected: Boolean(before.runtime.host),
+      ...entryContext(action, before.runtime.host),
       output,
     })
     frames.push({ record, before })

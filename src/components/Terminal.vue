@@ -221,7 +221,7 @@ function revealOutput(
 }
 
 async function openTitleList(type: 'hosts' | 'mail') {
-  const response = await props.execute({ type })
+  const response = await props.execute({ type, scope: 'local' })
   if (response?.output?.[0]?.kind === 'listing') {
     await nextTick()
     revealOutput('list', true)
@@ -257,8 +257,8 @@ defineExpose({
           type="button"
           class="title-notification"
           :class="{ 'has-notification': newHosts > 0 }"
-          :aria-label="newHosts ? `Open hosts list, ${newHosts} new` : 'Open hosts list'"
-          title="Open hosts list"
+          :aria-label="newHosts ? `Open local hosts, ${newHosts} new` : 'Open local hosts'"
+          title="Open local hosts"
           :aria-disabled="busy || undefined"
           @click="openTitleList('hosts')"
         >
@@ -270,8 +270,8 @@ defineExpose({
           type="button"
           class="title-notification"
           :class="{ 'has-notification': unreadMail > 0 }"
-          :aria-label="unreadMail ? `Open inbox, ${unreadMail} unread` : 'Open inbox'"
-          title="Open inbox"
+          :aria-label="unreadMail ? `Open local inbox, ${unreadMail} unread` : 'Open local inbox'"
+          title="Open local inbox"
           :aria-disabled="busy || undefined"
           @click="openTitleList('mail')"
         >
@@ -323,7 +323,9 @@ defineExpose({
             <span class="prompt-host" :class="{ remote: entry.connected }"
               >{{ entry.connected ? '@' : '' }}{{ entry.prompt }} ›</span
             >
-            <bdi>{{ echoText(entry.echo) }}</bdi>
+            <bdi>{{
+              echoText(entry.localScope ? entry.echo.replace(/^\s*local\s+/u, '') : entry.echo)
+            }}</bdi>
           </p>
           <div class="entry-actions">
             <button
@@ -377,6 +379,9 @@ defineExpose({
                       type="button"
                       class="terminal-link"
                       :aria-disabled="busy || undefined"
+                      :disabled="
+                        link.action.type === 'connect' && connected && link.action.host === prompt
+                      "
                       @click="emit('action', link.action)"
                     >
                       <bdi>{{ link.label }}</bdi>
@@ -410,9 +415,9 @@ defineExpose({
                 v-else-if="row.kind === 'mailNotice'"
                 type="button"
                 class="terminal-link mail-notice"
-                aria-label="New mail, open inbox"
+                aria-label="New mail, open local inbox"
                 :aria-disabled="busy || undefined"
-                @click="emit('action', { type: 'mail' })"
+                @click="openTitleList('mail')"
               >
                 NEW MAIL
               </button>
@@ -550,8 +555,8 @@ defineExpose({
                 <p>
                   {{
                     row.connected
-                      ? 'File paths start at the host root.'
-                      : 'Choose a host to begin exploring.'
+                      ? 'File paths start at this host’s root. The title bar opens local mail and hosts without disconnecting.'
+                      : 'This console opens remote sessions and holds your inbox and campaign.'
                   }}
                 </p>
               </div>
@@ -589,7 +594,8 @@ defineExpose({
               : emit('action', link.action)
           "
         >
-          {{ link.action.type }}
+          {{ connected && 'scope' in link.action && link.action.scope === 'local' ? 'local ' : ''
+          }}{{ link.action.type }}
         </button>
         <button
           v-if="selectedScalar !== undefined"

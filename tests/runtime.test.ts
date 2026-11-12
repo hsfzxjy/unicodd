@@ -45,7 +45,11 @@ it('checks permissions, elevates through WASM, and completes only on authorized 
   const guest = runtime.state
   expect(await runtime.dispatch({ type: 'ls', path: 'queue/' })).toMatchObject({
     output: [
-      { kind: 'listing', path: '/queue', links: [{ detail: 'restricted', action: incident }] },
+      {
+        kind: 'listing',
+        path: '/queue',
+        links: [{ detail: 'restricted', action: { ...incident, host: 'relay-07' } }],
+      },
     ],
   })
   expect(await runtime.dispatch(incident)).toMatchObject({
@@ -68,7 +72,7 @@ it('checks permissions, elevates through WASM, and completes only on authorized 
   expect(await runtime.dispatch(login(compatible))).toMatchObject({
     output: [
       { kind: 'auth' },
-      { kind: 'listing', links: [{ action: incident }] },
+      { kind: 'listing', links: [{ action: { ...incident, host: 'relay-07' } }] },
       { kind: 'milestone', progress: { scope: 'subobjective', action: 'login' } },
     ],
   })
@@ -82,17 +86,21 @@ it('checks permissions, elevates through WASM, and completes only on authorized 
     {
       kind: 'listing',
       title: 'New mail',
-      links: [{ action: { type: 'mail', id: 'missing-notice' } }],
+      links: [{ action: { type: 'mail', id: 'missing-notice', scope: 'local' } }],
     },
   ])
   expect(runtime.state.completed).toBe(true)
   expect((await runtime.dispatch(incident)).output?.map((item) => item.kind)).toEqual(['file'])
   await runtime.dispatch({ type: 'logout' })
-  expect(runtime.state.identity).toEqual(guest.identity)
+  expect(runtime.state.host).toBeUndefined()
+  expect(runtime.state.identity).toEqual(local.identity)
+  await runtime.dispatch(connect)
   await runtime.dispatch(login('M\u{1D400}INT'))
   expect(runtime.state.identity.role).toBe('maintenance')
-  await runtime.dispatch(connect)
-  expect(runtime.state.identity).toEqual(guest.identity)
+  expect(await runtime.dispatch({ ...connect, scope: 'local' })).toMatchObject({
+    output: [{ kind: 'error', text: 'Already connected to relay-07.' }],
+  })
+  expect(runtime.state.identity.role).toBe('maintenance')
   expect(runtime.state.completed).toBe(true)
   expect(await runtime.dispatch({ type: 'clear' })).toEqual({ clear: true })
   expect(runtime.state.completed).toBe(true)
@@ -109,11 +117,11 @@ it('uses guards and effects for a differently structured fixture', async () => {
   const scenario = await fixtures.scenario((await fixtures.manifest())[0])
   const runtime = createRuntime(scenario, engine)
   expect(runtime.state.host?.id).toBe('shelf')
-  const annex = { type: 'connect', host: 'annex' } as const
+  const annex = { type: 'connect', host: 'annex', scope: 'local' } as const
   const card = { type: 'cat', path: '/exhibit/sample card' } as const
   const archive = { type: 'cat', path: '/exhibit/sealed' } as const
-  const inbox = { type: 'mail' } as const
-  const delivery = { type: 'mail', id: 'fixture-arrival' } as const
+  const inbox = { type: 'mail', scope: 'local' } as const
+  const delivery = { type: 'mail', id: 'fixture-arrival', scope: 'local' } as const
   expect(runtime.welcome().some(({ kind }) => kind === 'mailNotice')).toBe(false)
   expect((await runtime.dispatch(inbox)).output).toMatchObject([{ kind: 'listing', links: [] }])
   expect((await runtime.dispatch(delivery)).output?.[0].kind).toBe('error')
@@ -141,7 +149,7 @@ it('uses guards and effects for a differently structured fixture', async () => {
   expect(await runtime.dispatch(delivery)).toEqual(delivered)
   expect(runtime.state.readMail).toEqual(['fixture-arrival'])
   expect(linkStatus(list.links[0], runtime.state)).toBe('Read')
-  expect(runtime.suggestions()).toContain('connect annex')
+  expect(runtime.suggestions()).toContain('local connect annex')
   expect((await runtime.dispatch(archive)).output).toEqual([
     { kind: 'error', text: expect.stringContaining('Permission denied') },
   ])
@@ -155,8 +163,43 @@ it('uses guards and effects for a differently structured fixture', async () => {
   ])
   expect(runtime.state.completed).toBe(false)
   await runtime.dispatch(annex)
+  expect(runtime.state.identity).toEqual(scenario.hosts[1].guest)
+  expect(await runtime.dispatch({ ...card, host: 'shelf' })).toMatchObject({
+    output: [{ kind: 'error', text: expect.stringContaining('belongs to shelf') }],
+  })
   await runtime.dispatch({ type: 'cat', path: '/document' })
   expect(runtime.state.completed).toBe(true)
+})
+
+it('limits network commands to their console and leaves remote access active during local mail', async () => {
+  const runtime = createRuntime(await relay(), engine)
+  const run = (text: string) => runtime.dispatch(parseCommand(text)!)
+  expect(runtime.suggestions()).toEqual(expect.arrayContaining(['mail', 'connect relay-07']))
+  expect(runtime.suggestions()).not.toContain('logout')
+  expect(await run('ls')).toMatchObject({ output: [{ kind: 'error' }] })
+  expect(await run('logout')).toMatchObject({ output: [{ kind: 'error' }] })
+  await run('connect relay-07')
+  const remote = runtime.state
+  for (const command of ['hosts', 'connect postbox-03', 'mail favor', 'campaign', 'scenario demo'])
+    expect(await run(command)).toMatchObject({
+      output: [{ kind: 'error', text: expect.stringContaining('runs on the local console') }],
+    })
+  expect(runtime.state).toBe(remote)
+  expect(await run('connect relay-07')).toMatchObject({
+    output: [{ kind: 'error', text: 'Already connected to relay-07.' }],
+  })
+  expect(runtime.state.readMail).toEqual([])
+  expect(runtime.suggestions()).toEqual(
+    expect.arrayContaining(['local mail favor', 'ls', 'logout']),
+  )
+  expect(runtime.suggestions()).not.toContain('mail')
+  expect(runtime.suggestions()).not.toContain('local connect relay-07')
+  expect(await run('local mail favor')).toMatchObject({ output: [{ kind: 'mail' }] })
+  expect(runtime.state.host).toBe(remote.host)
+  expect(runtime.state.identity).toBe(remote.identity)
+  expect(runtime.state.readMail).toEqual(['favor'])
+  expect(await run('logout')).toMatchObject({ output: [{ kind: 'message' }, { kind: 'listing' }] })
+  expect(runtime.snapshot().host).toBeUndefined()
 })
 
 it('serializes authentication and discards work invalidated by a reset', async () => {

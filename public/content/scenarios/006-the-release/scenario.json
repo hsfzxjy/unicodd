@@ -1,7 +1,7 @@
 {
   "version": 1,
   "title": "The Release",
-  "introduction": "Both owners approved a limited repair for incident 8C2F. The audit job is blocked on verification.",
+  "introduction": "Both owners approved the split. Mara paused release after an audit preview put an account number beside the wrong label.",
   "outputTiming": {
     "verify": [
       {
@@ -44,7 +44,7 @@
         "user": "recovery-operator",
         "role": "recovery-operator"
       },
-      "welcome": "Restricted recovery operator. Two originals and two approvals in scope. Commit requires a verified dry run.",
+      "welcome": "Restricted recovery operator. Only the two approved registrations are in scope.",
       "status": [
         {
           "label": "Incident",
@@ -196,7 +196,12 @@
           "success": [
             {
               "type": "flag",
-              "flag": "plan_prepared"
+              "flag": "plan_prepared",
+              "milestone": {
+                "id": "repair-plan",
+                "title": "Repair plan staged",
+                "text": "The two originals and their owner associations are ready for audit."
+              }
             },
             {
               "type": "clearFlag",
@@ -208,7 +213,7 @@
             },
             {
               "type": "message",
-              "text": "Identity mapping staged. Run an audit preview for this plan."
+              "text": "Identity mapping staged."
             }
           ],
           "failure": "The host rejected this operation.",
@@ -270,11 +275,16 @@
           "success": [
             {
               "type": "flag",
-              "flag": "preview_ready"
+              "flag": "preview_ready",
+              "milestone": {
+                "id": "audit-preview",
+                "title": "Audit preview passed",
+                "text": "The audit line preserves the field boundaries and fits the byte limit."
+              }
             },
             {
               "type": "message",
-              "text": "Audit preview passed. Verify the staged recovery before commit."
+              "text": "The audit samples passed the display and capacity checks."
             }
           ],
           "failure": "The host rejected this operation.",
@@ -322,11 +332,16 @@
           "success": [
             {
               "type": "flag",
-              "flag": "plan_verified"
+              "flag": "plan_verified",
+              "milestone": {
+                "id": "dry-run",
+                "title": "Dry run passed",
+                "text": "The two scoped accounts are ready for a verified transaction."
+              }
             },
             {
               "type": "message",
-              "text": "DRY RUN PASSED\nOriginal records · owner approvals · identity uniqueness · audit preview · rollback readiness"
+              "text": "Verified original records, owner approvals, identity uniqueness, audit preview and rollback readiness."
             }
           ],
           "failure": "The host rejected this operation.",
@@ -371,13 +386,15 @@
               "stage": "controls",
               "message": "A formatting control needs a visible, safe representation."
             }
-          ]
+          ],
+          "quick": true
         },
         {
           "command": "commit",
           "actionLabel": "Commit recovery",
           "submitLabel": "Run commit",
           "label": "Commit recovery",
+          "quick": true,
           "fields": [],
           "success": [
             {
@@ -482,7 +499,8 @@
         "type": "discover",
         "scenario": "007-the-other-side"
       }
-    ]
+    ],
+    "completionBand": true
   },
   "inbox": {
     "content": "mail/inbox.json",

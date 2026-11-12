@@ -1,9 +1,15 @@
 {
   "version": 1,
   "title": "The Backlog",
-  "introduction": "Two owners sent their original registration evidence. Support reopened their appeals under incident 8C2F.",
+  "introduction": "Support reopened both appeals using the original registration records. The review queue is still missing entries.",
   "outputTiming": {
-    "replay": [{ "afterRows": 0, "minMs": 150, "maxMs": 300 }]
+    "replay": [
+      {
+        "afterRows": 0,
+        "minMs": 150,
+        "maxMs": 300
+      }
+    ]
   },
   "roles": ["support-auditor"],
   "flags": ["replay_verified", "appeals_recovered"],
@@ -24,7 +30,7 @@
         "user": "support-auditor",
         "role": "support-auditor"
       },
-      "welcome": "Read-only queue audit. The review index reports fewer rows than the snapshot.",
+      "welcome": "Read-only queue audit. The database still holds the full set of rows.",
       "status": [
         {
           "label": "Incident",
@@ -211,11 +217,16 @@
           "success": [
             {
               "type": "flag",
-              "flag": "replay_verified"
+              "flag": "replay_verified",
+              "milestone": {
+                "id": "queue-replay",
+                "title": "Queue replay verified",
+                "text": "The full queue is available for comparison with verified intake."
+              }
             },
             {
               "type": "message",
-              "text": "QUEUE REPLAY VERIFIED\nComplete traversal. Each record was visited once."
+              "text": "Complete traversal. Each record was visited once."
             }
           ],
           "failure": "The host rejected this operation.",
@@ -265,7 +276,12 @@
           "success": [
             {
               "type": "flag",
-              "flag": "appeals_recovered"
+              "flag": "appeals_recovered",
+              "milestone": {
+                "id": "appeals-recovered",
+                "title": "Both appeals recovered",
+                "text": "Each original registration has its own case in the review handoff."
+              }
             },
             {
               "type": "message",
@@ -308,7 +324,8 @@
         "type": "discover",
         "scenario": "005-the-handshake"
       }
-    ]
+    ],
+    "completionBand": true
   },
   "inbox": {
     "content": "mail/inbox.json",

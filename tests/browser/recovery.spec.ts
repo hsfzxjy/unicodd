@@ -42,6 +42,24 @@ test('prepares the release independently through the development entry', async (
   expect(await page.evaluate(() => localStorage.getItem('unicodd.campaign'))).toBeNull()
 })
 
+test('keeps the Release briefing visible in a short viewport', async ({ page }) => {
+  test.skip(Boolean(process.env.PLAYWRIGHT_TEST_PREVIEW), 'Requires the development entry')
+  const errors: Error[] = []
+  page.on('pageerror', (error) => errors.push(error))
+  await page.setViewportSize({ width: 390, height: 420 })
+  await page.goto('/?debug=1&scenario=006-the-release')
+  await expect(
+    log(page).getByText('Both owners approved the split.', { exact: false }),
+  ).toBeInViewport({ ratio: 1 })
+  await page.setViewportSize({ width: 390, height: 400 })
+  await expect(
+    log(page).getByText('Both owners approved the split.', { exact: false }),
+  ).toBeInViewport({ ratio: 1 })
+  await quick(page, 'ls').click()
+  await expect(link(page, 'mail/')).toBeInViewport()
+  expect(errors).toEqual([])
+})
+
 for (const [width, height] of [
   [375, 812],
   [390, 844],
@@ -78,11 +96,10 @@ for (const [width, height] of [
       await seedIndexSave(page)
       await page.goto('/')
       await expect(page.getByRole('combobox', { name: 'Scenario' })).toHaveValue('003-the-index')
-      await act(quick(page, 'mail'))
-      await act(link(page, 'I reopened both cases'))
-      await expect(last(page)).toContainText('The database says there are two')
       await act(quick(page, 'campaign'))
       await act(link(page, 'The Backlog'))
+      await act(link(page, 'I reopened both cases'))
+      await expect(last(page)).toContainText('The database says there are two')
       await act(quick(page, 'collate'))
       await submit()
       await expect(last(page)).toContainText('equal')
@@ -104,7 +121,7 @@ for (const [width, height] of [
       await fill('Cursor strategy', 'composite')
       await fill('Rows per page', '2')
       await submit()
-      await expect(last(page)).toContainText('QUEUE REPLAY VERIFIED')
+      await expect(last(page).getByRole('heading', { name: 'Queue replay verified' })).toBeVisible()
       await act(quick(page, 'recover'))
       await fill('First appeal', 'AP-1842')
       await fill('Second appeal', 'AP-T001')
@@ -112,15 +129,25 @@ for (const [width, height] of [
       await expect(last(page)).toContainText('Migration records are excluded')
       await fill('Second appeal', 'AP-2917')
       await submit()
+      await expect(
+        last(page).getByRole('heading', { name: 'Both appeals recovered' }),
+      ).toBeVisible()
       await act(link(page, '/outbox/review-handoff.txt'))
+      await expect(
+        last(page).getByRole('heading', { name: 'The Backlog · Complete' }),
+      ).toBeVisible()
       await act(link(page, 'The Handshake'))
+      await act(link(page, 'Both cases are open'))
+      await expect(last(page)).toContainText('two independent owner confirmations')
 
       await act(quick(page, 'lookup'))
       await submit()
       await expect(last(page)).toContainText('multiple records under the same key')
+      await expect(last(page)).not.toContainText('Receipt retrieved')
       await fill('Case profile', 'tr')
       await submit()
       await expect(last(page)).toContainText('owner-1842')
+      await expect(last(page)).toContainText('Receipt retrieved')
       await act(quick(page, 'lookup'))
       await fill('Case profile', 'tr')
       await fill('Channel label', 'iris')
@@ -131,14 +158,26 @@ for (const [width, height] of [
       await fill('Routing key', 'turkish-lower')
       await submit()
       await expect(last(page)).toContainText('groups distinct receipt records')
+      await expect(last(page)).not.toContainText('Routing audit passed')
+      await fill('Routing key', 'registration')
+      await submit()
+      await expect(last(page)).toContainText('Routing audit passed')
+      await act(quick(page, 'bind'))
       await select('bind')
       await fill('Routing key', 'registration')
       await fill('Receipt for 0001842', 'RC-1842')
       await fill('Receipt for 0002917', 'RC-2917')
       await submit()
-      await expect(last(page)).toContainText('OWNER CONSENT VERIFIED')
+      await expect(
+        last(page).getByRole('heading', { name: 'Owner consent verified' }),
+      ).toBeVisible()
       await act(link(page, '/outbox/authorization.txt'))
+      await expect(
+        last(page).getByRole('heading', { name: 'The Handshake · Complete' }),
+      ).toBeVisible()
       await act(link(page, 'The Release'))
+      await act(link(page, 'Before you run the split'))
+      await expect(last(page)).toContainText('account number appear beside the wrong label')
 
       await act(quick(page, 'ls'))
       await act(link(page, 'mail/'))
@@ -192,14 +231,21 @@ for (const [width, height] of [
       await mixed.scrollIntoViewIfNeeded()
       await capture('02-audit-fields')
 
-      await act(quick(page, 'preview'))
-      await select('verify')
-      await submit()
-      await expect(last(page)).toContainText('DRY RUN PASSED')
-      await act(quick(page, 'preview'))
-      await select('commit')
+      await act(quick(page, 'verify'))
+      await expect(last(page).getByRole('heading', { name: 'Dry run passed' })).toBeVisible()
+      await act(quick(page, 'verify'))
+      await expect(last(page)).toContainText('Verified original records')
+      await expect(log(page).getByRole('heading', { name: 'Dry run passed' })).toHaveCount(1)
+      await act(quick(page, 'commit'))
+      await expect(page.getByRole('button', { name: 'Change command' })).toContainText('commit')
+      await expect(log(page).getByRole('heading', { name: 'The Release · Complete' })).toHaveCount(
+        0,
+      )
       await submit()
       await expect(last(page)).toContainText('RECOVERY COMPLETE')
+      await expect(
+        last(page).getByRole('heading', { name: 'The Release · Complete' }),
+      ).toBeVisible()
       await expect(last(page)).toContainText('0001842Mira')
       await expect(last(page)).toContainText('0002917Mіra')
       await expect(last(page).getByRole('button', { name: 'U+0456', exact: true })).toBeVisible()

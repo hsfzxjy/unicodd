@@ -368,7 +368,9 @@ export function createRuntime(
 
   function welcomeMail(): Output[] {
     const unread = state.deliveredMail.filter((id) => !state.readMail.includes(id))
-    const opening = scenario.inbox?.initial.filter((id) => unread.includes(id)) ?? []
+    const initial = scenario.inbox?.initial
+    const briefing = initial?.length ? initial : campaign.handoffMail(scenario.id)
+    const opening = unread.filter((id) => briefing.includes(id))
     if (opening.length) return [newMailListing(opening)]
     return unread.length ? [{ kind: 'mailNotice' }] : []
   }

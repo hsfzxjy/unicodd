@@ -448,6 +448,20 @@ export function createCampaign(
     message(id: string): MailMessage | undefined {
       return delivered.has(id) ? inbox.get(id) : undefined
     },
+    handoffMail(destination: string): string[] {
+      return available.flatMap(({ id, objective }) => {
+        if (
+          !completed.has(id) ||
+          !objective.onComplete.some(
+            (effect) => effect.type === 'discover' && effect.scenario === destination,
+          )
+        )
+          return []
+        return objective.onComplete.flatMap((effect) =>
+          effect.type === 'deliverMail' ? [effect.message] : [],
+        )
+      })
+    },
     markRead(id: string) {
       if (delivered.has(id)) track(read, id)
     },

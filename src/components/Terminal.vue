@@ -91,13 +91,19 @@ function scrollToEnd() {
   unseenProgress.value = false
 }
 
+function atOpening() {
+  return (
+    props.transcript.length === 1 && props.transcript[0].id === 0 && scroll.value?.scrollTop === 0
+  )
+}
+
 function trackScroll() {
   const box = scroll.value
   if (box) {
     const space = Number.parseFloat(box.style.getPropertyValue(scrollSpace))
     const distance = box.scrollHeight - box.scrollTop - box.clientHeight
     if (space && (box.scrollTop === 0 || distance >= space)) box.style.removeProperty(scrollSpace)
-    following.value = box.scrollHeight - box.scrollTop - box.clientHeight < 28
+    following.value = box.scrollHeight - box.scrollTop - box.clientHeight < (atOpening() ? 1 : 28)
   }
   if (following.value) unseenProgress.value = false
   emit('change')
@@ -120,7 +126,8 @@ function restoreView(view?: TerminalView) {
   void nextTick(() => {
     if (!scroll.value) return
     scroll.value.style.removeProperty(scrollSpace)
-    const opening = !view && props.transcript.length === 1 && props.transcript[0].id === 0
+    const opening =
+      !view?.scrollTop && props.transcript.length === 1 && props.transcript[0].id === 0
     if (opening || (view?.following === false && Number.isFinite(view.scrollTop))) {
       scroll.value.scrollTop = view?.scrollTop ?? 0
       trackScroll()
@@ -147,7 +154,11 @@ function readResourceSelection() {
 }
 
 const transcriptResize = new ResizeObserver(() => {
-  if (following.value) scrollToEnd()
+  if (atOpening()) {
+    requestAnimationFrame(() => {
+      if (atOpening()) trackScroll()
+    })
+  } else if (following.value) scrollToEnd()
 })
 onMounted(() => {
   document.addEventListener('selectionchange', readResourceSelection)
@@ -572,7 +583,11 @@ defineExpose({
           :data-action="link.action.type"
           :title="link.label"
           :disabled="busy"
-          @click="emit('action', link.action)"
+          @click="
+            link.action.type === 'commit'
+              ? composer?.selectCommand('commit')
+              : emit('action', link.action)
+          "
         >
           {{ link.action.type }}
         </button>

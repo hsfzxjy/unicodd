@@ -1,9 +1,15 @@
 {
   "version": 1,
   "title": "The Handshake",
-  "introduction": "The recovery broker has both owner confirmations. Its channel index groups them together.",
+  "introduction": "Support has both cases open. Each owner sent a confirmation, but the broker groups them under one channel.",
   "outputTiming": {
-    "lookup": [{ "afterRows": 0, "minMs": 100, "maxMs": 220 }]
+    "lookup": [
+      {
+        "afterRows": 0,
+        "minMs": 100,
+        "maxMs": 220
+      }
+    ]
   },
   "roles": ["recovery-auditor"],
   "flags": ["consent_verified"],
@@ -25,7 +31,7 @@
         "user": "recovery-auditor",
         "role": "recovery-auditor"
       },
-      "welcome": "Receipt lookup and routing diagnostics available. The split requires independent consent.",
+      "welcome": "Recovery auditor. The repair requires separate consent for each original registration.",
       "status": [
         {
           "label": "Incident",
@@ -160,7 +166,12 @@
               "kind": "payload"
             }
           ],
-          "success": [],
+          "success": [
+            {
+              "type": "message",
+              "text": "Receipt retrieved. It is available for binding."
+            }
+          ],
           "failure": "The host rejected this operation.",
           "quick": true,
           "rejected": [
@@ -187,7 +198,12 @@
               "kind": "text"
             }
           ],
-          "success": [],
+          "success": [
+            {
+              "type": "message",
+              "text": "Routing audit passed. The key kept all broker receipts distinct, including the diagnostic shard."
+            }
+          ],
           "failure": "The host rejected this operation.",
           "rejected": [
             {
@@ -224,11 +240,16 @@
           "success": [
             {
               "type": "flag",
-              "flag": "consent_verified"
+              "flag": "consent_verified",
+              "milestone": {
+                "id": "owner-consent",
+                "title": "Owner consent verified",
+                "text": "The limited repair has an independent approval from each owner."
+              }
             },
             {
               "type": "message",
-              "text": "OWNER CONSENT VERIFIED\nIndependent approvals: 2"
+              "text": "Independent approvals: 2"
             },
             {
               "type": "resourceLink",
@@ -271,7 +292,7 @@
   "objective": {
     "text": "Bind both owners’ independent approvals and read the authorization handoff.",
     "read": "authorization",
-    "message": "Independent owner approvals handed off for the limited recovery.",
+    "message": "Both approvals are tied to their original owners. The authorization covers a repair of those two records.",
     "onComplete": [
       {
         "type": "deliverMail",
@@ -281,7 +302,8 @@
         "type": "discover",
         "scenario": "006-the-release"
       }
-    ]
+    ],
+    "completionBand": true
   },
   "inbox": {
     "content": "mail/inbox.json",

@@ -115,6 +115,34 @@ it.each([
     /login\.success\[0\]\.type.*Unsupported effect/,
   ],
   [
+    'duplicate milestone identity',
+    (body) => {
+      body.hosts[0].login.success.push(body.hosts[0].login.success[0])
+    },
+    /milestone\.id.*Duplicate/,
+  ],
+  [
+    'unsupported milestone effect',
+    (body) => {
+      body.hosts[0].login.success[1].milestone = body.hosts[0].login.success[0].milestone
+    },
+    /milestone.*Unknown field/,
+  ],
+  [
+    'status transition with no condition',
+    (body) => {
+      body.hosts[0].status[0].after = { value: 'Available' }
+    },
+    /status\[0\]\.after.*flag or a role/,
+  ],
+  [
+    'unsupported record format',
+    (body) => {
+      body.hosts[0].resources[0].format = 'html'
+    },
+    /format.*Unknown file format/,
+  ],
+  [
     'objective',
     (body) => {
       body.objective.read = 'queue'

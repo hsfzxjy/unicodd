@@ -34,7 +34,7 @@ async function seedIndexSave(page: Page) {
 test('prepares the release independently through the development entry', async ({ page }) => {
   test.skip(Boolean(process.env.PLAYWRIGHT_TEST_PREVIEW), 'Requires the development entry')
   await page.goto('/?scenario=006-the-release')
-  await expect(page.getByRole('combobox', { name: 'Scenario' })).toHaveValue('006-the-release')
+  await expect(page.getByRole('combobox', { name: 'Case' })).toHaveValue('006-the-release')
   await quick(page, 'prepare').click()
   await field(page, 'Identity key').fill('registration')
   await run(page).click()
@@ -55,6 +55,12 @@ test('keeps the Release briefing visible in a short viewport', async ({ page }) 
   await expect(
     log(page).getByText('Both owners approved the split.', { exact: false }),
   ).toBeInViewport({ ratio: 1 })
+  const checks = page.getByRole('button', { name: 'Host status', exact: true })
+  await expect(checks).toBeInViewport()
+  await checks.click()
+  const session = page.getByRole('complementary', { name: 'Session context' })
+  await expect(session).toContainText('A dry run checks the plan, approvals and preview')
+  await checks.click()
   await quick(page, 'ls').click()
   await expect(link(page, 'mail/')).toBeInViewport()
   expect(errors).toEqual([])
@@ -95,7 +101,7 @@ for (const [width, height] of [
 
       await seedIndexSave(page)
       await page.goto('/')
-      await expect(page.getByRole('combobox', { name: 'Scenario' })).toHaveValue('003-the-index')
+      await expect(page.getByRole('combobox', { name: 'Case' })).toHaveValue('003-the-index')
       await act(quick(page, 'local campaign'))
       await act(link(page, 'The Backlog'))
       await act(link(page, 'I reopened both cases'))

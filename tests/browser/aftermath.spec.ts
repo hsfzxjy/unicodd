@@ -8,7 +8,7 @@ const quick = (page: Page, name: string) =>
   page.getByRole('group', { name: 'Quick actions' }).getByRole('button', { name, exact: true })
 const field = (page: Page, name: string) => page.getByRole('textbox', { name, exact: true })
 const run = (page: Page) => page.getByRole('button', { name: 'Run', exact: true })
-const scenario = (page: Page) => page.getByRole('combobox', { name: 'Scenario' })
+const scenario = (page: Page) => page.getByRole('combobox', { name: 'Case' })
 
 async function seedReleaseSave(page: Page) {
   await page.addInitScript(() => {

@@ -113,7 +113,12 @@ export interface Host {
   resources: Resource[]
   operations: PuzzleBinding[]
   recovery?: RecoveryBinding[]
-  status: { label: string; value: string; after?: Guard & { value: string } }[]
+  status: {
+    label: string
+    value: string
+    description?: string
+    after?: Guard & { value: string }
+  }[]
 }
 
 export interface Scenario {

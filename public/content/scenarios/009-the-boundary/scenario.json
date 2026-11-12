@@ -26,11 +26,11 @@
       "welcome": "Archive review. Original labels and owner assignments are read-only.",
       "status": [
         {
-          "label": "Archive exchange",
-          "value": "Legacy import pending",
+          "label": "Archive lookups",
+          "value": "Archive lookup pending",
           "after": {
             "flag": "mirror_verified",
-            "value": "Both indexes queryable"
+            "value": "Both readers verified"
           }
         }
       ],
@@ -219,7 +219,7 @@
     }
   ],
   "objective": {
-    "text": "Reconcile the full batch across both Unicode profiles and read the archive report.",
+    "text": "Verify that both archive readers can find all five records, then read the archive report.",
     "read": "final-report",
     "handoff": "mirror",
     "message": "Both archive readers can resolve the same verified records. The archival work item is closed.",

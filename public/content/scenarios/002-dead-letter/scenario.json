@@ -3,7 +3,13 @@
   "title": "Dead Letter",
   "introduction": "The relay handed off Mira’s missing notice, 2917. Postbox placed it on hold.",
   "outputTiming": {
-    "route": [{ "afterRows": 0, "minMs": 100, "maxMs": 220 }]
+    "route": [
+      {
+        "afterRows": 0,
+        "minMs": 100,
+        "maxMs": 220
+      }
+    ]
   },
   "roles": ["guest"],
   "flags": ["released"],
@@ -20,22 +26,19 @@
         "user": "guest",
         "role": "guest"
       },
-      "welcome": "The hold keeps recovery messages from reaching the wrong account owner. Held messages are retained for manual delivery.",
+      "welcome": "The delivery queue holds messages waiting to be sent. This hold keeps recovery messages from reaching the wrong account owner.",
       "status": [
         {
-          "label": "Message",
-          "value": "2917"
-        },
-        {
-          "label": "Queue",
-          "value": "Quarantined · protective hold",
+          "label": "Notice 2917",
+          "value": "Delivery paused",
           "after": {
             "flag": "released",
-            "value": "Released"
-          }
+            "value": "Released for delivery"
+          },
+          "description": "A paused notice stays in the delivery queue. Release makes it available for delivery."
         },
         {
-          "label": "Router",
+          "label": "Router version",
           "value": "2.8.1-r1"
         }
       ],

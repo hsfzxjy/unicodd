@@ -372,11 +372,18 @@ h1.terminal-scenario {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.frame-title .session-indicators button:is([aria-expanded='true'], .status-reached) {
+.frame-title .session-indicators button:is(.status-selected, .status-reached) {
   color: var(--accent);
 }
-.session-indicators button[aria-expanded='true'] {
+.session-indicators .status-selected {
   background: var(--raised);
+}
+.session-indicators .status-compact,
+.frame-title .session-indicators .host-status-summary {
+  display: none;
+}
+.frame-title .session-indicators .host-status-summary.status-changing {
+  color: var(--accent);
 }
 .status-mark {
   display: inline-grid;
@@ -457,6 +464,18 @@ h1.terminal-scenario {
   margin: 0;
   overflow-wrap: anywhere;
 }
+.host-details {
+  margin-top: 8px;
+}
+.host-details .status-explained {
+  grid-column: 1 / -1;
+}
+.host-status-description {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font: 13px/1.4 var(--sans);
+}
 .objective {
   margin-top: 9px;
   padding-top: 8px;
@@ -479,6 +498,7 @@ h1.terminal-scenario {
 }
 .objective p {
   margin-top: 3px;
+  scroll-margin-block: 4px;
   overflow-wrap: anywhere;
 }
 .transcript {
@@ -1003,6 +1023,17 @@ h1.terminal-scenario {
   }
 }
 @media (max-width: 600px) {
+  .session-indicators .status-full,
+  .frame-title .grouped-host-status .host-status-item {
+    display: none;
+  }
+  .session-indicators .status-compact,
+  .frame-title .grouped-host-status .host-status-summary {
+    display: inline-flex;
+  }
+  .session-indicators .status-mark {
+    min-width: 12px;
+  }
   .session-details {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 6px;

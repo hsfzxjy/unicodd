@@ -24,12 +24,13 @@
       "welcome": "Virtual delivery desk. Each trial uses the approved public files in an isolated tree.",
       "status": [
         {
-          "label": "Dossier delivery",
-          "value": "Receiver readback pending",
+          "label": "Receiver checks",
+          "value": "Delivery check pending",
           "after": {
             "flag": "delivery_verified",
-            "value": "All target reads verified"
-          }
+            "value": "All receivers verified"
+          },
+          "description": "Readback checks that each receiver can open the correct files after unpacking the parcel."
         }
       ],
       "resources": [
@@ -221,7 +222,7 @@
     }
   ],
   "objective": {
-    "text": "Verify the approved parcel on all three targets and read the delivery report.",
+    "text": "Verify that all three receivers can unpack and open the approved files, then read the delivery report.",
     "read": "final-report",
     "dossier": "bundle",
     "message": "The receivers verified every approved file and its source reference. The client dossier is delivered.",

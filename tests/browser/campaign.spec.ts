@@ -78,13 +78,26 @@ test('recovers Dead Letter by graphical actions from the development entry', asy
     Boolean(process.env.PLAYWRIGHT_TEST_PREVIEW),
     'Isolated development entry; full graphical production campaign is covered below',
   )
+  await page.setViewportSize({ width: 390, height: 420 })
   await openCampaign(page, '/?scenario=002-dead-letter')
   await expect(panel(page)).toContainText('guest')
+  const notice = page.getByRole('button', { name: 'Notice 2917: Delivery paused' })
+  await expect(notice.getByText('Delivery paused', { exact: true })).toBeInViewport()
+  await notice.click()
   await expect(
-    page.getByRole('button', { name: 'Queue: Quarantined · protective hold' }),
+    panel(page).getByText('A paused notice stays in the delivery queue.', { exact: false }),
   ).toBeInViewport()
+  const goal = page.getByRole('button', { name: 'Goal: In progress' })
+  await goal.click()
+  await expect(
+    panel(page).getByText('Recover and read Mira’s missing delivery notice', { exact: false }),
+  ).toBeInViewport({ ratio: 1 })
+  await goal.click()
+  await page.setViewportSize({ width: 1280, height: 800 })
   await recoverNotice(page, (target) => target.click())
-  await expect(page.getByRole('button', { name: 'Queue: Released' })).toBeInViewport()
+  await expect(
+    page.getByRole('button', { name: 'Notice 2917: Released for delivery' }),
+  ).toBeInViewport()
   await expect(panel(page)).toContainText('Complete')
 })
 
@@ -298,7 +311,7 @@ test('completes and replays the recovery and archive arcs across reloads', async
   await run(page, 'replay en-US primary title 1 start')
   await expect(transcript(page)).toContainText('Replay skipped records')
   await run(page, 'replay en-US primary composite 2 start')
-  const scenario = page.getByRole('combobox', { name: 'Scenario' })
+  const scenario = page.getByRole('combobox', { name: 'Case' })
   await scenario.selectOption('003-the-index')
   await expect(panel(page)).toContainText('index-09')
   await scenario.selectOption('004-the-backlog')
@@ -323,10 +336,10 @@ test('completes and replays the recovery and archive arcs across reloads', async
   await run(page, 'verify')
   await run(page, 'commit')
   await expect(transcript(page)).toContainText('RECOVERY COMPLETE')
-  await expect(page.getByRole('button', { name: 'Objective: Complete', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Goal: Complete', exact: true })).toBeVisible()
   await expect(link(page, 'The Other Side')).toBeVisible()
   await page.reload()
-  await expect(page.getByRole('button', { name: 'Objective: Complete', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Goal: Complete', exact: true })).toBeVisible()
   await run(page, 'commit')
   await expect(transcript(page)).toContainText('Transaction already applied.')
   await run(page, 'local mail it-worked')
@@ -353,16 +366,16 @@ test('completes and replays the recovery and archive arcs across reloads', async
   await run(page, 'cat /reports/reconciliation.txt')
   await expect(link(page, 'The Needle')).toBeVisible()
   await page.reload()
-  await expect(page.getByRole('button', { name: 'Objective: Complete', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Goal: Complete', exact: true })).toBeVisible()
   await run(page, 'local scenario 001-the-relay')
   await expect(panel(page)).toContainText('maintenance')
   await page.getByRole('button', { name: 'Session', exact: true }).click()
-  await page.getByRole('button', { name: 'Reset session' }).click()
-  await expect(panel(page)).toContainText('Open')
+  await page.getByRole('button', { name: 'Restart session' }).click()
+  await expect(panel(page)).toContainText('Completed earlier')
   await run(page, 'connect relay-07')
   await run(page, 'login \u{1D40C}AINT')
   await run(page, 'cat /queue/8c2f.msg')
-  await expect(page.getByRole('button', { name: 'Objective: Complete', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Goal: Complete', exact: true })).toBeVisible()
   await run(page, 'local mail')
   await expect(
     transcript(page).getByRole('button', { name: 'The missing notice', exact: true }),
@@ -377,7 +390,7 @@ test('completes and replays the recovery and archive arcs across reloads', async
   page.once('dialog', (dialog) => dialog.accept())
   await link(page, 'Reset campaign…').click()
   await expect(page.getByRole('heading', { name: 'The Relay' })).toBeVisible()
-  await expect(panel(page)).toContainText('Open')
+  await expect(panel(page)).toContainText('In progress')
   await run(page, 'mail')
   const inbox = transcript(page).locator('.terminal-list').last()
   await expect(inbox.getByRole('button', { name: 'We have the records' })).toHaveCount(0)
@@ -435,7 +448,7 @@ test('starts a tall briefing at its first line and follows the first command', a
   ).toBeInViewport({ ratio: 1 })
   await quick(page, 'ls').click()
   await expect(link(page, 'exports/')).toBeInViewport()
-  await page.getByRole('button', { name: 'Objective: Open' }).click()
+  await page.getByRole('button', { name: 'Goal: In progress' }).click()
   await expect(
     panel(page).getByText('Verify both original registrations', { exact: false }),
   ).toBeInViewport({ ratio: 1 })
@@ -446,7 +459,7 @@ test('ignores debug mode and direct scenario entry on the built site', async ({ 
   await openCampaign(page, '/?debug=1&scenario=006-the-release')
   await expect(page.getByRole('combobox', { name: 'Debug level' })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'The Relay' })).toBeVisible()
-  await expect(panel(page)).toContainText('local')
+  await expect(panel(page)).toContainText('Local console')
   await run(page, 'local scenario 006-the-release')
   await expect(transcript(page)).toContainText('Unknown destination: 006-the-release')
 })

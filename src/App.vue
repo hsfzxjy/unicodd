@@ -50,6 +50,7 @@ const loadingError = ref('')
 const attempt = ref(0)
 const busy = ref(false)
 const sessionExpanded = ref(false)
+const sessionSection = ref('session')
 const shortViewport = ref(false)
 const application = ref<HTMLElement>()
 const terminal = ref<InstanceType<typeof Terminal>>()
@@ -156,31 +157,56 @@ const shortcuts = computed((): Link[] => {
 
 const suggestions = computed(() => (session.value ? (runtime?.suggestions() ?? []) : []))
 const hostStatus = computed(() => (session.value ? runtime?.hostStatus : undefined))
-const objectiveStatus = computed(() =>
-  session.value?.completed
-    ? 'Complete'
-    : caseComplete.value
-      ? 'Complete in campaign record'
-      : 'Open',
+const permissionLabel = computed(() => session.value?.identity.role.replaceAll('-', ' ') ?? '')
+const goalStatus = computed(() =>
+  session.value?.completed ? 'Complete' : caseComplete.value ? 'Completed earlier' : 'In progress',
 )
-const titleStatus = computed(() => {
+interface StatusControl {
+  key: string
+  name: string
+  label: string
+  compactLabel?: string
+  detail: string
+  mark: string
+  reached: boolean
+}
+const hostChecks = computed<StatusControl[]>(() =>
+  (hostStatus.value ?? []).flatMap(({ label, value, reached }, index) =>
+    reached === undefined
+      ? []
+      : [
+          {
+            key: 'host-' + index,
+            name: `${label}: ${value}`,
+            label: `${label} · ${value}`,
+            compactLabel: value,
+            detail: `${label}: ${value}`,
+            mark: reached ? '✓' : '○',
+            reached,
+          },
+        ],
+  ),
+)
+const titleStatus = computed<StatusControl[]>(() => {
   const active = session.value
   if (!active) return []
-  const role = active.host ? active.identity.role : 'Local'
+  const role = permissionLabel.value
   return [
     {
       key: 'session',
       name: 'Session',
-      label: role,
-      detail: `Host ${prompt.value}. User ${active.identity.user}. Access ${active.identity.role}.`,
+      label: active.host ? role : 'Local console',
+      compactLabel: active.host ? (role.includes(' ') ? 'Remote' : role) : 'Local',
+      detail: `${active.host ? 'Connected to ' + active.host.id : 'Local console'}. Signed in as ${active.identity.user}. Permissions: ${role}.`,
       mark: '›_',
       reached: Boolean(active.host && active.identity.role !== active.host.guest.role),
     },
     {
-      key: 'objective',
-      name: 'Objective: ' + objectiveStatus.value,
-      label: caseComplete.value ? 'Complete' : 'Objective',
-      detail: 'Objective: ' + objectiveStatus.value,
+      key: 'goal',
+      name: 'Goal: ' + goalStatus.value,
+      label: 'Goal · ' + goalStatus.value,
+      compactLabel: 'Goal ' + goalStatus.value.toLowerCase(),
+      detail: 'Goal: ' + goalStatus.value,
       mark: caseComplete.value ? '✓' : '◎',
       reached: caseComplete.value,
     },
@@ -196,20 +222,7 @@ const titleStatus = computed(() => {
           },
         ]
       : []),
-    ...(hostStatus.value ?? []).flatMap(({ label, value, reached }, index) =>
-      reached === undefined
-        ? []
-        : [
-            {
-              key: 'host-' + index,
-              name: `${label}: ${value}`,
-              label,
-              detail: `${label}: ${value}`,
-              mark: reached ? '✓' : '○',
-              reached,
-            },
-          ],
-    ),
+    ...hostChecks.value,
   ]
 })
 const changedStatus = shallowRef(new Set<string>())
@@ -230,13 +243,23 @@ watch(titleStatus, (current, previous) => {
 })
 
 const objectiveText = ref<HTMLElement>()
+const sessionPanel = ref<HTMLElement>()
 
-function toggleSession(showObjective = false) {
-  sessionExpanded.value = !sessionExpanded.value
+function toggleSession(section = 'session') {
+  sessionExpanded.value =
+    !sessionExpanded.value || (section !== 'session' && section !== sessionSection.value)
+  sessionSection.value = section
   scheduleSave()
-  if (sessionExpanded.value && showObjective) {
+  if (sessionExpanded.value) {
     requestAnimationFrame(() => {
-      if (sessionExpanded.value) objectiveText.value?.scrollIntoView({ block: 'nearest' })
+      if (!sessionExpanded.value || section !== sessionSection.value) return
+      if (section === 'goal' || section === 'campaign')
+        objectiveText.value?.scrollIntoView({ block: 'nearest' })
+      else if (section.startsWith('host-'))
+        sessionPanel.value
+          ?.querySelector<HTMLElement>(`[data-status-key="${section}"]`)
+          ?.scrollIntoView({ block: 'start' })
+      else sessionPanel.value?.parentElement?.scrollTo({ top: 0 })
     })
   }
 }
@@ -285,6 +308,7 @@ watch([scenarioId, attempt], async ([id]) => {
   runtime = active
   initialComposer.value = saved?.composer
   sessionExpanded.value = saved?.sessionExpanded === true
+  sessionSection.value = 'session'
   scenario.value = loaded
   session.value = active.state
   contextVersion.value++
@@ -512,7 +536,7 @@ async function dispatch(action: Action, command?: string) {
             v-else
             :value="scenarioId"
             class="terminal-scenario"
-            :aria-label="debugSelector?.label ?? 'Scenario'"
+            :aria-label="debugSelector?.label ?? 'Case'"
             :disabled="busy"
             @change="
               dispatch({
@@ -528,23 +552,45 @@ async function dispatch(action: Action, command?: string) {
           </select>
         </template>
         <template #session-status>
-          <div class="session-indicators" role="group" aria-label="Session status">
+          <div
+            class="session-indicators"
+            :class="{ 'grouped-host-status': hostChecks.length > 1 }"
+            role="group"
+            aria-label="Session status"
+          >
             <button
               v-for="item in titleStatus"
               :key="item.key"
               type="button"
               :class="{
+                'host-status-item': item.key.startsWith('host-'),
                 'status-reached': item.reached,
                 'status-changing': changedStatus.has(item.key),
+                'status-selected': sessionExpanded && sessionSection === item.key,
               }"
               :aria-label="item.name"
               :title="item.detail"
               aria-controls="session-details"
               :aria-expanded="sessionExpanded"
-              @click="toggleSession(item.key === 'objective')"
+              @click="toggleSession(item.key)"
             >
               <span :key="item.detail" class="status-mark" aria-hidden="true">{{ item.mark }}</span>
-              <bdi>{{ item.label }}</bdi>
+              <bdi :class="{ 'status-full': item.compactLabel }">{{ item.label }}</bdi>
+              <bdi v-if="item.compactLabel" class="status-compact">{{ item.compactLabel }}</bdi>
+            </button>
+            <button
+              v-if="hostChecks.length > 1"
+              type="button"
+              class="host-status-summary"
+              :class="{
+                'status-selected': sessionExpanded && sessionSection.startsWith('host-'),
+                'status-changing': hostChecks.some(({ key }) => changedStatus.has(key)),
+              }"
+              aria-controls="session-details"
+              :aria-expanded="sessionExpanded"
+              @click="toggleSession('host-summary')"
+            >
+              Host status
             </button>
           </div>
           <p class="milestone-announcement" role="status" dir="auto">{{ statusAnnouncement }}</p>
@@ -553,53 +599,71 @@ async function dispatch(action: Action, command?: string) {
           <aside
             v-show="sessionExpanded"
             id="session-details"
+            ref="sessionPanel"
             class="session-layer"
             aria-label="Session context"
           >
             <div class="session-layer-heading">
               <h2>Session</h2>
-              <button type="button" :disabled="busy" @click="dispatch({ type: 'reset' })">
-                Reset session
+              <button
+                type="button"
+                title="Clears this session’s transcript and drafts. Campaign progress and mail stay saved."
+                :disabled="busy"
+                @click="dispatch({ type: 'reset' })"
+              >
+                Restart session
               </button>
             </div>
             <dl class="session-details">
               <div>
-                <dt>Host</dt>
+                <dt>Location</dt>
                 <dd>
-                  <bdi>{{ prompt }}</bdi>
+                  <bdi>{{ session.host?.id ?? 'Local console' }}</bdi>
                 </dd>
               </div>
               <div>
-                <dt>User</dt>
+                <dt>Signed in as</dt>
                 <dd>
                   <bdi>{{ session.identity.user }}</bdi>
                 </dd>
               </div>
               <div>
-                <dt>Access</dt>
+                <dt>Permissions</dt>
                 <dd>
-                  <bdi>{{ session.identity.role }}</bdi>
+                  <bdi>{{ permissionLabel }}</bdi>
                 </dd>
               </div>
-              <div v-for="{ label, value } in hostStatus" :key="label">
+            </dl>
+            <dl
+              v-if="hostStatus?.length"
+              class="session-details host-details"
+              data-status-key="host-summary"
+            >
+              <div
+                v-for="({ label, value, description }, index) in hostStatus"
+                :key="index"
+                :data-status-key="'host-' + index"
+                :class="{ 'status-explained': description }"
+              >
                 <dt>
                   <bdi>{{ label }}</bdi>
                 </dt>
                 <dd>
                   <bdi>{{ value }}</bdi>
+                  <span v-if="description" class="host-status-description" dir="auto">{{
+                    description
+                  }}</span>
                 </dd>
               </div>
             </dl>
             <div class="objective">
               <div class="objective-heading">
-                <h3>Objective</h3>
-                <span :class="{ 'objective-done': session.completed }">{{
-                  session.completed ? 'Complete' : caseComplete ? 'Open in this session' : 'Open'
-                }}</span>
+                <h3>Goal</h3>
+                <span :class="{ 'objective-done': caseComplete }">{{ goalStatus }}</span>
               </div>
               <p ref="objectiveText" dir="auto">{{ scenario.objective.text }}</p>
-              <p v-if="caseComplete && !session.completed" class="objective-done">
-                Case complete in campaign record
+              <p v-if="caseComplete && !session.completed">
+                This case still counts as complete. You can replay its goal in this session.
               </p>
               <p v-if="campaignFinished" class="objective-done">All available scenarios complete</p>
             </div>

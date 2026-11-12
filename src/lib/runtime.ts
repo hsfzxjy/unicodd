@@ -370,7 +370,7 @@ export function createRuntime(
       },
     ]
     if (destinations.length)
-      output.push({ kind: 'listing', title: 'Discovered destinations', links: destinations })
+      output.push({ kind: 'listing', title: 'Cases you can open', links: destinations })
     return output
   }
 
@@ -536,7 +536,7 @@ export function createRuntime(
           )
             output.push({
               kind: 'listing',
-              title: 'Available resource',
+              title: 'Now accessible',
               links: [resourceLink(host, resource, resource.path)],
             })
           break
@@ -601,7 +601,7 @@ export function createRuntime(
     if (destinations.length)
       output.push({
         kind: 'listing',
-        title: 'New destination',
+        title: destinations.length === 1 ? 'Next case' : 'New cases',
         links: destinationLinks(destinations),
       })
   }
@@ -725,9 +725,7 @@ export function createRuntime(
           output: [
             {
               kind: 'listing',
-              title: campaign.finished
-                ? 'All available scenarios complete'
-                : 'Discovered destinations',
+              title: campaign.finished ? 'All available scenarios complete' : 'Cases you can open',
               links: [
                 ...destinationLinks(campaign.destinations()),
                 { label: 'Reset campaign…', action: { type: 'resetCampaign' } },
@@ -1017,9 +1015,9 @@ export function createRuntime(
       return availableOperations()
     },
     get hostStatus() {
-      return state.host?.status.map(({ label, value, after }) => {
+      return state.host?.status.map(({ label, value, description, after }) => {
         const reached = after && allows(after)
-        return { label, value: reached ? after.value : value, reached }
+        return { label, value: reached ? after.value : value, description, reached }
       })
     },
     get newHosts() {

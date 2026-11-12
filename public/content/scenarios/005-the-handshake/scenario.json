@@ -38,12 +38,13 @@
           "value": "8C2F"
         },
         {
-          "label": "Approvals",
-          "value": "Unbound",
+          "label": "Owner approvals",
+          "value": "Approvals unlinked",
           "after": {
             "flag": "consent_verified",
-            "value": "Two verified owners"
-          }
+            "value": "Approvals linked"
+          },
+          "description": "Each approval must be linked to its original owner before it can authorize the split."
         }
       ],
       "resources": [
@@ -290,7 +291,7 @@
     }
   ],
   "objective": {
-    "text": "Bind both owners’ independent approvals and read the authorization handoff.",
+    "text": "Verify both owners’ approvals and read the authorization report for the repair.",
     "read": "authorization",
     "message": "Both approvals are tied to their original owners. The authorization covers a repair of those two records.",
     "onComplete": [

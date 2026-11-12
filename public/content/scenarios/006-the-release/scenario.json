@@ -51,16 +51,16 @@
           "value": "8C2F"
         },
         {
-          "label": "Plan",
-          "value": "Pending",
+          "label": "Split plan",
+          "value": "Not staged",
           "after": {
             "flag": "plan_prepared",
             "value": "Staged"
           }
         },
         {
-          "label": "Preview",
-          "value": "Unverified",
+          "label": "Audit preview",
+          "value": "Awaiting verification",
           "after": {
             "flag": "preview_ready",
             "value": "Passed"
@@ -68,18 +68,19 @@
         },
         {
           "label": "Dry run",
-          "value": "Blocked",
+          "value": "Pending",
           "after": {
             "flag": "plan_verified",
-            "value": "Verified"
-          }
+            "value": "Passed"
+          },
+          "description": "A dry run checks the plan, approvals and preview without applying the repair."
         },
         {
-          "label": "Recovery",
+          "label": "Account split",
           "value": "Pending",
           "after": {
             "flag": "released",
-            "value": "Two active identities"
+            "value": "Accounts separated"
           }
         }
       ],
@@ -476,7 +477,7 @@
     }
   ],
   "objective": {
-    "text": "Verify and execute the split while preserving both originals and owner approvals.",
+    "text": "Verify and apply the account split while preserving both original registrations and approvals.",
     "action": "commit",
     "message": "Incident 8C2F resolved. Both original registrations have independent accounts.",
     "onComplete": [

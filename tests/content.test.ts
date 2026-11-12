@@ -136,6 +136,13 @@ it.each([
     /status\[0\]\.after.*flag or a role/,
   ],
   [
+    'invalid host status explanation',
+    (body) => {
+      body.hosts[0].status[0].description = 7
+    },
+    /status\[0\]\.description.*text/i,
+  ],
+  [
     'unsupported record format',
     (body) => {
       body.hosts[0].resources[0].format = 'html'

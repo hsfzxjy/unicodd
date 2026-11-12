@@ -3,12 +3,32 @@
   "title": "The Relay",
   "introduction": "Local operator session. Guest access to MONONYM, an account and messaging provider.",
   "outputTiming": {
-    "connect": [{ "afterRows": 0, "minMs": 160, "maxMs": 320 }],
-    "cat": [
-      { "afterRows": 0, "minMs": 70, "maxMs": 160 },
-      { "afterRows": 1, "minMs": 160, "maxMs": 280 }
+    "connect": [
+      {
+        "afterRows": 0,
+        "minMs": 160,
+        "maxMs": 320
+      }
     ],
-    "login": [{ "afterRows": 0, "minMs": 100, "maxMs": 220 }]
+    "cat": [
+      {
+        "afterRows": 0,
+        "minMs": 70,
+        "maxMs": 160
+      },
+      {
+        "afterRows": 1,
+        "minMs": 160,
+        "maxMs": 280
+      }
+    ],
+    "login": [
+      {
+        "afterRows": 0,
+        "minMs": 100,
+        "maxMs": 220
+      }
+    ]
   },
   "roles": ["guest", "maintenance"],
   "flags": [],
@@ -27,9 +47,13 @@
       "welcome": "Relay queue online. Incident 8C2F requires maintenance access.",
       "status": [
         {
-          "label": "Queue",
-          "value": "8C2F · maintenance only",
-          "after": { "roles": ["maintenance"], "value": "8C2F · readable" }
+          "label": "Incident 8C2F",
+          "value": "Message locked",
+          "after": {
+            "roles": ["maintenance"],
+            "value": "Message readable"
+          },
+          "description": "The relay keeps messages in a queue while they wait for delivery. Reading this message requires maintenance access."
         }
       ],
       "resources": [

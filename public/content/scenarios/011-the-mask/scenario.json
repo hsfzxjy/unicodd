@@ -24,12 +24,13 @@
       "welcome": "Disclosure review. The sealed originals and disclosure ledger are read-only.",
       "status": [
         {
-          "label": "Release review",
+          "label": "Disclosure audit",
           "value": "Audit pending",
           "after": {
             "flag": "publication_verified",
-            "value": "Public outputs verified"
-          }
+            "value": "Public copy verified"
+          },
+          "description": "The disclosure rules specify which details can leave the review workspace."
         }
       ],
       "resources": [
@@ -268,7 +269,7 @@
     }
   ],
   "objective": {
-    "text": "Prepare a public projection and read the approved publication report.",
+    "text": "Verify a public copy against the disclosure rules, then read the publication report.",
     "read": "final-report",
     "dossier": "publication",
     "message": "Mara has approved the public regression corpus for delivery.",

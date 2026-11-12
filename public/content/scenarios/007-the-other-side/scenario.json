@@ -26,12 +26,13 @@
       "welcome": "Gateway review. The registry assigns each receipt to a verified vault.",
       "status": [
         {
-          "label": "Dispatch",
-          "value": "Reconciliation pending",
+          "label": "Vault confirmations",
+          "value": "Vault check pending",
           "after": {
             "flag": "dispatch_verified",
-            "value": "Both destinations confirmed"
-          }
+            "value": "Both vaults verified"
+          },
+          "description": "Gateway acceptance records the submission. A vault confirmation shows that the intended vault received its receipt."
         }
       ],
       "resources": [
@@ -222,7 +223,7 @@
     }
   ],
   "objective": {
-    "text": "Confirm the authorized destinations and read the gateway reconciliation.",
+    "text": "Verify that each receipt reached its registered vault, then read the gateway report.",
     "read": "final-report",
     "handoff": "dispatch",
     "message": "The two archival receipts reached their own vaults. Application ingestion is still pending.",

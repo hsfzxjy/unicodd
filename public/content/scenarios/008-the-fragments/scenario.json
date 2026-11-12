@@ -26,12 +26,13 @@
       "welcome": "Receiver replay. The capture is read-only and the sender kept an independent acknowledgment ledger.",
       "status": [
         {
-          "label": "Receiver",
-          "value": "Capture retained",
+          "label": "Application receipts",
+          "value": "Receipts unverified",
           "after": {
             "flag": "ingestion_verified",
-            "value": "Application records verified"
-          }
+            "value": "Receipt bytes verified"
+          },
+          "description": "An acknowledgment records that the receiving application accepted the original payload."
         }
       ],
       "resources": [
@@ -233,7 +234,7 @@
     }
   ],
   "objective": {
-    "text": "Verify the byte-framed application records and read the ingestion report.",
+    "text": "Verify both receipts against the receiver’s byte capture, then read the ingestion report.",
     "read": "final-report",
     "handoff": "ingestion",
     "message": "Both application records are stored with their original payload bytes.",

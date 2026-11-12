@@ -37,19 +37,19 @@
           "value": "8C2F"
         },
         {
-          "label": "Replay",
-          "value": "Unverified",
+          "label": "Appeal queue replay",
+          "value": "Awaiting verification",
           "after": {
             "flag": "replay_verified",
-            "value": "Verified"
+            "value": "Complete replay verified"
           }
         },
         {
-          "label": "Review",
-          "value": "Pending",
+          "label": "Appeal cases",
+          "value": "Recovery pending",
           "after": {
             "flag": "appeals_recovered",
-            "value": "Two independent cases"
+            "value": "Both appeals recovered"
           }
         }
       ],
@@ -312,7 +312,7 @@
     }
   ],
   "objective": {
-    "text": "Recover both independent appeals and read the review handoff.",
+    "text": "Recover both owners’ appeals and read the report for the reviewers.",
     "read": "review-handoff",
     "message": "Both appeals are open for independent review.",
     "onComplete": [

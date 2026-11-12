@@ -783,10 +783,11 @@ export function createContentLoader(
         const status =
           get('status').optional((item) =>
             item.list((field) => {
-              const row = field.object('label', 'value', 'after')
+              const row = field.object('label', 'value', 'description', 'after')
               return {
                 label: row('label').text(),
                 value: row('value').text(),
+                description: row('description').optional((item) => item.text()),
                 after: row('after').optional((item) => {
                   const after = item.object('flag', 'roles', 'value')
                   const flag = after('flag').optional((field) => field.ref(flags, 'flag'))

@@ -45,8 +45,8 @@ test('plays the entire Relay through graphical actions and restores the session 
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   await openRelay(page)
   const panel = contextPanel(page)
-  await expect(panel).toContainText('local')
-  await expect(panel).toContainText('Open')
+  await expect(panel).toContainText('Local console')
+  await expect(panel).toContainText('In progress')
   await expect(terminal(page)).toContainText('Local operator session')
   await expect(terminal(page)).toContainText('mira@outside.net · Unread')
   await link(page, 'A favor').click()
@@ -102,12 +102,12 @@ test('plays the entire Relay through graphical actions and restores the session 
   await page.getByRole('button', { name: 'Run', exact: true }).click()
   await expect(terminal(page)).toContainText('Authentication accepted')
   await expect(panel).toContainText('maintenance')
-  await expect(panel).toContainText('Open')
+  await expect(panel).toContainText('In progress')
   await quick(page, 'ls').click()
   await link(page, 'queue/').click()
   await link(page, '8c2f.msg').click()
   await expect(incident(page)).toContainText('independently')
-  await expect(page.getByRole('button', { name: 'Objective: Complete', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Goal: Complete', exact: true })).toBeVisible()
   await quick(page, 'clear').click()
   await expect(terminal(page)).toBeEmpty()
   await expect(panel).toContainText('maintenance')
@@ -119,16 +119,14 @@ test('plays the entire Relay through graphical actions and restores the session 
   await quick(page, 'logout').click()
   await expect(panel).toContainText('guest')
   await page.reload()
-  await expect(panel).toContainText('local')
+  await expect(panel).toContainText('Local console')
   await expect(panel).toContainText('Complete')
   await page.getByRole('button', { name: 'Session', exact: true }).click()
-  await page.getByRole('button', { name: 'Reset session' }).click()
-  await expect(panel).toContainText('Open')
-  await expect(
-    page.getByRole('button', { name: 'Objective: Complete in campaign record' }),
-  ).toBeVisible()
+  await page.getByRole('button', { name: 'Restart session' }).click()
+  await expect(panel).toContainText('Completed earlier')
+  await expect(page.getByRole('button', { name: 'Goal: Completed earlier' })).toBeVisible()
   await page.reload()
-  await expect(panel).toContainText('Open')
+  await expect(panel).toContainText('Completed earlier')
 })
 
 test('reaches equivalent states through typed actions in a different exploration order', async ({
@@ -189,7 +187,7 @@ test('reaches equivalent states through typed actions in a different exploration
   await expect(alias(page)).toHaveValue('unknown')
   await run(page, `login "${compatible}"`)
   await expect(contextPanel(page)).toContainText('maintenance')
-  await expect(contextPanel(page)).toContainText('Open')
+  await expect(contextPanel(page)).toContainText('In progress')
   await run(page, 'whoami')
   await expect(terminal(page)).toContainText('MAINT · maintenance')
   await run(page, 'cat queue/8c2f.msg')
@@ -267,7 +265,7 @@ test('saves level workspaces and drops their command history when a game text ch
 }, info) => {
   await routeFixtures(page, true)
   await page.goto('/')
-  const selector = page.getByRole('combobox', { name: 'Scenario' })
+  const selector = page.getByRole('combobox', { name: 'Case' })
   const log = terminal(page)
   const readme = log.getByRole('region', { name: 'File /README' })
   const readmeEntry = log.locator('.terminal-entry').filter({
@@ -460,7 +458,7 @@ test('loads a second authored scenario through the same terminal and handles quo
 }) => {
   await routeFixtures(page, true)
   await page.goto('/')
-  const selector = page.getByRole('combobox', { name: 'Scenario' })
+  const selector = page.getByRole('combobox', { name: 'Case' })
   await run(page, 'mail favor')
   await selector.selectOption('demo')
   await expect(contextPanel(page)).toContainText('shelf')
@@ -483,8 +481,8 @@ test('loads a second authored scenario through the same terminal and handles quo
   await link(page, 'document').click()
   await expect(contextPanel(page)).toContainText('Complete')
   await selector.selectOption('001-the-relay')
-  await expect(contextPanel(page)).toContainText('local')
-  await expect(contextPanel(page)).toContainText('Open')
+  await expect(contextPanel(page)).toContainText('Local console')
+  await expect(contextPanel(page)).toContainText('In progress')
 })
 
 test('has no standalone puzzle controls on the former content URL', async ({ page }) => {
@@ -603,7 +601,7 @@ for (const [width, height] of [
       await openRelay(page)
       await expect(contextPanel(page)).toBeHidden()
       await expect(sessionToggle).toHaveAttribute('aria-expanded', 'false')
-      await expect(frame.getByRole('button', { name: 'Objective: Open' })).toBeInViewport()
+      await expect(frame.getByRole('button', { name: 'Goal: In progress' })).toBeInViewport()
       await act(frame.getByRole('button', { name: 'The Relay', exact: true }))
       await expect(frame.locator('#session-details')).toBeVisible()
       await act(sessionToggle)
@@ -614,7 +612,7 @@ for (const [width, height] of [
       await capture('01-incoming-mail')
       await act(link(page, 'relay-07'))
       await expect(
-        frame.getByRole('button', { name: 'Queue: 8C2F · maintenance only' }),
+        frame.getByRole('button', { name: 'Incident 8C2F: Message locked' }),
       ).toBeInViewport()
       await capture('02-guest')
       await act(quick(page, 'ls'))
@@ -693,8 +691,8 @@ for (const [width, height] of [
       await act(page.getByRole('button', { name: 'Run', exact: true }))
       await expect(terminal(page)).toContainText('Authentication accepted')
       await expect(contextPanel(page)).toBeHidden()
-      await expect(sessionToggle).toHaveText('›_maintenance')
-      const queue = frame.getByRole('button', { name: 'Queue: 8C2F · readable' })
+      await expect(sessionToggle.locator('bdi:visible')).toHaveText('maintenance')
+      const queue = frame.getByRole('button', { name: 'Incident 8C2F: Message readable' })
       await expect(queue).toBeInViewport()
       await expect(queue.locator('.status-mark')).toHaveText('✓')
       await act(queue)
@@ -718,7 +716,7 @@ for (const [width, height] of [
       await act(link(page, '8c2f.msg'))
       await expect(contextPanel(page)).toBeHidden()
       await expect(
-        frame.getByRole('button', { name: 'Objective: Complete', exact: true }),
+        frame.getByRole('button', { name: 'Goal: Complete', exact: true }),
       ).toBeInViewport()
       await expect(incident(page)).toBeVisible()
       await expect(

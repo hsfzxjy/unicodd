@@ -336,12 +336,12 @@ defineExpose({
           <div class="entry-actions">
             <button
               type="button"
-              aria-label="Reuse command"
-              title="Copy into command input"
+              aria-label="Edit this command"
+              title="Load this command into the prompt for editing"
               :disabled="!composer?.canReuse"
               @click.stop="composer?.reuseCommand(entry.echo)"
             >
-              Reuse
+              Edit
             </button>
             <button
               v-if="entry.output.length || entry.waiting"

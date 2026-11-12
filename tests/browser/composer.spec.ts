@@ -155,7 +155,7 @@ test('reveals timed command output at its configured boundaries', async ({ page 
   await page.clock.runFor(1)
   await expect(file).toBeVisible()
   await expect(output.locator('> *')).toHaveCount(1)
-  await expect(page.getByRole('img', { name: 'Case complete' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Objective: Open' })).toBeInViewport()
   const toggle = entry.getByRole('button', { name: 'Toggle command output' })
   await toggle.press('Enter')
   await expect(file).toBeHidden()
@@ -164,6 +164,9 @@ test('reveals timed command output at its configured boundaries', async ({ page 
   const completion = output.locator('.progress-band[data-scope="scenario"]')
   await expect(completion).toHaveCount(1)
   await expect(completion).toBeHidden()
+  await expect(
+    page.getByRole('button', { name: 'Objective: Complete', exact: true }),
+  ).toBeInViewport()
   await expect(page.getByRole('status').filter({ hasText: 'The Relay · Complete' })).toHaveCount(1)
   await toggle.press('Enter')
   await expect(completion).toBeVisible()

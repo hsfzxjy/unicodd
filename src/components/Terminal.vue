@@ -212,6 +212,7 @@ defineExpose({
     <div class="frame-title">
       <span class="wordmark">unicodd</span>
       <slot name="scenario" />
+      <slot name="session-status" />
       <div class="title-actions">
         <button
           type="button"
@@ -240,7 +241,6 @@ defineExpose({
             unreadMail
           }}</span>
         </button>
-        <slot name="title-actions" />
         <button
           v-if="!following"
           type="button"
@@ -256,7 +256,7 @@ defineExpose({
         </button>
       </div>
     </div>
-    <div id="terminal-context" />
+    <div class="terminal-session"><slot name="session-details" /></div>
     <p class="milestone-announcement" role="status" dir="auto">{{ collapsedAnnouncement }}</p>
     <div
       ref="scroll"

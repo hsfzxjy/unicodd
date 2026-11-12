@@ -955,10 +955,10 @@ export function createRuntime(
       return availableOperations()
     },
     get hostStatus() {
-      return state.host?.status.map(({ label, value, after }) => ({
-        label,
-        value: after && allows(after) ? after.value : value,
-      }))
+      return state.host?.status.map(({ label, value, after }) => {
+        const reached = after && allows(after)
+        return { label, value: reached ? after.value : value, reached }
+      })
     },
     get newHosts() {
       return hostDirectory().filter((link) => linkStatus(link, state) === 'New').length

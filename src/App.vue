@@ -39,11 +39,7 @@ const campaignFinished = computed(() => Boolean(session.value && campaign?.finis
 const caseComplete = computed(
   () =>
     session.value?.completed ||
-    Boolean(
-      session.value &&
-      scenario.value?.objective.completionBand &&
-      campaign?.completed(scenario.value.id),
-    ),
+    Boolean(session.value && scenario.value && campaign?.completed(scenario.value.id)),
 )
 const scenarioId = ref('')
 const scenario = shallowRef<Scenario>()
@@ -52,9 +48,8 @@ const catalogLoading = ref(true)
 const loadingError = ref('')
 const attempt = ref(0)
 const busy = ref(false)
-const narrowViewport = matchMedia('(max-width: 830px)')
-const narrow = ref(narrowViewport.matches)
 const sessionExpanded = ref(false)
+const shortViewport = ref(false)
 const application = ref<HTMLElement>()
 const terminal = ref<InstanceType<typeof Terminal>>()
 const contextVersion = ref(0)
@@ -114,19 +109,15 @@ function saveOnExit() {
 }
 
 const viewport = window.visualViewport
-function updateLayout() {
-  narrow.value = narrowViewport.matches
-}
 function fitViewport() {
   const layoutHeight = document.documentElement.clientHeight
   const height = viewport?.scale === 1 ? viewport.height : layoutHeight
-  application.value?.classList.toggle('short-viewport', height <= 540)
+  shortViewport.value = height <= 540
   if (height < layoutHeight) application.value?.style.setProperty('--app-height', `${height}px`)
   else application.value?.style.removeProperty('--app-height')
 }
 onMounted(() => {
   fitViewport()
-  narrowViewport.addEventListener('change', updateLayout)
   if (viewport) viewport.addEventListener('resize', fitViewport)
   else window.addEventListener('resize', fitViewport)
   window.addEventListener('pagehide', saveOnExit)
@@ -135,7 +126,6 @@ onUnmounted(() => {
   window.clearTimeout(saveTimer)
   window.removeEventListener('pagehide', saveOnExit)
   runtime = undefined
-  narrowViewport.removeEventListener('change', updateLayout)
   if (viewport) viewport.removeEventListener('resize', fitViewport)
   else window.removeEventListener('resize', fitViewport)
 })
@@ -163,6 +153,83 @@ const shortcuts = computed((): Link[] => {
 
 const suggestions = computed(() => (session.value ? (runtime?.suggestions() ?? []) : []))
 const hostStatus = computed(() => (session.value ? runtime?.hostStatus : undefined))
+const objectiveStatus = computed(() =>
+  session.value?.completed
+    ? 'Complete'
+    : caseComplete.value
+      ? 'Complete in campaign record'
+      : 'Open',
+)
+const titleStatus = computed(() => {
+  const active = session.value
+  if (!active) return []
+  const role = active.host ? active.identity.role : 'Local'
+  return [
+    {
+      key: 'session',
+      name: 'Session',
+      label: role,
+      detail: `Host ${prompt.value}. User ${active.identity.user}. Access ${active.identity.role}.`,
+      mark: '›_',
+      reached: Boolean(active.host && active.identity.role !== active.host.guest.role),
+    },
+    {
+      key: 'objective',
+      name: 'Objective: ' + objectiveStatus.value,
+      label: caseComplete.value ? 'Complete' : 'Objective',
+      detail: 'Objective: ' + objectiveStatus.value,
+      mark: caseComplete.value ? '✓' : '◎',
+      reached: caseComplete.value,
+    },
+    ...(campaignFinished.value
+      ? [
+          {
+            key: 'campaign',
+            name: 'All available scenarios complete',
+            label: 'Campaign',
+            detail: 'All available scenarios complete',
+            mark: '✓',
+            reached: true,
+          },
+        ]
+      : []),
+    ...(hostStatus.value ?? []).flatMap(({ label, value, reached }, index) =>
+      reached === undefined
+        ? []
+        : [
+            {
+              key: 'host-' + index,
+              name: `${label}: ${value}`,
+              label,
+              detail: `${label}: ${value}`,
+              mark: reached ? '✓' : '○',
+              reached,
+            },
+          ],
+    ),
+  ]
+})
+const changedStatus = shallowRef(new Set<string>())
+const statusAnnouncement = ref('')
+watch(titleStatus, (current, previous) => {
+  if (!transcriptLive.value) {
+    changedStatus.value = new Set()
+    statusAnnouncement.value = ''
+    return
+  }
+  const changed = current.filter(
+    (item) => previous.find(({ key }) => key === item.key)?.detail !== item.detail,
+  )
+  if (changed.length) {
+    changedStatus.value = new Set(changed.map(({ key }) => key))
+    statusAnnouncement.value = changed.map(({ detail }) => detail).join(' ')
+  }
+})
+
+function toggleSession() {
+  sessionExpanded.value = !sessionExpanded.value
+  scheduleSave()
+}
 const newHosts = computed(() => (session.value ? (runtime?.newHosts ?? 0) : 0))
 const unreadMail = computed(() => {
   const active = session.value
@@ -369,7 +436,7 @@ async function dispatch(action: Action, command?: string) {
     contextVersion.value++
   scheduleSave()
   if (response.compose) {
-    if (narrow.value) sessionExpanded.value = false
+    sessionExpanded.value = false
     await nextTick()
     if (runtime === active) await terminal.value?.selectCommand(response.compose)
   }
@@ -397,75 +464,12 @@ async function dispatch(action: Action, command?: string) {
 </script>
 
 <template>
-  <div ref="application" class="application">
+  <div
+    ref="application"
+    class="application"
+    :class="{ 'session-expanded': sessionExpanded, 'short-viewport': shortViewport }"
+  >
     <main v-if="scenario && session" :key="scenario.id + '/' + attempt" class="workspace">
-      <Teleport to="#terminal-context" :disabled="!narrow" defer>
-        <aside
-          v-show="!narrow || sessionExpanded"
-          class="context-frame"
-          aria-label="Session context"
-        >
-          <div v-show="!narrow || sessionExpanded" id="session-details">
-            <div class="frame-title">
-              <h2>Session</h2>
-              <button
-                type="button"
-                class="reset"
-                :disabled="busy"
-                @click="dispatch({ type: 'reset' })"
-              >
-                Reset session
-              </button>
-            </div>
-            <div class="session-context">
-              <dl class="session-details">
-                <div>
-                  <dt>Host</dt>
-                  <dd>
-                    <bdi>{{ prompt }}</bdi>
-                  </dd>
-                </div>
-                <div>
-                  <dt>User</dt>
-                  <dd>
-                    <bdi>{{ session.identity.user }}</bdi>
-                  </dd>
-                </div>
-                <div>
-                  <dt>Access</dt>
-                  <dd>
-                    <bdi>{{ session.identity.role }}</bdi>
-                  </dd>
-                </div>
-                <div v-for="{ label, value } in hostStatus" :key="label">
-                  <dt>
-                    <bdi>{{ label }}</bdi>
-                  </dt>
-                  <dd>
-                    <bdi>{{ value }}</bdi>
-                  </dd>
-                </div>
-              </dl>
-              <div class="objective">
-                <div class="objective-heading">
-                  <h3>Objective</h3>
-                  <span :class="{ 'objective-done': session.completed }">{{
-                    session.completed ? 'Complete' : caseComplete ? 'Open in this session' : 'Open'
-                  }}</span>
-                </div>
-                <p dir="auto">{{ scenario.objective.text }}</p>
-                <p v-if="caseComplete && !session.completed" class="objective-done">
-                  Case complete in campaign record
-                </p>
-                <p v-if="campaignFinished" class="objective-done">
-                  All available scenarios complete
-                </p>
-              </div>
-            </div>
-          </div>
-        </aside>
-      </Teleport>
-
       <Terminal
         ref="terminal"
         :transcript="transcript"
@@ -487,7 +491,14 @@ async function dispatch(action: Action, command?: string) {
       >
         <template #scenario>
           <h1 v-if="destinations.length === 1 && !debugSelector" class="terminal-scenario">
-            <bdi>{{ scenario.title }}</bdi>
+            <button
+              type="button"
+              aria-controls="session-details"
+              :aria-expanded="sessionExpanded"
+              @click="toggleSession"
+            >
+              <bdi>{{ scenario.title }}</bdi>
+            </button>
           </h1>
           <select
             v-else
@@ -501,25 +512,84 @@ async function dispatch(action: Action, command?: string) {
               {{ entry.label + (debugSelector?.optionSuffix ?? '') }}
             </option>
           </select>
-          <span
-            v-if="scenario.objective.completionBand && caseComplete"
-            class="case-complete"
-            role="img"
-            aria-label="Case complete"
-            title="Case complete"
-            >✓</span
-          >
         </template>
-        <template #title-actions>
-          <button
-            v-if="narrow"
-            type="button"
-            aria-controls="session-details"
-            :aria-expanded="sessionExpanded"
-            @click="sessionExpanded = !sessionExpanded"
+        <template #session-status>
+          <div class="session-indicators" role="group" aria-label="Session status">
+            <button
+              v-for="item in titleStatus"
+              :key="item.key"
+              type="button"
+              :class="{
+                'status-reached': item.reached,
+                'status-changing': changedStatus.has(item.key),
+              }"
+              :aria-label="item.name"
+              :title="item.detail"
+              aria-controls="session-details"
+              :aria-expanded="sessionExpanded"
+              @click="toggleSession"
+            >
+              <span :key="item.detail" class="status-mark" aria-hidden="true">{{ item.mark }}</span>
+              <bdi>{{ item.label }}</bdi>
+            </button>
+          </div>
+          <p class="milestone-announcement" role="status" dir="auto">{{ statusAnnouncement }}</p>
+        </template>
+        <template #session-details>
+          <aside
+            v-show="sessionExpanded"
+            id="session-details"
+            class="session-layer"
+            aria-label="Session context"
           >
-            Session
-          </button>
+            <div class="session-layer-heading">
+              <h2>Session</h2>
+              <button type="button" :disabled="busy" @click="dispatch({ type: 'reset' })">
+                Reset session
+              </button>
+            </div>
+            <dl class="session-details">
+              <div>
+                <dt>Host</dt>
+                <dd>
+                  <bdi>{{ prompt }}</bdi>
+                </dd>
+              </div>
+              <div>
+                <dt>User</dt>
+                <dd>
+                  <bdi>{{ session.identity.user }}</bdi>
+                </dd>
+              </div>
+              <div>
+                <dt>Access</dt>
+                <dd>
+                  <bdi>{{ session.identity.role }}</bdi>
+                </dd>
+              </div>
+              <div v-for="{ label, value } in hostStatus" :key="label">
+                <dt>
+                  <bdi>{{ label }}</bdi>
+                </dt>
+                <dd>
+                  <bdi>{{ value }}</bdi>
+                </dd>
+              </div>
+            </dl>
+            <div class="objective">
+              <div class="objective-heading">
+                <h3>Objective</h3>
+                <span :class="{ 'objective-done': session.completed }">{{
+                  session.completed ? 'Complete' : caseComplete ? 'Open in this session' : 'Open'
+                }}</span>
+              </div>
+              <p dir="auto">{{ scenario.objective.text }}</p>
+              <p v-if="caseComplete && !session.completed" class="objective-done">
+                Case complete in campaign record
+              </p>
+              <p v-if="campaignFinished" class="objective-done">All available scenarios complete</p>
+            </div>
+          </aside>
         </template>
       </Terminal>
     </main>

@@ -5,7 +5,8 @@ const link = (page: Page, name: string | RegExp) =>
   transcript(page).getByRole('button', { name, exact: true }).last()
 const quick = (page: Page, name: string) =>
   page.getByRole('group', { name: 'Quick actions' }).getByRole('button', { name, exact: true })
-const panel = (page: Page) => page.getByRole('complementary', { name: 'Session context' })
+const panel = (page: Page) =>
+  page.getByRole('complementary', { name: 'Session context', includeHidden: true })
 
 async function openCampaign(page: Page, path = '/') {
   await page.goto(path)
@@ -79,9 +80,11 @@ test('recovers Dead Letter by graphical actions from the development entry', asy
   )
   await openCampaign(page, '/?scenario=002-dead-letter')
   await expect(panel(page)).toContainText('guest')
-  await expect(panel(page)).toContainText('Quarantined')
+  await expect(
+    page.getByRole('button', { name: 'Queue: Quarantined · protective hold' }),
+  ).toBeInViewport()
   await recoverNotice(page, (target) => target.click())
-  await expect(panel(page)).toContainText('Released')
+  await expect(page.getByRole('button', { name: 'Queue: Released' })).toBeInViewport()
   await expect(panel(page)).toContainText('Complete')
 })
 
@@ -176,10 +179,10 @@ for (const [width, height] of [
       if (process.env.PLAYWRIGHT_TEST_PREVIEW || width === 390 || width === 1440)
         await openIndexGraphically(page, act)
       else await openCampaign(page, '/?scenario=003-the-index')
-      if (width <= 830) await act(page.getByRole('button', { name: 'Session', exact: true }))
+      await act(page.getByRole('button', { name: 'Session', exact: true }))
       await expect(panel(page)).toContainText('auditor')
       await capture('01-auditor')
-      if (width <= 830) await act(page.getByRole('button', { name: 'Session', exact: true }))
+      await act(page.getByRole('button', { name: 'Session', exact: true }))
       const candidateLink = await beginIndex(page, act)
       await candidateLink.scrollIntoViewIfNeeded()
       await capture('02-confusables')
@@ -323,10 +326,10 @@ test('completes and replays the recovery and archive arcs across reloads', async
   await run(page, 'verify')
   await run(page, 'commit')
   await expect(transcript(page)).toContainText('RECOVERY COMPLETE')
-  await expect(panel(page).getByText('Complete', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Objective: Complete', exact: true })).toBeVisible()
   await expect(link(page, 'The Other Side')).toBeVisible()
   await page.reload()
-  await expect(panel(page).getByText('Complete', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Objective: Complete', exact: true })).toBeVisible()
   await run(page, 'commit')
   await expect(transcript(page)).toContainText('Transaction already applied.')
   await run(page, 'mail it-worked')
@@ -353,15 +356,16 @@ test('completes and replays the recovery and archive arcs across reloads', async
   await run(page, 'cat /reports/reconciliation.txt')
   await expect(link(page, 'The Needle')).toBeVisible()
   await page.reload()
-  await expect(panel(page).getByText('Complete', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Objective: Complete', exact: true })).toBeVisible()
   await run(page, 'scenario 001-the-relay')
   await expect(panel(page)).toContainText('maintenance')
+  await page.getByRole('button', { name: 'Session', exact: true }).click()
   await page.getByRole('button', { name: 'Reset session' }).click()
   await expect(panel(page)).toContainText('Open')
   await run(page, 'connect relay-07')
   await run(page, 'login \u{1D40C}AINT')
   await run(page, 'cat /queue/8c2f.msg')
-  await expect(panel(page).getByText('Complete', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Objective: Complete', exact: true })).toBeVisible()
   await run(page, 'mail')
   await expect(
     transcript(page).getByRole('button', { name: 'The missing notice', exact: true }),

@@ -236,21 +236,15 @@ textarea {
   min-height: 0;
   padding: 12px 16px 16px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) clamp(290px, 28vw, 386px);
-  grid-template-areas: 'terminal context';
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr);
 }
-.terminal-frame,
-.context-frame {
+.terminal-frame {
   min-width: 0;
   min-height: 0;
   border: 1px solid var(--line);
-}
-.terminal-frame {
-  grid-area: terminal;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto minmax(96px, 1fr) auto;
+  grid-template-rows: max-content minmax(0, max-content) minmax(60px, 1fr) auto;
   background: var(--inset);
 }
 .terminal-frame .frame-title {
@@ -266,18 +260,25 @@ textarea {
   white-space: nowrap;
 }
 h1.terminal-scenario {
-  padding-inline-start: 9px;
+  padding-inline-start: 2px;
   border-inline-start: 1px solid var(--control);
+}
+.frame-title h1.terminal-scenario button {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  color: inherit;
+  font: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.frame-title h1.terminal-scenario button[aria-expanded='true'] {
+  color: var(--accent);
 }
 .title-actions {
   display: flex;
   flex: none;
   margin-inline-start: auto;
-}
-.case-complete {
-  flex: none;
-  color: var(--accent);
-  font-weight: 700;
 }
 .frame-title .latest-progress {
   border-color: var(--accent);
@@ -290,15 +291,36 @@ h1.terminal-scenario {
   overflow: hidden;
   clip-path: inset(50%);
 }
-#terminal-context {
-  display: none;
-}
-.context-frame {
-  grid-area: context;
-  align-self: start;
-  max-height: 100%;
+.terminal-session {
+  min-height: 0;
+  max-height: min(36dvh, 280px);
   overflow: auto;
+  overscroll-behavior: contain;
+}
+.session-layer {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
   background: var(--surface);
+}
+.short-viewport .terminal-frame {
+  grid-template-rows: max-content minmax(0, max-content) minmax(52px, 1fr) auto;
+}
+.short-viewport .terminal-session {
+  max-height: min(calc(var(--app-height, 100dvh) * 0.26), 130px);
+}
+.session-layer-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.session-layer-heading h2 {
+  font: 650 13px var(--mono);
+}
+.session-layer-heading button {
+  min-height: 30px;
+  font-size: 12px;
 }
 .frame-title {
   display: flex;
@@ -309,9 +331,6 @@ h1.terminal-scenario {
   padding-inline: 12px;
   border-bottom: 1px solid var(--line);
   background: var(--surface);
-}
-.frame-title h2 {
-  font: 650 13px var(--mono);
 }
 .frame-title button {
   min-height: 30px;
@@ -329,6 +348,61 @@ h1.terminal-scenario {
 }
 .frame-title .has-notification {
   color: var(--accent);
+}
+.session-indicators {
+  display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
+  align-items: center;
+  gap: 0 3px;
+  margin-inline-start: auto;
+}
+.frame-title .session-indicators button {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  gap: 4px;
+  padding: 3px 5px;
+  background: transparent;
+  font: 12px var(--mono);
+}
+.session-indicators bdi {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.frame-title .session-indicators button:is([aria-expanded='true'], .status-reached) {
+  color: var(--accent);
+}
+.session-indicators button[aria-expanded='true'] {
+  background: var(--raised);
+}
+.status-mark {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 2px;
+  font-weight: 700;
+}
+.status-reached .status-mark {
+  background: #22382f;
+}
+.status-changing .status-mark {
+  animation: session-status-change 1000ms ease-out;
+}
+@keyframes session-status-change {
+  from {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .status-changing .status-mark {
+    animation: none;
+  }
 }
 .title-icon {
   position: relative;
@@ -368,22 +442,16 @@ h1.terminal-scenario {
   font: 700 10px/12px var(--mono);
   text-align: center;
 }
-.session-context {
-  padding: 8px 12px 12px;
-}
 .session-details {
   margin: 0;
   display: grid;
-  gap: 3px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr));
+  gap: 6px 12px;
   font-family: var(--mono);
-}
-.session-details div {
-  display: grid;
-  grid-template-columns: 9ch minmax(0, 1fr);
-  gap: 8px;
 }
 .session-details dt {
   color: var(--muted);
+  font-size: 12px;
 }
 .session-details dd {
   margin: 0;
@@ -825,45 +893,24 @@ h1.terminal-scenario {
 .startup p {
   margin-block: 6px 10px;
 }
+@media (max-width: 1024px) {
+  .terminal-frame .frame-title {
+    flex-wrap: wrap;
+    row-gap: 0;
+  }
+  .session-indicators {
+    order: 1;
+    flex-basis: 100%;
+    margin-inline-start: 0;
+    border-top: 1px solid var(--line);
+  }
+}
 @media (max-width: 830px) {
   .workspace {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: 'terminal';
     padding: 8px;
-    gap: 0;
-  }
-  #terminal-context {
-    display: block;
-    min-height: 0;
-    overflow: auto;
-    overscroll-behavior: contain;
-  }
-  .context-frame {
-    max-height: none;
-    overflow: visible;
-    border-width: 0 0 1px;
-  }
-  .terminal-frame {
-    grid-template-rows: auto minmax(0, max-content) minmax(60px, 1fr) auto;
-  }
-  .title-actions button[aria-expanded='true'] {
-    color: var(--accent);
   }
   .latest-output-word {
     display: none;
-  }
-  .session-context {
-    padding: 5px 10px 8px;
-  }
-  .session-details {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    column-gap: 6px;
-  }
-  .session-details div {
-    display: block;
-  }
-  .session-details dt {
-    font-size: 12px;
   }
   .objective {
     margin-top: 5px;
@@ -888,6 +935,7 @@ h1.terminal-scenario {
   select,
   input,
   .frame-title button,
+  .session-layer-heading button,
   .inspection button:not(.terminal-link),
   .inspection-form dt,
   .inspection-confusables summary,
@@ -908,6 +956,9 @@ h1.terminal-scenario {
   .frame-title .title-notification {
     min-width: 44px;
   }
+  .frame-title .session-indicators button {
+    min-width: 44px;
+  }
   .notification-count {
     inset-block-start: 6px;
     inset-inline-end: 4px;
@@ -922,8 +973,12 @@ h1.terminal-scenario {
 }
 @media (max-width: 480px) {
   .terminal-frame .frame-title {
-    gap: 6px;
+    column-gap: 6px;
     padding-inline: 8px;
+  }
+  .frame-title .session-indicators button {
+    gap: 3px;
+    padding-inline: 3px;
   }
   .wordmark {
     font-size: 15px;
@@ -931,8 +986,7 @@ h1.terminal-scenario {
   .terminal-scenario {
     font-size: 13px;
   }
-  select.terminal-scenario,
-  .title-actions button[aria-controls='session-details'] {
+  select.terminal-scenario {
     padding-inline: 5px;
   }
   .title-actions .latest-output {
@@ -943,34 +997,9 @@ h1.terminal-scenario {
   }
 }
 @media (max-width: 600px) {
-  .context-frame .frame-title h2 {
-    position: absolute;
-    clip-path: inset(50%);
-  }
-  #session-details {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-  .context-frame .frame-title {
-    grid-column: 2;
-    grid-row: 1;
-    align-self: start;
-    z-index: 1;
-    border-bottom: 0;
-    padding-inline: 0 5px;
-  }
-  .context-frame .reset {
-    max-width: 60px;
-    padding: 2px 4px;
-    line-height: 1.2;
-  }
-  .session-context {
-    grid-column: 1 / -1;
-    grid-row: 1;
-  }
   .session-details {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr) minmax(0, 1.2fr);
-    margin-inline-end: 60px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
   }
   .terminal-controls {
     padding: 5px 7px;
@@ -1348,6 +1377,15 @@ h1.terminal-scenario {
   max-height: min(45dvh, 300px);
   overflow: auto;
   overscroll-behavior: contain;
+}
+.short-viewport .composer-arguments {
+  max-height: calc(var(--app-height, 100dvh) * 0.36);
+}
+.short-viewport .single-argument .point-view {
+  max-height: calc(var(--app-height, 100dvh) * 0.22);
+}
+.short-viewport.session-expanded .single-argument .point-view {
+  max-height: calc(var(--app-height, 100dvh) * 0.15);
 }
 @media (max-width: 600px), (pointer: coarse) {
   .single-argument .composer-argument textarea {

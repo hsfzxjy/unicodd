@@ -7,7 +7,8 @@ const quick = (page: Page, name: string) =>
   page.getByRole('group', { name: 'Quick actions' }).getByRole('button', { name, exact: true })
 const link = (page: Page, name: string) =>
   terminal(page).getByRole('button', { name, exact: true }).last()
-const contextPanel = (page: Page) => page.getByRole('complementary', { name: 'Session context' })
+const contextPanel = (page: Page) =>
+  page.getByRole('complementary', { name: 'Session context', includeHidden: true })
 const incident = (page: Page) =>
   terminal(page).getByRole('region', { name: 'File /queue/8c2f.msg' })
 const mail = (page: Page, path?: string) =>
@@ -104,7 +105,7 @@ test('plays the entire Relay through graphical actions and restores the session 
   await link(page, 'queue/').click()
   await link(page, '8c2f.msg').click()
   await expect(incident(page)).toContainText('independently')
-  await expect(panel.getByText('Complete', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Objective: Complete', exact: true })).toBeVisible()
   await quick(page, 'clear').click()
   await expect(terminal(page)).toBeEmpty()
   await expect(panel).toContainText('maintenance')
@@ -118,8 +119,12 @@ test('plays the entire Relay through graphical actions and restores the session 
   await page.reload()
   await expect(panel).toContainText('relay-07')
   await expect(panel).toContainText('Complete')
+  await page.getByRole('button', { name: 'Session', exact: true }).click()
   await page.getByRole('button', { name: 'Reset session' }).click()
   await expect(panel).toContainText('Open')
+  await expect(
+    page.getByRole('button', { name: 'Objective: Complete in campaign record' }),
+  ).toBeVisible()
   await page.reload()
   await expect(panel).toContainText('Open')
 })
@@ -293,9 +298,13 @@ test('saves level workspaces and drops their command history when a game text ch
   await path.press('Alt+ArrowDown')
   await expect(alias(page)).toHaveValue(draft)
   await page.setViewportSize({ width: 390, height: 435 })
+  const runButton = page.getByRole('button', { name: 'Run', exact: true })
+  await expect(runButton).toBeInViewport({ ratio: 1 })
   await page.screenshot({ path: info.outputPath('restored-level-compact.png') })
   const session = page.getByRole('button', { name: 'Session', exact: true })
   await session.click()
+  await expect(contextPanel(page)).toBeVisible()
+  await expect(runButton).toBeInViewport({ ratio: 1 })
   const saved = () =>
     page.evaluate(() => JSON.parse(localStorage.getItem('unicodd.campaign')!).levels)
   expect(JSON.stringify(await saved())).not.toContain('MONONYM Message Services')
@@ -516,9 +525,7 @@ test.describe('mobile Unicode sequence', () => {
     await expect(alias(page)).toHaveValue('aصلى الله عليه وسلم🧪b')
   })
 
-  test('keeps the active draft and selection when crossing the layout breakpoint', async ({
-    page,
-  }) => {
+  test('keeps the active draft, selection and session layer when resizing', async ({ page }) => {
     await openRelay(page)
     await link(page, 'relay-07').tap()
     await quick(page, 'login').tap()
@@ -527,9 +534,11 @@ test.describe('mobile Unicode sequence', () => {
     await input.press('Home')
     await input.press('ArrowRight')
     await input.press('Shift+ArrowRight')
+    await page.getByRole('button', { name: 'Session', exact: true }).tap()
     await page.setViewportSize({ width: 1280, height: 800 })
-    await expect(page.locator('.workspace > .context-frame')).toBeVisible()
+    await expect(page.locator('.terminal-frame #session-details')).toBeVisible()
     await page.setViewportSize({ width: 390, height: 844 })
+    await expect(page.locator('.terminal-frame #session-details')).toBeVisible()
     await expect(page.locator('.terminal-frame .command-composer')).toBeVisible()
     await expect(input).toHaveValue('a🧪b')
     expect(
@@ -569,24 +578,24 @@ for (const [width, height] of [
         if (width <= 768) await target.tap()
         else await target.click()
       }
-      const narrow = width <= 830
       const frame = page.getByRole('region', { name: 'Terminal', exact: true })
       const sessionToggle = frame.getByRole('button', { name: 'Session', exact: true })
       await openRelay(page)
-      if (narrow) {
-        await expect(contextPanel(page)).toBeHidden()
-        await expect(page.locator('.workspace > .context-frame')).toHaveCount(0)
-        await expect(sessionToggle).toHaveAttribute('aria-expanded', 'false')
-      } else {
-        await expect(contextPanel(page)).toBeVisible()
-        await expect(sessionToggle).toHaveCount(0)
-      }
+      await expect(contextPanel(page)).toBeHidden()
+      await expect(sessionToggle).toHaveAttribute('aria-expanded', 'false')
+      await expect(frame.getByRole('button', { name: 'Objective: Open' })).toBeInViewport()
+      await act(frame.getByRole('button', { name: 'The Relay', exact: true }))
+      await expect(frame.locator('#session-details')).toBeVisible()
+      await act(sessionToggle)
       await capture('01-local')
       await act(link(page, 'New mail, open inbox'))
       await act(link(page, 'A favor'))
       await expect(mail(page)).toContainText('Can you retrieve it?')
       await capture('01-incoming-mail')
       await act(link(page, 'relay-07'))
+      await expect(
+        frame.getByRole('button', { name: 'Queue: 8C2F · maintenance only' }),
+      ).toBeInViewport()
       await capture('02-guest')
       await act(quick(page, 'ls'))
       await capture('03-resources')
@@ -607,10 +616,8 @@ for (const [width, height] of [
       await capture('05-denied')
       await act(quick(page, 'login'))
       await expect(alias(page)).toBeInViewport()
-      if (narrow) {
-        await expect(frame.getByRole('form', { name: 'Command composer' })).toBeVisible()
-        await expect(frame.getByRole('heading', { name: 'Objective' })).toBeHidden()
-      }
+      await expect(frame.getByRole('form', { name: 'Command composer' })).toBeVisible()
+      await expect(contextPanel(page)).toBeHidden()
       await capture('06-login')
       if (width < 600) {
         await alias(page).focus()
@@ -618,6 +625,15 @@ for (const [width, height] of [
         await expect(alias(page)).toBeInViewport()
         await expect(page.getByRole('button', { name: 'Run', exact: true })).toBeInViewport()
         await page.screenshot({ path: info.outputPath('07-keyboard-space.png') })
+        await act(sessionToggle)
+        await expect(contextPanel(page)).toBeVisible()
+        await expect(contextPanel(page).getByText('guest', { exact: true }).first()).toBeInViewport(
+          {
+            ratio: 1,
+          },
+        )
+        await capture('07-keyboard-session')
+        await act(sessionToggle)
         await page.setViewportSize({ width, height })
       }
       await alias(page).fill('AINT')
@@ -656,11 +672,14 @@ for (const [width, height] of [
       await alias(page).fill(compatible)
       await act(page.getByRole('button', { name: 'Run', exact: true }))
       await expect(terminal(page)).toContainText('Authentication accepted')
-      if (narrow) {
-        await expect(contextPanel(page)).toBeHidden()
-        await act(sessionToggle)
-        await expect(sessionToggle).toHaveAttribute('aria-expanded', 'true')
-      }
+      await expect(contextPanel(page)).toBeHidden()
+      await expect(sessionToggle).toHaveText('›_maintenance')
+      const queue = frame.getByRole('button', { name: 'Queue: 8C2F · readable' })
+      await expect(queue).toBeInViewport()
+      await expect(queue.locator('.status-mark')).toHaveText('✓')
+      await act(queue)
+      await expect(sessionToggle).toHaveAttribute('aria-expanded', 'true')
+      await expect(frame.locator('#session-details')).toBeVisible()
       await expect(contextPanel(page)).toContainText('maintenance')
       if (width <= 600) {
         const access = contextPanel(page).getByText('maintenance', { exact: true })
@@ -673,12 +692,14 @@ for (const [width, height] of [
         ).toBe(1)
       }
       await capture('12-maintenance')
-      if (narrow) await act(sessionToggle)
+      await act(sessionToggle)
       await act(quick(page, 'ls'))
       await act(link(page, 'queue/'))
       await act(link(page, '8c2f.msg'))
-      if (narrow) await act(sessionToggle)
-      await expect(contextPanel(page)).toContainText('Complete')
+      await expect(contextPanel(page)).toBeHidden()
+      await expect(
+        frame.getByRole('button', { name: 'Objective: Complete', exact: true }),
+      ).toBeInViewport()
       await expect(incident(page)).toBeVisible()
       await expect(
         terminal(page).getByText('Incident 8C2F retrieved. Objective complete.'),

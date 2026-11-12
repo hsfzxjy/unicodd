@@ -214,11 +214,11 @@ for (const [width, height] of [
       await expect(last(page)).toContainText('Please tell Support both cases can close.')
       await capture('04-ending')
       await page.reload()
-      if (width <= 830) await act(page.getByRole('button', { name: 'Session', exact: true }))
+      await act(page.getByRole('button', { name: 'Session', exact: true }))
       await expect(page.getByRole('complementary', { name: 'Session context' })).toContainText(
         'Complete',
       )
-      if (width <= 830) await act(page.getByRole('button', { name: 'Session', exact: true }))
+      await act(page.getByRole('button', { name: 'Session', exact: true }))
       await act(quick(page, 'mail'))
       await expect(last(page)).toContainText('it-worked · Mira / Registration 0002917 · Read')
       await expect(last(page).getByRole('button', { name: 'Thank you', exact: true })).toHaveCount(

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "title": "The Index",
-  "introduction": "Delivery notice 2917 traces the shared account to merge event 8C2F on index-09.",
+  "introduction": "Two owners share one account. Notice 2917 traces it to merge 8C2F on index-09.",
   "outputTiming": {
     "reconcile": [{ "afterRows": 0, "minMs": 100, "maxMs": 220 }],
     "reconstruct": [{ "afterRows": 0, "minMs": 150, "maxMs": 300 }]
@@ -21,15 +21,15 @@
         "user": "auditor",
         "role": "auditor"
       },
-      "welcome": "Read-only auditor access. The directory retains pre-merge evidence separately from the shared index.",
+      "welcome": "Read-only auditor access. The directory keeps evidence from both original registrations separately from the shared account.",
       "status": [
         {
           "label": "Incident",
           "value": "8C2F"
         },
         {
-          "label": "Bucket",
-          "value": "Undiscovered",
+          "label": "Collision lookup",
+          "value": "Pending",
           "after": {
             "flag": "bucket_found",
             "value": "Located · 2 source records"
@@ -267,9 +267,9 @@
     }
   ],
   "objective": {
-    "text": "Verify both original registrations and obtain proof for Support.",
+    "text": "Verify both original registrations so Support can keep the owners’ cases separate.",
     "read": "originals",
-    "message": "Original registrations recovered for incident 8C2F. Objective complete.",
+    "message": "Both original registrations are verified. The two records give Support evidence to keep the cases separate.",
     "completionBand": true,
     "onComplete": [
       {

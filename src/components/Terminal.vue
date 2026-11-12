@@ -92,11 +92,11 @@ function restoreView(view?: TerminalView) {
   following.value = view?.following !== false
   void nextTick(() => {
     if (!scroll.value) return
-    if (!view || view.following !== false || !Number.isFinite(view.scrollTop)) scrollToEnd()
-    else {
-      scroll.value.scrollTop = view.scrollTop
+    const opening = !view && props.transcript.length === 1 && props.transcript[0].id === 0
+    if (opening || (view?.following === false && Number.isFinite(view.scrollTop))) {
+      scroll.value.scrollTop = view?.scrollTop ?? 0
       trackScroll()
-    }
+    } else scrollToEnd()
   })
 }
 
@@ -148,7 +148,8 @@ watch(
     } else if (last?.id !== prior?.id) {
       collapsedAnnouncement.value = ''
     }
-    if (following.value) scrollToEnd()
+    const firstCommand = prior?.id === 0 && last && last.id !== 0 && scroll.value?.scrollTop === 0
+    if (following.value || firstCommand) scrollToEnd()
     else if (progress.length) unseenProgress.value = true
   },
   { flush: 'post' },
@@ -199,7 +200,6 @@ defineExpose({
   selectCommand: (name: import('../lib/commands').CommandName) =>
     composer.value?.selectCommand(name),
   revealOutput,
-  scrollToEnd,
   saveView,
   restoreView,
   saveComposer: (submitted: boolean) => composer.value?.saveComposer(submitted),

@@ -67,7 +67,7 @@ async function recoverNotice(page: Page, act: Activate) {
   await expect(recipient).toHaveValue('Mi\u200bra')
   await act(submit)
   await expect(transcript(page)).toContainText('Message released from quarantine')
-  await expect(transcript(page)).not.toContainText('2917 recovered. Objective complete.')
+  await expect(page.getByRole('heading', { name: 'Dead Letter · Complete' })).toHaveCount(0)
   await act(link(page, '/delivered/2917.msg'))
   await expect(transcript(page)).toContainText('I think we have the same account')
   await expect(transcript(page)).toContainText('Directory reference: index-09')
@@ -112,18 +112,15 @@ async function openIndexGraphically(page: Page, act: Activate) {
   await act(quick(page, 'ls'))
   await act(link(page, 'queue/'))
   await act(link(page, '8c2f.msg'))
-  await act(quick(page, 'mail'))
   await act(link(page, 'The missing notice'))
   await expect(transcript(page)).toContainText('The relay handed it to postbox-03')
   await act(page.getByRole('button', { name: 'Open hosts list, 1 new', exact: true }))
   await expect(transcript(page).locator('.terminal-list').last()).toContainText('postbox-03 · New')
   await act(link(page, 'Dead Letter'))
   await recoverNotice(page, act)
-  await act(quick(page, 'mail'))
   await act(link(page, 'Re: The missing notice'))
   await expect(transcript(page)).toContainText('points to index-09')
   await act(link(page, 'The Index'))
-  await act(quick(page, 'mail'))
   await act(link(page, 'I spoke to her'))
   await expect(transcript(page)).toContainText('original forms we filled in')
 }
@@ -243,12 +240,12 @@ for (const [width, height] of [
       if (width < 600) await page.setViewportSize({ width, height })
       await act(verify)
       await expect(transcript(page)).toContainText('Reconstruction verified')
-      await expect(transcript(page)).not.toContainText('Original registrations recovered')
+      const complete = page.getByRole('heading', { name: 'The Index · Complete' })
+      await expect(complete).toHaveCount(0)
       await act(link(page, '/exports/8c2f-originals.json'))
-      await expect(transcript(page)).toContainText('Original registrations recovered')
+      await expect(complete).toBeVisible()
       await expect(link(page, 'Inspect U+0456')).toBeVisible()
       await capture('04-originals')
-      await act(quick(page, 'mail'))
       await act(link(page, 'We have the records'))
       await expect(transcript(page)).toContainText("We'd like to keep both accounts.")
       await capture('05-final-mail')
@@ -382,8 +379,9 @@ test('completes and replays the recovery and archive arcs across reloads', async
   await expect(page.getByRole('heading', { name: 'The Relay' })).toBeVisible()
   await expect(panel(page)).toContainText('Open')
   await run(page, 'mail')
-  await expect(link(page, 'We have the records')).toHaveCount(0)
-  await expect(link(page, 'A favor')).toHaveCount(1)
+  const inbox = transcript(page).locator('.terminal-list').last()
+  await expect(inbox.getByRole('button', { name: 'We have the records' })).toHaveCount(0)
+  await expect(inbox.getByRole('button', { name: 'A favor' })).toHaveCount(1)
 })
 
 test('switches levels in a debug session and keeps the campaign save separate', async ({
@@ -426,6 +424,21 @@ test('switches levels in a debug session and keeps the campaign save separate', 
   await expect(page.getByRole('heading', { name: 'The Relay' })).toBeVisible()
   await run(page, 'scenario 009-the-boundary')
   await expect(transcript(page)).toContainText('Unknown destination: 009-the-boundary')
+})
+
+test('starts a tall briefing at its first line and follows the first command', async ({ page }) => {
+  test.skip(Boolean(process.env.PLAYWRIGHT_TEST_PREVIEW), 'Requires the development server')
+  await page.setViewportSize({ width: 390, height: 400 })
+  await openCampaign(page, '/?debug=1&scenario=003-the-index')
+  await expect(
+    transcript(page).getByText('Two owners share one account.', { exact: false }),
+  ).toBeInViewport({ ratio: 1 })
+  await quick(page, 'ls').click()
+  await expect(link(page, 'exports/')).toBeInViewport()
+  await page.getByRole('button', { name: 'Objective: Open' }).click()
+  await expect(
+    panel(page).getByText('Verify both original registrations', { exact: false }),
+  ).toBeInViewport({ ratio: 1 })
 })
 
 test('ignores debug mode and direct scenario entry on the built site', async ({ page }) => {

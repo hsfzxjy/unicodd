@@ -5,7 +5,7 @@
       "from": "Rowan / Directory Team",
       "to": "Mara / Security",
       "subject": "Login compatibility",
-      "body": "The new resolver handles the legacy labels. It converts compatibility forms before directory lookup. The gateway still checks reserved names after canonical normalization and before the resolver.\n\nSeparate issue from the cutover: the relay decoder counts characters, the frame reader expects UTF-16 units, and the transport has its own byte limit. I kept the length fields from the last maintenance capture under /notes. The capture service dropped the alias itself.\n\n- Rowan"
+      "body": "The new resolver handles the legacy labels. It converts compatibility forms before directory lookup. The gateway still checks reserved names after canonical normalization and before the resolver.\n\nI saved the last maintenance capture as /notes/maintenance-frame.txt. The capture service kept the lengths but dropped the alias itself.\n\nThe relay decoder counts characters, the frame reader expects UTF-16 units, and the transport has its own byte limit.\n\n- Rowan"
     },
     {
       "id": "security-reply",

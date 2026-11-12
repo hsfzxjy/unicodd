@@ -76,10 +76,14 @@ it('checks permissions, elevates through WASM, and completes only on authorized 
     identity: { user: 'MAINT', role: 'maintenance' },
     completed: false,
   })
-  expect((await runtime.dispatch(incident)).output?.map((item) => item.kind)).toEqual([
-    'file',
-    'objective',
-    'mailNotice',
+  expect((await runtime.dispatch(incident)).output).toMatchObject([
+    { kind: 'file' },
+    { kind: 'objective' },
+    {
+      kind: 'listing',
+      title: 'New mail',
+      links: [{ action: { type: 'mail', id: 'missing-notice' } }],
+    },
   ])
   expect(runtime.state.completed).toBe(true)
   expect((await runtime.dispatch(incident)).output?.map((item) => item.kind)).toEqual(['file'])
@@ -119,10 +123,10 @@ it('uses guards and effects for a differently structured fixture', async () => {
   ])
   expect((await runtime.dispatch(login('🧪'))).output?.[0].kind).toBe('error')
   const index = { type: 'cat', path: 'index' } as const
-  expect((await runtime.dispatch(index)).output?.map(({ kind }) => kind)).toEqual([
-    'file',
-    'message',
-    'mailNotice',
+  expect((await runtime.dispatch(index)).output).toMatchObject([
+    { kind: 'file' },
+    { kind: 'message' },
+    { kind: 'listing', title: 'New mail', links: [{ action: delivery }] },
   ])
   expect((await runtime.dispatch(index)).output?.map(({ kind }) => kind)).toEqual([
     'file',

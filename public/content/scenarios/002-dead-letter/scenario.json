@@ -1,7 +1,7 @@
 {
   "version": 1,
   "title": "Dead Letter",
-  "introduction": "Postbox received notice 2917 from relay-07 and placed it on hold.",
+  "introduction": "The relay handed off Mira’s missing notice, 2917. Postbox placed it on hold.",
   "outputTiming": {
     "route": [{ "afterRows": 0, "minMs": 100, "maxMs": 220 }]
   },
@@ -20,7 +20,7 @@
         "user": "guest",
         "role": "guest"
       },
-      "welcome": "The gateway retains held messages for manual delivery.",
+      "welcome": "The hold keeps recovery messages from reaching the wrong account owner. Held messages are retained for manual delivery.",
       "status": [
         {
           "label": "Message",
@@ -203,9 +203,9 @@
     }
   ],
   "objective": {
-    "text": "Recover and read delivery notice 2917.",
+    "text": "Recover and read Mira’s missing delivery notice, 2917.",
     "read": "body",
-    "message": "Delivery notice 2917 recovered. Objective complete.",
+    "message": "Notice 2917 recovered. Its sender reports receiving Mira’s account notifications.",
     "completionBand": true,
     "onComplete": [
       {

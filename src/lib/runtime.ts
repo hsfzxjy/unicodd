@@ -318,10 +318,9 @@ export function createRuntime(
           ),
         ]
       : []),
-    ...(state.deliveredMail.some((id) => !state.readMail.includes(id))
-      ? [{ kind: 'mailNotice' } as const]
-      : []),
-    ...(state.host ? [message(state.host.welcome)] : [hosts()]),
+    ...(state.host ? [message(state.host.welcome)] : []),
+    ...welcomeMail(),
+    ...(state.host ? [] : [hosts()]),
   ]
 
   function allows(guard?: Guard): boolean {
@@ -353,18 +352,31 @@ export function createRuntime(
     return { kind: 'listing', links: hostDirectory(), empty: 'No known hosts.' }
   }
 
+  function mailLink(id: string, includeId = false): Link {
+    const message = campaign.message(id)!
+    return {
+      label: message.subject,
+      detail: includeId ? id + ' · ' + message.from : message.from,
+      tracking: { kind: 'mail', key: id },
+      action: { type: 'mail', id },
+    }
+  }
+
+  function newMailListing(ids: readonly string[]): Output {
+    return { kind: 'listing', title: 'New mail', links: ids.map((id) => mailLink(id)) }
+  }
+
+  function welcomeMail(): Output[] {
+    const unread = state.deliveredMail.filter((id) => !state.readMail.includes(id))
+    const opening = scenario.inbox?.initial.filter((id) => unread.includes(id)) ?? []
+    if (opening.length) return [newMailListing(opening)]
+    return unread.length ? [{ kind: 'mailNotice' }] : []
+  }
+
   function inboxAction(id?: string): Response {
     if (!campaign.hasInbox) return error('No local inbox is configured.')
     if (id === undefined) {
-      const links = state.deliveredMail.map((id): Link => {
-        const message = campaign.message(id)!
-        return {
-          label: message.subject,
-          detail: [id, message.from].join(' · '),
-          tracking: { kind: 'mail', key: id },
-          action: { type: 'mail', id },
-        }
-      })
+      const links = state.deliveredMail.map((id) => mailLink(id, true))
       return { output: [{ kind: 'listing', title: 'Inbox', empty: 'No messages.', links }] }
     }
     const message = campaign.message(id)
@@ -454,7 +466,7 @@ export function createRuntime(
     action: Action['type'],
   ) {
     const before = state
-    let newMail = false
+    const newMail: string[] = []
     for (const effect of effects) {
       switch (effect.type) {
         case 'session':
@@ -472,7 +484,7 @@ export function createRuntime(
           output.push({ kind, text: effect.text })
           break
         case 'deliverMail':
-          if (campaign.deliver(effect.message)) newMail = true
+          if (campaign.deliver(effect.message)) newMail.push(effect.message)
           break
         case 'resourceLink': {
           const host = state.host
@@ -507,9 +519,9 @@ export function createRuntime(
           })
       }
     }
-    if (newMail) {
+    if (newMail.length) {
       syncInbox()
-      output.push({ kind: 'mailNotice' })
+      output.push(newMailListing(newMail))
     }
   }
 
@@ -544,9 +556,9 @@ export function createRuntime(
           }
         : { kind: 'objective', text },
     )
-    if (newMail) {
+    if (newMail.length) {
       syncInbox()
-      output.push({ kind: 'mailNotice' })
+      output.push(newMailListing(newMail))
     }
     if (destinations.length)
       output.push({

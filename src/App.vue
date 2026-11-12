@@ -226,9 +226,16 @@ watch(titleStatus, (current, previous) => {
   }
 })
 
-function toggleSession() {
+const objectiveText = ref<HTMLElement>()
+
+function toggleSession(showObjective = false) {
   sessionExpanded.value = !sessionExpanded.value
   scheduleSave()
+  if (sessionExpanded.value && showObjective) {
+    requestAnimationFrame(() => {
+      if (sessionExpanded.value) objectiveText.value?.scrollIntoView({ block: 'nearest' })
+    })
+  }
 }
 const newHosts = computed(() => (session.value ? (runtime?.newHosts ?? 0) : 0))
 const unreadMail = computed(() => {
@@ -364,7 +371,7 @@ async function dispatch(action: Action, command?: string) {
       sequence = 1
       if (action.type === 'reset') terminal.value?.resetComposer()
       transcript.value = response.output ? [{ id: 0, output: response.output }] : []
-      terminal.value?.scrollToEnd()
+      terminal.value?.restoreView()
       saveLevel(command !== undefined)
     } else if (response.enter === undefined && (echo || response.output)) {
       const output = response.output ?? []
@@ -495,7 +502,7 @@ async function dispatch(action: Action, command?: string) {
               type="button"
               aria-controls="session-details"
               :aria-expanded="sessionExpanded"
-              @click="toggleSession"
+              @click="toggleSession()"
             >
               <bdi>{{ scenario.title }}</bdi>
             </button>
@@ -527,7 +534,7 @@ async function dispatch(action: Action, command?: string) {
               :title="item.detail"
               aria-controls="session-details"
               :aria-expanded="sessionExpanded"
-              @click="toggleSession"
+              @click="toggleSession(item.key === 'objective')"
             >
               <span :key="item.detail" class="status-mark" aria-hidden="true">{{ item.mark }}</span>
               <bdi>{{ item.label }}</bdi>
@@ -583,7 +590,7 @@ async function dispatch(action: Action, command?: string) {
                   session.completed ? 'Complete' : caseComplete ? 'Open in this session' : 'Open'
                 }}</span>
               </div>
-              <p dir="auto">{{ scenario.objective.text }}</p>
+              <p ref="objectiveText" dir="auto">{{ scenario.objective.text }}</p>
               <p v-if="caseComplete && !session.completed" class="objective-done">
                 Case complete in campaign record
               </p>

@@ -270,7 +270,7 @@ export function createCampaign(
   function complete(id: string, handoff?: Handoff, receipt?: DossierReceipt) {
     const scenario = byId.get(id)
     const destinations: Scenario[] = []
-    let newMail = false
+    const newMail: string[] = []
     if (scenario?.objective.handoff && handoff?.kind !== scenario.objective.handoff)
       return { destinations, newMail }
     if (
@@ -286,7 +286,8 @@ export function createCampaign(
       staleDossier.delete(id)
       for (const effect of scenario.objective.onComplete) {
         if (effect.type === 'deliverMail') {
-          if (!(restoring && effect.liveOnly) && deliver(effect.message)) newMail = true
+          if (!(restoring && effect.liveOnly) && deliver(effect.message))
+            newMail.push(effect.message)
         } else {
           const destination = byId.get(effect.scenario)
           if (destination && !discovered.has(destination.id)) {

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "title": "The Relay",
-  "introduction": "Local session open.",
+  "introduction": "Local operator session. Guest access to MONONYM, an account and messaging provider.",
   "outputTiming": {
     "connect": [{ "afterRows": 0, "minMs": 160, "maxMs": 320 }],
     "cat": [
@@ -161,9 +161,9 @@
     }
   ],
   "objective": {
-    "text": "Retrieve incident 8C2F from the protected queue.",
+    "text": "Retrieve incident record 8C2F so Mira can take it back to MONONYM Support.",
     "read": "incident",
-    "message": "Incident 8C2F retrieved. Objective complete.",
+    "message": "Incident 8C2F retrieved for Mira. The record identifies a notice still held at the Postbox.",
     "completionBand": true,
     "onComplete": [
       {

@@ -28,9 +28,15 @@ export type ProgressEffect =
   | { type: 'discover'; scenario: string }
   | { type: 'deliverMail'; message: string; liveOnly?: boolean }
 
+export interface Milestone {
+  id: string
+  title: string
+  text: string
+}
+
 export type Effect =
-  | { type: 'session'; identity: Identity }
-  | { type: 'flag'; flag: string }
+  | { type: 'session'; identity: Identity; milestone?: Milestone }
+  | { type: 'flag'; flag: string; milestone?: Milestone }
   | { type: 'clearFlag'; flag: string }
   | { type: 'message'; text: string }
   | { type: 'deliverMail'; message: string }
@@ -45,6 +51,8 @@ export interface MailMessage {
   body: string
 }
 
+export type FileFormat = 'log' | 'evidence'
+
 interface ResourceBase {
   id: string
   path: string
@@ -57,7 +65,13 @@ export type Resource = ResourceBase &
   (
     | { type: 'directory' }
     | ({ onRead: Effect[] } & (
-        | { type: 'file'; text: string; inspectLines: number[]; inspectNotation: boolean }
+        | {
+            type: 'file'
+            text: string
+            inspectLines: number[]
+            inspectNotation: boolean
+            format?: FileFormat
+          }
         | { type: 'mail'; messages: MailMessage[] }
       ))
   )
@@ -99,7 +113,7 @@ export interface Host {
   resources: Resource[]
   operations: PuzzleBinding[]
   recovery?: RecoveryBinding[]
-  status: { label: string; value: string; after?: { flag: string; value: string } }[]
+  status: { label: string; value: string; after?: Guard & { value: string } }[]
 }
 
 export interface Scenario {
@@ -129,6 +143,7 @@ export interface Scenario {
   ) & {
     text: string
     message: string
+    completionBand?: boolean
     onComplete: ProgressEffect[]
   }
 }

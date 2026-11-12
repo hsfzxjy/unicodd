@@ -69,25 +69,25 @@ export const commandRegistry = [
   {
     name: 'login',
     usage: 'login [alias]',
-    description: 'Compose or submit an alias.',
+    description: 'Attempt maintenance sign-in with an account alias.',
     arguments: [argument('alias', 'payload')],
   },
   {
     name: 'route',
     usage: 'route [header envelope]',
-    description: 'Compose or submit both recipients.',
+    description: 'Replay the header and envelope recipients on the active router.',
     arguments: [argument('header', 'payload'), argument('envelope', 'payload')],
   },
   {
     name: 'reconcile',
     usage: 'reconcile [candidate]',
-    description: 'Query an identifier collision.',
+    description: 'Query the shared index for a collision bucket.',
     arguments: [argument('candidate', 'payload')],
   },
   {
     name: 'reconstruct',
     usage: 'reconstruct [name-a name-b]',
-    description: 'Verify both original record names.',
+    description: 'Verify submitted names against both original registrations.',
     arguments: [argument('name-a', 'payload'), argument('name-b', 'payload')],
   },
   recoveryCommand(

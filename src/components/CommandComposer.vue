@@ -638,7 +638,7 @@ defineExpose({
         :tabindex="index === menuIndex ? 0 : -1"
         @click="selectCommand(command.name)"
       >
-        <span>{{ command.name }}</span
+        <span>{{ command.usage }}</span
         ><span class="meta">{{ command.description }}</span>
       </button>
       <button

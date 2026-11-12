@@ -2,12 +2,14 @@
 import { computed } from 'vue'
 import { describe, notationTokens } from '../lib/unicode'
 import type { Action } from '../lib/runtime'
+import type { FileFormat } from '../lib/scenario'
 
 const props = defineProps<{
   text: string
   path: string
   inspectLines: number[]
   inspectNotation: boolean
+  format?: FileFormat
   busy: boolean
 }>()
 const emit = defineEmits<{ action: [Action] }>()
@@ -37,7 +39,7 @@ const lines = computed(() =>
 </script>
 
 <template>
-  <section class="terminal-file" :aria-label="'File ' + path" tabindex="-1">
+  <section class="terminal-file" :data-format="format" :aria-label="'File ' + path" tabindex="-1">
     <p class="file-path">
       <bdi>{{ path }}</bdi>
     </p>

@@ -65,7 +65,13 @@ it('checks permissions, elevates through WASM, and completes only on authorized 
     ])
     expect(runtime.state).toBe(guest)
   }
-  expect(await runtime.dispatch(login(compatible))).toMatchObject({ output: [{ kind: 'auth' }] })
+  expect(await runtime.dispatch(login(compatible))).toMatchObject({
+    output: [
+      { kind: 'auth' },
+      { kind: 'listing', links: [{ action: incident }] },
+      { kind: 'milestone', progress: { scope: 'subobjective', action: 'login' } },
+    ],
+  })
   expect(runtime.state).toMatchObject({
     identity: { user: 'MAINT', role: 'maintenance' },
     completed: false,

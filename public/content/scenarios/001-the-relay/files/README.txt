@@ -1,6 +1,6 @@
 MONONYM Message Services
 relay-07 · legacy message relay
 
-Guest access covers public files and queue listings. Opening queued messages requires maintenance access.
+Guest sessions can list /queue and open public records. Queued message bodies require maintenance access.
 
-/notes holds terminal references. /mail is the correspondence archive. The thread numbers give the suggested reading order.
+/notes contains terminal reference material. /mail is the operations correspondence archive.

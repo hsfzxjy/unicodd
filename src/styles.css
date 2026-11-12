@@ -11,6 +11,7 @@
   --accent: #a0d7c0;
   --accent-ink: #10241c;
   --warning: #edbc91;
+  --evidence: #b8d1ea;
   --error: #f0aaa6;
   --mono: 'Cascadia Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
   --sans: system-ui, 'Segoe UI', sans-serif;
@@ -273,6 +274,22 @@ h1.terminal-scenario {
   flex: none;
   margin-inline-start: auto;
 }
+.case-complete {
+  flex: none;
+  color: var(--accent);
+  font-weight: 700;
+}
+.frame-title .latest-progress {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.milestone-announcement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
 #terminal-context {
   display: none;
 }
@@ -415,7 +432,7 @@ h1.terminal-scenario {
   border-inline-start: 3px solid #7f95a5;
 }
 .terminal-entry.remote-entry {
-  border-inline-start-color: #6d9e8b;
+  border-inline-start-color: #698799;
 }
 .command-echo {
   display: flex;
@@ -425,7 +442,7 @@ h1.terminal-scenario {
   cursor: pointer;
 }
 .command-echo.remote {
-  background: #203832;
+  background: #22343e;
 }
 .command-line {
   display: flex;
@@ -468,6 +485,10 @@ h1.terminal-scenario {
   color: var(--accent);
   font-size: 15px;
 }
+.entry-actions .collapsed-progress {
+  background: #294b42;
+  color: var(--text);
+}
 .has-command .entry-body {
   padding: 4px 8px 6px;
   background: var(--surface);
@@ -482,6 +503,40 @@ h1.terminal-scenario {
   margin: 8px 0 0;
   padding: 0;
   border: 0;
+}
+.progress-band {
+  --progress-ink: #c3e0f3;
+  --progress-edge: #8dbad8;
+  --progress-fill: #203241;
+  --progress-highlight: #32536a;
+  margin-block: 7px;
+  padding: 7px 10px;
+  border-inline-start: 3px solid var(--progress-edge);
+  background: var(--progress-fill);
+  color: var(--text);
+}
+.progress-band h3 {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  color: var(--progress-ink);
+  font: 700 14px/1.4 var(--sans);
+}
+.progress-band p {
+  margin-top: 3px;
+  font-size: 13px;
+}
+.progress-band[data-scope='scenario'] {
+  --progress-ink: #d4f3e5;
+  --progress-edge: #96cdb6;
+  --progress-fill: #1d362f;
+  --progress-highlight: #345c50;
+  padding: 10px;
+  border-block: 1px solid var(--progress-edge);
+  border-inline-start-width: 4px;
+}
+.progress-band[data-scope='scenario'] h3 {
+  font-size: 16px;
 }
 .listing-path,
 .file-path {
@@ -531,6 +586,18 @@ h1.terminal-scenario {
 .terminal-mail pre {
   max-width: 86ch;
 }
+.terminal-file[data-format='log'] pre {
+  max-width: 106ch;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.terminal-file[data-format='evidence'] {
+  padding-inline-start: 8px;
+  border-inline-start: 1px solid #6b859a;
+}
+.terminal-file[data-format] .file-path {
+  color: var(--evidence);
+}
 .mail-notice {
   font-size: 12px;
   font-weight: 650;
@@ -545,6 +612,15 @@ h1.terminal-scenario {
 }
 .mail-headers dd {
   margin: 0;
+}
+.mail-headers .mail-subject {
+  font-weight: 700;
+}
+.terminal-mail pre {
+  max-width: 72ch;
+  margin-top: 8px;
+  line-height: 1.6;
+  font-family: var(--sans);
 }
 .terminal-mail article + article {
   margin-top: 12px;
@@ -800,6 +876,12 @@ h1.terminal-scenario {
   .transcript {
     padding: 8px 10px 12px;
   }
+  .command-help dl {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .command-help dd + dt {
+    margin-top: 4px;
+  }
 }
 @media (max-width: 600px), (pointer: coarse) {
   button,
@@ -841,8 +923,19 @@ h1.terminal-scenario {
 @media (max-width: 480px) {
   .terminal-frame .frame-title {
     gap: 6px;
+    padding-inline: 8px;
   }
-  .title-actions button[aria-label='Latest output'] {
+  .wordmark {
+    font-size: 15px;
+  }
+  .terminal-scenario {
+    font-size: 13px;
+  }
+  select.terminal-scenario,
+  .title-actions button[aria-controls='session-details'] {
+    padding-inline: 5px;
+  }
+  .title-actions .latest-output {
     min-width: 44px;
   }
   .latest-output-label {
@@ -862,6 +955,7 @@ h1.terminal-scenario {
     grid-column: 2;
     grid-row: 1;
     align-self: start;
+    z-index: 1;
     border-bottom: 0;
     padding-inline: 0 5px;
   }

@@ -5,6 +5,7 @@ import type { OperationBinding } from '../lib/scenario'
 import TerminalFile from './TerminalFile.vue'
 import TerminalInspection from './TerminalInspection.vue'
 import TerminalMail from './TerminalMail.vue'
+import TerminalProgress from './TerminalProgress.vue'
 import { commandHelp } from '../lib/commands'
 import { linkStatus, type Action, type Link, type Session } from '../lib/runtime'
 import { inspectRange, notation, unpairedSurrogate } from '../lib/unicode'
@@ -12,6 +13,7 @@ import type { ComposerSave, Entry, TerminalView } from '../lib/workspace'
 
 const props = defineProps<{
   transcript: Entry[]
+  live: boolean
   prompt: string
   connected: boolean
   shortcuts: Link[]
@@ -37,6 +39,8 @@ const scroll = ref<HTMLDivElement>()
 const frame = ref<HTMLElement>()
 const composer = ref<InstanceType<typeof CommandComposer>>()
 const following = ref(true)
+const unseenProgress = ref(false)
+const collapsedAnnouncement = ref('')
 const selectedScalar = ref<string>()
 const collapsed = reactive(new Set<number>())
 
@@ -62,11 +66,13 @@ async function toggleOutput(id: number) {
 function scrollToEnd() {
   if (scroll.value) scroll.value.scrollTop = scroll.value.scrollHeight
   following.value = true
+  unseenProgress.value = false
 }
 
 function trackScroll() {
   const box = scroll.value
   if (box) following.value = box.scrollHeight - box.scrollTop - box.clientHeight < 28
+  if (following.value) unseenProgress.value = false
   emit('change')
 }
 
@@ -126,11 +132,24 @@ onUnmounted(() => {
 
 watch(
   () => props.transcript,
-  (entries) => {
+  (entries, previous) => {
     for (const id of collapsed) {
       if (!entries.some((entry) => entry.id === id)) collapsed.delete(id)
     }
+    const last = entries.at(-1)
+    const prior = previous.at(-1)
+    const progress = last?.freshProgress
+      ? last.output
+          .slice(last.id === prior?.id ? prior.output.length : 0)
+          .flatMap((row) => ('progress' in row && row.progress ? [row.progress] : []))
+      : []
+    if (last && progress.length && collapsed.has(last.id)) {
+      collapsedAnnouncement.value = progress.map(({ title, text }) => title + '. ' + text).join(' ')
+    } else if (last?.id !== prior?.id) {
+      collapsedAnnouncement.value = ''
+    }
     if (following.value) scrollToEnd()
+    else if (progress.length) unseenProgress.value = true
   },
   { flush: 'post' },
 )
@@ -150,6 +169,8 @@ function revealOutput(
   if (latest.offsetHeight + 12 > box.clientHeight) {
     box.scrollTop += latest.getBoundingClientRect().top - box.getBoundingClientRect().top - 6
     trackScroll()
+    if (entry.freshProgress && entry.output.some((row) => 'progress' in row && row.progress))
+      unseenProgress.value = true
   } else {
     scrollToEnd()
   }
@@ -220,7 +241,14 @@ defineExpose({
           }}</span>
         </button>
         <slot name="title-actions" />
-        <button v-if="!following" type="button" aria-label="Latest output" @click="scrollToEnd">
+        <button
+          v-if="!following"
+          type="button"
+          class="latest-output"
+          :class="{ 'latest-progress': unseenProgress }"
+          :aria-label="unseenProgress ? 'Latest output, new milestone' : 'Latest output'"
+          @click="scrollToEnd"
+        >
           <span class="latest-output-label"
             >Latest<span class="latest-output-word"> output</span></span
           >
@@ -229,10 +257,13 @@ defineExpose({
       </div>
     </div>
     <div id="terminal-context" />
+    <p class="milestone-announcement" role="status" dir="auto">{{ collapsedAnnouncement }}</p>
     <div
       ref="scroll"
       class="transcript"
       role="log"
+      :aria-live="live ? 'polite' : 'off'"
+      aria-relevant="additions"
       aria-label="Terminal transcript"
       tabindex="0"
       @scroll="trackScroll"
@@ -269,6 +300,11 @@ defineExpose({
               v-if="entry.output.length || entry.waiting"
               type="button"
               class="output-toggle"
+              :class="{
+                'collapsed-progress':
+                  collapsed.has(entry.id) &&
+                  entry.output.some((row) => 'progress' in row && row.progress),
+              }"
               aria-label="Toggle command output"
               :aria-controls="outputPrefix + entry.id"
               :aria-expanded="!collapsed.has(entry.id)"
@@ -322,6 +358,7 @@ defineExpose({
                 :text="row.text"
                 :inspect-lines="row.inspectLines"
                 :inspect-notation="row.inspectNotation"
+                :format="row.format"
                 :busy="busy"
                 @action="emit('action', $event)"
               />
@@ -479,6 +516,11 @@ defineExpose({
                   }}
                 </p>
               </div>
+              <TerminalProgress
+                v-else-if="(row.kind === 'milestone' || row.kind === 'objective') && row.progress"
+                :progress="row.progress"
+                :fresh="Boolean(entry.freshProgress)"
+              />
               <p v-else :class="['terminal-line', row.kind]" dir="auto">{{ row.text }}</p>
             </template>
           </div>

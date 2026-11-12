@@ -36,6 +36,15 @@ const destinations = computed(() =>
   session.value ? catalog.value.filter(({ id }) => campaign?.selectable(id)) : [],
 )
 const campaignFinished = computed(() => Boolean(session.value && campaign?.finished))
+const caseComplete = computed(
+  () =>
+    session.value?.completed ||
+    Boolean(
+      session.value &&
+      scenario.value?.objective.completionBand &&
+      campaign?.completed(scenario.value.id),
+    ),
+)
 const scenarioId = ref('')
 const scenario = shallowRef<Scenario>()
 const session = shallowRef<Session>()
@@ -50,6 +59,7 @@ const application = ref<HTMLElement>()
 const terminal = ref<InstanceType<typeof Terminal>>()
 const contextVersion = ref(0)
 const transcript = shallowRef<Entry[]>([])
+const transcriptLive = ref(false)
 const prompt = computed(() => session.value?.host?.id ?? 'local')
 const operations = computed(() => {
   const host = session.value?.host
@@ -152,6 +162,7 @@ const shortcuts = computed((): Link[] => {
 })
 
 const suggestions = computed(() => (session.value ? (runtime?.suggestions() ?? []) : []))
+const hostStatus = computed(() => (session.value ? runtime?.hostStatus : undefined))
 const newHosts = computed(() => (session.value ? (runtime?.newHosts ?? 0) : 0))
 const unreadMail = computed(() => {
   const active = session.value
@@ -188,6 +199,7 @@ watch([scenarioId, attempt], async ([id]) => {
   if (!loaded || !campaign?.enter(id)) return
   window.clearTimeout(saveTimer)
   workspaceReady = false
+  transcriptLive.value = false
   busy.value = true
   loadingError.value = ''
   const saved = campaign.level(id)
@@ -234,6 +246,7 @@ watch([scenarioId, attempt], async ([id]) => {
   if (runtime !== active) return
   busy.value = false
   workspaceReady = true
+  transcriptLive.value = true
   saveLevel()
 })
 void loadCatalog()
@@ -294,6 +307,7 @@ async function dispatch(action: Action, command?: string) {
         prompt: from,
         connected: Boolean(before.host),
         output,
+        freshProgress: output.some((row) => 'progress' in row && Boolean(row.progress)),
       }
       frames = [
         ...frames.slice(1 - scrollbackLimit),
@@ -403,7 +417,7 @@ async function dispatch(action: Action, command?: string) {
                 Reset session
               </button>
             </div>
-            <div class="session-context" aria-live="polite">
+            <div class="session-context">
               <dl class="session-details">
                 <div>
                   <dt>Host</dt>
@@ -423,14 +437,12 @@ async function dispatch(action: Action, command?: string) {
                     <bdi>{{ session.identity.role }}</bdi>
                   </dd>
                 </div>
-                <div v-for="{ label, value, after } in session.host?.status" :key="label">
+                <div v-for="{ label, value } in hostStatus" :key="label">
                   <dt>
                     <bdi>{{ label }}</bdi>
                   </dt>
                   <dd>
-                    <bdi>{{
-                      after && session.flags.includes(after.flag) ? after.value : value
-                    }}</bdi>
+                    <bdi>{{ value }}</bdi>
                   </dd>
                 </div>
               </dl>
@@ -438,10 +450,13 @@ async function dispatch(action: Action, command?: string) {
                 <div class="objective-heading">
                   <h3>Objective</h3>
                   <span :class="{ 'objective-done': session.completed }">{{
-                    session.completed ? 'Complete' : 'Open'
+                    session.completed ? 'Complete' : caseComplete ? 'Open in this session' : 'Open'
                   }}</span>
                 </div>
                 <p dir="auto">{{ scenario.objective.text }}</p>
+                <p v-if="caseComplete && !session.completed" class="objective-done">
+                  Case complete in campaign record
+                </p>
                 <p v-if="campaignFinished" class="objective-done">
                   All available scenarios complete
                 </p>
@@ -454,6 +469,7 @@ async function dispatch(action: Action, command?: string) {
       <Terminal
         ref="terminal"
         :transcript="transcript"
+        :live="transcriptLive"
         :prompt="prompt"
         :connected="Boolean(session.host)"
         :shortcuts="shortcuts"
@@ -485,6 +501,14 @@ async function dispatch(action: Action, command?: string) {
               {{ entry.label + (debugSelector?.optionSuffix ?? '') }}
             </option>
           </select>
+          <span
+            v-if="scenario.objective.completionBand && caseComplete"
+            class="case-complete"
+            role="img"
+            aria-label="Case complete"
+            title="Case complete"
+            >✓</span
+          >
         </template>
         <template #title-actions>
           <button

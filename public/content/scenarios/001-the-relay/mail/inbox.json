@@ -5,14 +5,14 @@
       "from": "mira@outside.net",
       "to": "operator@local",
       "subject": "A favor",
-      "body": "I found the ticket number. 8C2F.\n\nIt passed through a relay called relay-07. The public archive has nothing, but the original message might still be there.\n\nI can't get anyone at MONONYM to acknowledge it exists.\n\nCan you retrieve it?\n\n— Mira"
+      "body": "Support asked me for a ticket number. I found it, but now they say there’s no incident in the public archive.\n\nThe original message for 8C2F passed through relay-07. Can you retrieve it? I’d like something I can send back to Support.\n\n— Mira"
     },
     {
       "id": "missing-notice",
       "from": "Mira / Registration 0002917",
       "to": "Local operator",
       "subject": "The missing notice",
-      "body": "I checked the ticket you recovered. There's a delivery notice attached to my registration number, but I never received it.\n\nThe relay handed it to postbox-03. Could you find out where it went?\n\n- Mira"
+      "body": "The incident names my registration number on notice 2917. I checked my inbox again. It never arrived.\n\nThe relay handed it to postbox-03. Could you recover it from the hold? I’d like to know who was trying to reach me.\n\n— Mira"
     }
   ]
 }

@@ -92,6 +92,7 @@ export interface Entry {
   connected?: boolean
   output: Output[]
   waiting?: boolean
+  freshProgress?: boolean
 }
 
 export interface JournalFrame {

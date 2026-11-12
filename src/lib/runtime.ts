@@ -31,10 +31,12 @@ import {
 import {
   parentPath,
   type Effect,
+  type FileFormat,
   type Guard,
   type Host,
   type Identity,
   type MailMessage,
+  type Milestone,
   type Resource,
   type Scenario,
 } from './scenario.ts'
@@ -74,10 +76,25 @@ export interface Inspection {
   normalization: { form: Normalization; result: Result<string> }[]
 }
 
+export interface ProgressTransition extends Milestone {
+  scenario: string
+  scope: 'subobjective' | 'scenario'
+  action: Action['type']
+}
+
 export type Output =
-  | { kind: 'message' | 'error' | 'auth' | 'objective'; text: string }
+  | { kind: 'message' | 'error' | 'auth'; text: string }
+  | { kind: 'objective'; text: string; progress?: ProgressTransition }
+  | { kind: 'milestone'; text: string; progress: ProgressTransition }
   | { kind: 'listing'; path?: string; title?: string; empty?: string; links: Link[] }
-  | { kind: 'file'; path: string; text: string; inspectLines: number[]; inspectNotation: boolean }
+  | {
+      kind: 'file'
+      path: string
+      text: string
+      inspectLines: number[]
+      inspectNotation: boolean
+      format?: FileFormat
+    }
   | { kind: 'mail'; path?: string; messages: MailMessage[] }
   | { kind: 'mailNotice' }
   | { kind: 'help'; connected: boolean; commands: string[] }
@@ -261,6 +278,28 @@ export function createRuntime(
       }
     }
   }
+  const milestoneKey = (id: string) => scenario.id + '/milestone/' + id
+  const reached = (effect: Effect, session: Session) =>
+    effect.type === 'flag'
+      ? session.flags.includes(effect.flag)
+      : effect.type === 'session' && session.identity.role === effect.identity.role
+  // Migrate previously reached milestones from an older, still-active host session.
+  if (saved && !campaign.completed(scenario.id) && state.host) {
+    const { operations, recovery, resources, guest } = state.host
+    for (const effect of [
+      ...operations.flatMap(({ success }) => success),
+      ...(recovery ?? []).flatMap(({ success }) => success),
+      ...resources.flatMap((resource) => (resource.type === 'directory' ? [] : resource.onRead)),
+    ]) {
+      if (
+        (effect.type === 'flag' ||
+          (effect.type === 'session' && effect.identity.role !== guest.role)) &&
+        effect.milestone &&
+        reached(effect, state)
+      )
+        campaign.recordMilestone(milestoneKey(effect.milestone.id))
+    }
+  }
   let pending: Session | undefined
   const syncInbox = () => {
     state = { ...state, deliveredMail: campaign.delivered, readMail: campaign.read }
@@ -408,7 +447,13 @@ export function createRuntime(
     return [...commands(), ...contextual.map((action) => actionCommand(action)!)]
   }
 
-  function apply(effects: Effect[], output: Output[], kind: 'message' | 'auth') {
+  function apply(
+    effects: Effect[],
+    output: Output[],
+    kind: 'message' | 'auth',
+    action: Action['type'],
+  ) {
+    const before = state
     let newMail = false
     for (const effect of effects) {
       switch (effect.type) {
@@ -448,21 +493,57 @@ export function createRuntime(
         }
       }
     }
+    if (state !== before && !campaign.completed(scenario.id)) {
+      for (const effect of effects) {
+        if (effect.type !== 'flag' && effect.type !== 'session') continue
+        const milestone = effect.milestone
+        if (!milestone || reached(effect, before) || !reached(effect, state)) continue
+        const id = milestoneKey(milestone.id)
+        if (campaign.recordMilestone(id))
+          output.push({
+            kind: 'milestone',
+            text: milestone.text,
+            progress: { ...milestone, id, scenario: scenario.id, scope: 'subobjective', action },
+          })
+      }
+    }
     if (newMail) {
       syncInbox()
       output.push({ kind: 'mailNotice' })
     }
   }
 
-  function completeObjective(output: Output[], handoff?: Handoff, receipt?: DossierReceipt) {
+  function completeObjective(
+    output: Output[],
+    action: Action['type'],
+    handoff?: Handoff,
+    receipt?: DossierReceipt,
+  ) {
     if (state.completed) {
       if (handoff) campaign.complete(scenario.id, handoff)
       return
     }
+    const first = !campaign.completed(scenario.id)
     const { destinations, newMail } = campaign.complete(scenario.id, handoff, receipt)
     if (!campaign.completed(scenario.id)) return
     state = { ...state, completed: true }
-    output.push({ kind: 'objective', text: scenario.objective.message })
+    const text = scenario.objective.message
+    output.push(
+      first && scenario.objective.completionBand
+        ? {
+            kind: 'objective',
+            text,
+            progress: {
+              id: scenario.id + '/complete',
+              scenario: scenario.id,
+              scope: 'scenario',
+              title: scenario.title + ' · Complete',
+              text,
+              action,
+            },
+          }
+        : { kind: 'objective', text },
+    )
     if (newMail) {
       syncInbox()
       output.push({ kind: 'mailNotice' })
@@ -550,14 +631,15 @@ export function createRuntime(
             text: resource.text,
             inspectLines: resource.inspectLines,
             inspectNotation: resource.inspectNotation,
+            ...(resource.format ? { format: resource.format } : {}),
           },
     ]
-    apply(resource.onRead, output, 'message')
+    apply(resource.onRead, output, 'message', action.type)
     if (objective) {
       if (scenario.objective.handoff && handoff)
         output.push({ kind: 'report', rows: archiveRows(handoff) })
       if (dossierReport) output.push(dossierReport)
-      completeObjective(output, handoff, receipt)
+      completeObjective(output, action.type, handoff, receipt)
     }
     return { output }
   }
@@ -786,12 +868,18 @@ export function createRuntime(
           }
           if (scenario.objective.action === action.type && output.length) {
             const report = output.pop()!
-            apply(binding.success, output, 'message')
+            apply(binding.success, output, 'message', action.type)
             output.push(report)
           } else {
-            apply(binding.success, output, action.type === 'login' ? 'auth' : 'message')
+            apply(
+              binding.success,
+              output,
+              action.type === 'login' ? 'auth' : 'message',
+              action.type,
+            )
           }
-          if (scenario.objective.action === action.type) completeObjective(output, handoff)
+          if (scenario.objective.action === action.type)
+            completeObjective(output, action.type, handoff)
           return { output }
         } finally {
           if (pending === before) pending = undefined
@@ -865,6 +953,12 @@ export function createRuntime(
     },
     get operations() {
       return availableOperations()
+    },
+    get hostStatus() {
+      return state.host?.status.map(({ label, value, after }) => ({
+        label,
+        value: after && allows(after) ? after.value : value,
+      }))
     },
     get newHosts() {
       return hostDirectory().filter((link) => linkStatus(link, state) === 'New').length

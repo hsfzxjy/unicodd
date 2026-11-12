@@ -367,6 +367,7 @@ export function createContentLoader(
         }
       })
       const inboxIds = inbox?.messages.map(({ id }) => id) ?? []
+      const milestoneIds: Field[] = []
 
       function identity(field: Field): Identity {
         const get = field.object('user', 'role')
@@ -381,6 +382,15 @@ export function createContentLoader(
         }
       }
 
+      function milestone(field: Field) {
+        return field.optional((item) => {
+          const get = item.object('id', 'title', 'text')
+          const id = get('id')
+          milestoneIds.push(id)
+          return { id: id.id(), title: get('title').text(), text: get('text').text() }
+        })
+      }
+
       function effects(field: Field): Effect[] {
         return field.list((item) => {
           const type = item.object(
@@ -390,11 +400,25 @@ export function createContentLoader(
             'text',
             'message',
             'resource',
+            'milestone',
           )('type').value
           switch (type) {
-            case 'session':
-              return { type, identity: identity(item.object('type', 'identity')('identity')) }
-            case 'flag':
+            case 'session': {
+              const get = item.object('type', 'identity', 'milestone')
+              return {
+                type,
+                identity: identity(get('identity')),
+                milestone: milestone(get('milestone')),
+              }
+            }
+            case 'flag': {
+              const get = item.object('type', 'flag', 'milestone')
+              return {
+                type,
+                flag: get('flag').ref(flags, 'flag'),
+                milestone: milestone(get('milestone')),
+              }
+            }
             case 'clearFlag':
               return { type, flag: item.object('type', 'flag')('flag').ref(flags, 'flag') }
             case 'message':
@@ -623,6 +647,7 @@ export function createContentLoader(
               'denied',
               'inspectLines',
               'inspectNotation',
+              'format',
               'onRead',
             )
             const id = resource('id').unique(resourceIds)
@@ -654,6 +679,8 @@ export function createContentLoader(
                 resource('inspectNotation').fail('Scalar notation applies to plain-text files.')
               if (resource('inspectLines').value !== undefined)
                 resource('inspectLines').fail('Character lines apply to plain-text files.')
+              if (resource('format').value !== undefined)
+                resource('format').fail('File formats apply to plain-text files.')
               const messages = await mailMessages(folder + resource('content').asset(true))
               return { ...base, type, messages, onRead }
             }
@@ -698,7 +725,18 @@ export function createContentLoader(
                   `Invalid scalar notation "${invalid}" in ${content}.`,
                 )
             }
-            return { ...base, type: 'file', text: body, inspectLines, inspectNotation, onRead }
+            const format = resource('format').optional((item) =>
+              item.ref(['log', 'evidence'] as const, 'file format'),
+            )
+            return {
+              ...base,
+              type: 'file',
+              text: body,
+              inspectLines,
+              inspectNotation,
+              onRead,
+              format,
+            }
           }),
         )
         for (const resource of resources) {
@@ -750,8 +788,13 @@ export function createContentLoader(
                 label: row('label').text(),
                 value: row('value').text(),
                 after: row('after').optional((item) => {
-                  const after = item.object('flag', 'value')
-                  return { flag: after('flag').ref(flags, 'flag'), value: after('value').text() }
+                  const after = item.object('flag', 'roles', 'value')
+                  const flag = after('flag').optional((field) => field.ref(flags, 'flag'))
+                  const access = after('roles').optional((field) =>
+                    field.list((role) => role.ref(roles, 'role')),
+                  )
+                  if (!flag && !access?.length) item.fail('Expected a flag or a role.')
+                  return { flag, roles: access, value: after('value').text() }
                 }),
               }
             }),
@@ -770,6 +813,8 @@ export function createContentLoader(
       }
 
       const hosts = await Promise.all(get('hosts').list(host))
+      const seenMilestones = new Set<string>()
+      for (const id of milestoneIds) id.unique(seenMilestones)
       if (!hosts.length) get('hosts').fail('Expected at least one host.')
       if (hosts.every((host) => host.discover))
         get('hosts').fail('At least one host must be initially discoverable.')
@@ -780,6 +825,7 @@ export function createContentLoader(
         'handoff',
         'dossier',
         'message',
+        'completionBand',
         'onComplete',
       )
       const read = objective('read').optional((item) => item.ref(fileIds, 'file resource'))
@@ -879,6 +925,7 @@ export function createContentLoader(
           text: objective('text').text(),
           ...(read ? { read, handoff, dossier: stage } : { action: action! }),
           message: objective('message').text(),
+          completionBand: objective('completionBand').optional((item) => item.bool()),
           onComplete,
         },
       }

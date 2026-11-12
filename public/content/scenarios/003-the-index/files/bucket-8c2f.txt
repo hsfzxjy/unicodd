@@ -4,5 +4,4 @@ Canonical records: 1
 Source registrations: 2
 Original identifiers: REDACTED
 
-Ownership reconstruction requires the original spelling for each registration.
-Start with /audit/identifier-review.txt, /audit/encoding.log and /audit/byte-difference.txt.
+Source names are verified separately against the retained registrations.

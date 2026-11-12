@@ -1,7 +1,7 @@
 {
   "version": 1,
   "title": "Dead Letter",
-  "introduction": "Delivery notice 2917 was handed to postbox-03.",
+  "introduction": "Postbox received notice 2917 from relay-07 and placed it on hold.",
   "outputTiming": {
     "route": [{ "afterRows": 0, "minMs": 100, "maxMs": 220 }]
   },
@@ -20,7 +20,7 @@
         "user": "guest",
         "role": "guest"
       },
-      "welcome": "Manual routing is available for the quarantined notice.",
+      "welcome": "The gateway retains held messages for manual delivery.",
       "status": [
         {
           "label": "Message",
@@ -28,11 +28,15 @@
         },
         {
           "label": "Queue",
-          "value": "Quarantined",
+          "value": "Quarantined · protective hold",
           "after": {
             "flag": "released",
             "value": "Released"
           }
+        },
+        {
+          "label": "Router",
+          "value": "2.8.1-r1"
         }
       ],
       "resources": [
@@ -99,13 +103,15 @@
           "id": "metadata",
           "path": "/spool/2917.msg",
           "type": "file",
-          "content": "files/2917-queue.txt"
+          "content": "files/2917-queue.txt",
+          "format": "evidence"
         },
         {
           "id": "deployments",
           "path": "/spool/router-history.txt",
           "type": "file",
-          "content": "files/router-history.txt"
+          "content": "files/router-history.txt",
+          "format": "log"
         },
         {
           "id": "delivered",
@@ -132,7 +138,12 @@
         "success": [
           {
             "type": "flag",
-            "flag": "released"
+            "flag": "released",
+            "milestone": {
+              "id": "notice-released",
+              "title": "Notice 2917 released",
+              "text": "Quarantined → Released. The message is available in the delivery queue."
+            }
           },
           {
             "type": "message",
@@ -195,6 +206,7 @@
     "text": "Recover and read delivery notice 2917.",
     "read": "body",
     "message": "Delivery notice 2917 recovered. Objective complete.",
+    "completionBand": true,
     "onComplete": [
       {
         "type": "deliverMail",

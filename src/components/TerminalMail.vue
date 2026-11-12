@@ -30,7 +30,7 @@ defineProps<{ path?: string; messages: MailMessage[] }>()
           </dd>
         </template>
         <dt>Subject</dt>
-        <dd>
+        <dd class="mail-subject">
           <bdi>{{ message.subject }}</bdi>
         </dd>
       </dl>

@@ -15,6 +15,7 @@ export interface CampaignSnapshot {
   read: string[]
   visitedHosts?: string[]
   readResources?: string[]
+  milestones?: string[]
   handoffs?: Record<string, Handoff>
   dossierReceipts?: Record<string, DossierReceipt>
 }
@@ -189,6 +190,7 @@ export function createCampaign(
   const read = new Set<string>()
   const visitedHosts = new Set<string>()
   const readResources = new Set<string>()
+  const milestones = new Set<string>()
   const handoffs = new Map<string, Handoff>()
   const dossierReceipts = new Map<string, DossierReceipt>()
   const staleDossier = new Set<string>()
@@ -211,6 +213,7 @@ export function createCampaign(
     read.clear()
     visitedHosts.clear()
     readResources.clear()
+    milestones.clear()
     handoffs.clear()
     dossierReceipts.clear()
     staleDossier.clear()
@@ -230,6 +233,7 @@ export function createCampaign(
       read: [...read],
       visitedHosts: [...visitedHosts],
       readResources: [...readResources],
+      ...(milestones.size ? { milestones: [...milestones] } : {}),
       handoffs: Object.fromEntries(handoffs),
       ...(dossierReceipts.size ? { dossierReceipts: Object.fromEntries(dossierReceipts) } : {}),
     }
@@ -389,6 +393,7 @@ export function createCampaign(
       for (const [values, keys] of [
         [saved.visitedHosts, visitedHosts],
         [saved.readResources, readResources],
+        [saved.milestones, milestones],
       ] as const)
         if (Array.isArray(values))
           for (const value of values) if (typeof value === 'string') keys.add(value)
@@ -447,6 +452,7 @@ export function createCampaign(
     },
     visitHost: (key: string) => track(visitedHosts, key),
     markResourceRead: (key: string) => track(readResources, key),
+    recordMilestone: (key: string) => track(milestones, key),
     deliver(id: string) {
       const added = deliver(id)
       if (added) persist()

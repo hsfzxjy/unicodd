@@ -24,7 +24,14 @@
         "user": "guest",
         "role": "guest"
       },
-      "welcome": "Guest session opened.",
+      "welcome": "Relay queue online. Incident 8C2F requires maintenance access.",
+      "status": [
+        {
+          "label": "Queue",
+          "value": "8C2F · maintenance only",
+          "after": { "roles": ["maintenance"], "value": "8C2F · readable" }
+        }
+      ],
       "resources": [
         {
           "id": "manual",
@@ -48,7 +55,8 @@
           "id": "frame",
           "path": "/notes/maintenance-frame.txt",
           "type": "file",
-          "content": "files/maintenance-frame.txt"
+          "content": "files/maintenance-frame.txt",
+          "format": "evidence"
         },
         {
           "id": "type_samples",
@@ -67,6 +75,7 @@
           "path": "/queue/8c2f.msg",
           "type": "file",
           "content": "files/8c2f.msg",
+          "format": "evidence",
           "access": {
             "roles": ["maintenance"]
           },
@@ -109,11 +118,20 @@
             "identity": {
               "user": "MAINT",
               "role": "maintenance"
+            },
+            "milestone": {
+              "id": "maintenance-access",
+              "title": "Maintenance access granted",
+              "text": "The incident message is readable in the maintenance session."
             }
           },
           {
             "type": "message",
             "text": "Authentication accepted. Resolved identity: MAINT. Session elevated."
+          },
+          {
+            "type": "resourceLink",
+            "resource": "incident"
           }
         ],
         "failure": "Login rejected. Account not found.",
@@ -146,6 +164,7 @@
     "text": "Retrieve incident 8C2F from the protected queue.",
     "read": "incident",
     "message": "Incident 8C2F retrieved. Objective complete.",
+    "completionBand": true,
     "onComplete": [
       {
         "type": "deliverMail",

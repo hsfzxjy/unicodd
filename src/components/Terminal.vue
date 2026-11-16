@@ -42,6 +42,9 @@ const scroll = ref<HTMLDivElement>()
 const frame = ref<HTMLElement>()
 const composer = ref<InstanceType<typeof CommandComposer>>()
 const readsControls = ref<InstanceType<typeof TerminalReads>>()
+const compactLayout = window.matchMedia('(max-width: 830px)')
+const compact = ref(compactLayout.matches)
+const updateCompact = () => (compact.value = compactLayout.matches)
 const following = ref(true)
 const unseenProgress = ref(false)
 const collapsedAnnouncement = ref('')
@@ -193,10 +196,12 @@ const transcriptResize = new ResizeObserver(() => {
   } else if (following.value) scrollToEnd()
 })
 onMounted(() => {
+  compactLayout.addEventListener('change', updateCompact)
   document.addEventListener('selectionchange', readResourceSelection)
   if (scroll.value) transcriptResize.observe(scroll.value)
 })
 onUnmounted(() => {
+  compactLayout.removeEventListener('change', updateCompact)
   document.removeEventListener('selectionchange', readResourceSelection)
   transcriptResize.disconnect()
 })
@@ -639,12 +644,23 @@ defineExpose({
           :can-go-back="reading && !resultReturn"
           :result="result"
           :can-return-to-read="Boolean(resultReturn)"
+          :trigger-target="compact ? composer?.promptTools : undefined"
           @open="openRead"
           @back="back"
           @result="showResult"
-        />
+        >
+          <button
+            v-if="compact && connected && composer?.structured"
+            type="button"
+            title="Files"
+            :disabled="busy"
+            @click="emit('action', { type: 'ls' })"
+          >
+            ls
+          </button>
+        </TerminalReads>
         <button
-          v-for="link in shortcuts"
+          v-for="link in compact ? [] : shortcuts"
           :key="link.action.type"
           type="button"
           :data-action="link.action.type"

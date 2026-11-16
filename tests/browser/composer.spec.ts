@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { commandControl } from './command-controls'
 import { commandRegistry } from '../../src/lib/commands'
 
 const free = (page: Page) => page.getByRole('textbox', { name: 'Terminal command', exact: true })
@@ -81,7 +82,7 @@ test('shows exact draft lengths and keeps the insertion point visible in the Uni
 }, info) => {
   await page.setViewportSize({ width: 390, height: 435 })
   await relay(page)
-  await quick(page, 'login').click()
+  await commandControl(page, 'login')
   const alias = field(page, 'Account alias')
   const stats = page.locator('.argument-lengths')
   const caret = page.locator('.argument-caret')
@@ -176,7 +177,7 @@ test('reveals timed command output at its configured boundaries', async ({ page 
 
 test('inspects UTF-8 byte groups and selects their source scalar', async ({ page }, info) => {
   await relay(page)
-  await quick(page, 'login').click()
+  await commandControl(page, 'login')
   const alias = field(page, 'Account alias')
   const bytes = page.getByRole('button', { name: 'UTF-8 bytes', exact: true })
   const grid = page.getByRole('group', { name: 'Account alias UTF-8 bytes' })
@@ -270,7 +271,7 @@ test('collapses individual results and reuses the full command as an editable dr
   const last = entries.last()
   await expect(last.locator('.command-echo bdi')).toHaveText(command.slice(0, 511) + '…')
   const count = await entries.count()
-  await quick(page, 'login').click()
+  await commandControl(page, 'login')
   await field(page, 'Account alias').fill('🧪é')
   await last.getByRole('button', { name: 'Edit this command' }).click()
   await expect(free(page)).toHaveValue(command)
@@ -282,7 +283,7 @@ test('collapses individual results and reuses the full command as an editable dr
   await expect(field(page, 'path')).toHaveValue('./notes')
   await expect(field(page, 'path')).toBeFocused()
   await expect(entries).toHaveCount(count)
-  await quick(page, 'login').click()
+  await commandControl(page, 'login')
   await expect(field(page, 'Account alias')).toHaveValue('🧪é')
 
   await typed(page, 'whoami')
@@ -314,7 +315,7 @@ for (const [width, height] of [
     }, info) => {
       await page.emulateMedia({ reducedMotion: 'reduce' })
       await relay(page)
-      for (let i = 0; i < 12; i++) await quick(page, 'ls').click()
+      for (let i = 0; i < 12; i++) await commandControl(page, 'ls', undefined, true)
       await typed(page, 'ls ./notes')
       const entry = log(page).locator('.terminal-entry').last()
       await expect(entry.getByRole('button', { name: 'keypad.txt' })).toBeVisible()
@@ -351,7 +352,7 @@ test('switches commands without execution, navigates the menu and restores scope
   page,
 }) => {
   await relay(page)
-  await quick(page, 'login').click()
+  await commandControl(page, 'login')
   const alias = field(page, 'Account alias')
   await alias.fill('a🧪é​')
   await selection(alias, 1, 3)
@@ -442,7 +443,7 @@ test('retains failed arguments and cursor context, recalls structured history an
   page,
 }) => {
   await relay(page)
-  await quick(page, 'login').click()
+  await commandControl(page, 'login')
   const alias = field(page, 'Account alias')
   await alias.fill('a🧪é​')
   await selection(alias, 1, 3)
@@ -474,10 +475,10 @@ test('retains failed arguments and cursor context, recalls structured history an
   await page.reload()
   await expect(mailEntry.locator('.command-line')).toHaveText(/local.*mail favor/)
   await expect(alias).toHaveValue('draft with spaces\n')
-  await quick(page, 'logout').click()
+  await commandControl(page, 'logout', undefined, true)
   await expect(page.locator('.prompt-host').last()).toHaveText('local ›')
   await log(page).getByRole('button', { name: 'relay-07', exact: true }).last().click()
-  await quick(page, 'login').click()
+  await commandControl(page, 'login')
   await expect(alias).not.toHaveValue('draft with spaces\n')
 })
 
@@ -572,7 +573,7 @@ test('advances and reverses through both route fields and preserves both reconst
   await expect(a).toHaveValue('Mira')
   await expect(b).toHaveValue('M🧪ra')
   await typed(page, 'inspect U+0456')
-  await quick(page, 'reconstruct').click()
+  await commandControl(page, 'reconstruct')
   await log(page)
     .getByRole('region', { name: 'Unicode U+0456' })
     .getByRole('button', { name: 'Replace', exact: true })
@@ -591,7 +592,7 @@ test('keeps a long structured command and its menu usable at 320 × 430', async 
   await typed(page, 'login 𝐌AINT')
   await typed(page, 'cat /queue/8c2f.msg')
   await page.getByRole('combobox', { name: 'Case' }).selectOption('002-dead-letter')
-  await quick(page, 'route').click()
+  await commandControl(page, 'route')
   const header = field(page, 'Header recipient')
   const draft = 'a🧪é'.repeat(45)
   await header.fill(draft)
@@ -677,11 +678,11 @@ for (const [width, height] of [
       await capture('03-path')
       await run(page).click()
       await expect(log(page).locator('.terminal-entry').last()).toContainText('/')
-      await quick(page, 'login').click()
+      await commandControl(page, 'login')
       const alias = field(page, 'Account alias')
       await expect(alias).toHaveAttribute('placeholder', 'Account alias')
       await alias.fill('a🧪é​'.repeat(100))
-      expect((await alias.boundingBox())!.height).toBe(width <= 768 ? 44 : 36)
+      expect((await alias.boundingBox())!.height).toBe(width === 768 ? 44 : 36)
       await selection(alias, 0, 1)
       await page
         .getByRole('form', { name: 'Command composer' })

@@ -1,9 +1,10 @@
 import { expect, test, type Page } from '@playwright/test'
+import { commandControl } from './command-controls'
 
 async function fixture(page: Page) {
   await page.goto('/')
   await page.getByRole('button', { name: 'relay-07', exact: true }).click()
-  await page.getByRole('button', { name: 'login', exact: true }).click()
+  await commandControl(page, 'login')
   await expect(page.getByRole('textbox', { name: 'Account alias' })).toBeVisible()
 }
 

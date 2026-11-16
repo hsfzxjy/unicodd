@@ -118,9 +118,14 @@ const normalization = computed(() => {
         </button>
       </div>
     </div>
-    <p v-if="row.details.ok" class="inspection-metadata meta">
-      <bdi v-if="row.details.value.name">{{ row.details.value.name }}</bdi>
-      <span>{{ row.details.value.script.replaceAll('_', ' ') }} script</span>
+    <p v-if="row.details.ok || row.category" class="inspection-metadata meta">
+      <span v-if="row.category" class="inspection-category compact-category">{{
+        row.category
+      }}</span>
+      <template v-if="row.details.ok">
+        <bdi v-if="row.details.value.name">{{ row.details.value.name }}</bdi>
+        <span>{{ row.details.value.script.replaceAll('_', ' ') }} script</span>
+      </template>
     </p>
     <p class="inspection-encoding meta">
       <span

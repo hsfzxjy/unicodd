@@ -318,7 +318,13 @@ function toggle(view: Inspector) {
     if (!panel || !list?.clientHeight || list.scrollHeight <= list.clientHeight) return
     if (!narrow.matches && !list.closest('.short-viewport')) return
     // Reveal the start of the inspector without moving the transcript or the command bar.
-    const preview = Math.min(panel.offsetHeight, 80, list.clientHeight * 0.7)
+    const firstPoint = panel.querySelector('.point')
+    const preview = Math.min(
+      firstPoint
+        ? firstPoint.getBoundingClientRect().bottom - panel.getBoundingClientRect().top
+        : panel.offsetHeight,
+      list.clientHeight,
+    )
     const hidden = panel.getBoundingClientRect().top + preview - list.getBoundingClientRect().bottom
     if (hidden > 0) list.scrollTop += hidden
   })

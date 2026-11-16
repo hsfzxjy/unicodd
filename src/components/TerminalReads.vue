@@ -8,6 +8,7 @@ defineProps<{
   canGoBack: boolean
   result?: { milestone: boolean }
   canReturnToRead: boolean
+  triggerTarget?: HTMLElement
 }>()
 const emit = defineEmits<{ open: [EarlierRead, boolean]; back: []; result: [boolean] }>()
 const trigger = ref<HTMLButtonElement>()
@@ -88,41 +89,44 @@ defineExpose({ close })
 </script>
 
 <template>
-  <button
-    ref="trigger"
-    type="button"
-    :aria-controls="menuId"
-    :aria-expanded="opened"
-    aria-label="Earlier reads"
-    title="Earlier reads"
-    @mousedown="keepEditing"
-    @click="toggle"
-  >
-    <BookOpen aria-hidden="true" /> Reads
-  </button>
-  <div
-    :id="menuId"
-    ref="menu"
-    class="reads-menu"
-    popover="auto"
-    tabindex="-1"
-    @toggle="opened = ($event as ToggleEvent).newState === 'open'"
-  >
-    <ul v-if="reads.length" aria-label="Earlier reads">
-      <li v-for="read in reads" :key="read.key">
-        <button
-          type="button"
-          class="read-choice"
-          @mousedown="keepEditing"
-          @click="choose(read, $event)"
-        >
-          <bdi>{{ read.label }}</bdi>
-          <bdi class="read-source">{{ read.source }}</bdi>
-        </button>
-      </li>
-    </ul>
-    <p v-else class="reads-empty">Open a file or message to see it here.</p>
-  </div>
+  <Teleport :to="triggerTarget ?? 'body'" :disabled="!triggerTarget">
+    <slot />
+    <button
+      ref="trigger"
+      type="button"
+      :aria-controls="menuId"
+      :aria-expanded="opened"
+      aria-label="Earlier reads"
+      title="Earlier reads"
+      @mousedown="keepEditing"
+      @click="toggle"
+    >
+      <BookOpen aria-hidden="true" /> Reads
+    </button>
+    <div
+      :id="menuId"
+      ref="menu"
+      class="reads-menu"
+      popover="auto"
+      tabindex="-1"
+      @toggle="opened = ($event as ToggleEvent).newState === 'open'"
+    >
+      <ul v-if="reads.length" aria-label="Earlier reads">
+        <li v-for="read in reads" :key="read.key">
+          <button
+            type="button"
+            class="read-choice"
+            @mousedown="keepEditing"
+            @click="choose(read, $event)"
+          >
+            <bdi>{{ read.label }}</bdi>
+            <bdi class="read-source">{{ read.source }}</bdi>
+          </button>
+        </li>
+      </ul>
+      <p v-else class="reads-empty">Open a file or message to see it here.</p>
+    </div>
+  </Teleport>
   <button
     v-if="canGoBack"
     type="button"

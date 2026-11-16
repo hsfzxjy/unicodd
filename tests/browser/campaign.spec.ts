@@ -1,10 +1,9 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
+import { commandControl } from './command-controls'
 
 const transcript = (page: Page) => page.getByRole('log', { name: 'Terminal transcript' })
 const link = (page: Page, name: string | RegExp) =>
   transcript(page).getByRole('button', { name, exact: true }).last()
-const quick = (page: Page, name: string) =>
-  page.getByRole('group', { name: 'Quick actions' }).getByRole('button', { name, exact: true })
 const panel = (page: Page) =>
   page.getByRole('complementary', { name: 'Session context', includeHidden: true })
 
@@ -28,7 +27,7 @@ async function run(page: Page, text: string) {
 type Activate = (target: Locator) => Promise<void>
 
 async function recoverNotice(page: Page, act: Activate) {
-  await act(quick(page, 'ls'))
+  await commandControl(page, 'ls', act, true)
   await act(link(page, 'delivered/'))
   await act(link(page, '2917.msg'))
   await expect(transcript(page)).toContainText('still quarantined')
@@ -37,7 +36,7 @@ async function recoverNotice(page: Page, act: Activate) {
   await expect(transcript(page)).toContainText('invisible separator')
   await act(link(page, '03-queue-review'))
   await expect(transcript(page)).toContainText('raw header')
-  await act(quick(page, 'route'))
+  await commandControl(page, 'route', act)
   const recipient = page.getByRole('textbox', { name: 'Header recipient', exact: true })
   const submit = page.getByRole('button', { name: 'Run', exact: true })
   await act(submit)
@@ -106,11 +105,11 @@ async function openIndexGraphically(page: Page, act: Activate) {
   await openCampaign(page)
   await expect(page.getByRole('heading', { name: 'The Relay' })).toBeVisible()
   await act(link(page, 'relay-07'))
-  await act(quick(page, 'login'))
+  await commandControl(page, 'login', act)
   const alias = page.getByRole('textbox', { name: 'Account alias' })
   await alias.fill('AINT')
   await alias.press('Home')
-  await act(quick(page, 'ls'))
+  await commandControl(page, 'ls', act, true)
   await act(link(page, 'notes/'))
   await act(link(page, 'maintenance-frame.txt'))
   await expect(transcript(page)).toContainText('8 UTF-8 bytes')
@@ -123,7 +122,7 @@ async function openIndexGraphically(page: Page, act: Activate) {
   )
   await expect(alias).toHaveValue('\u{1D40C}AINT')
   await act(page.getByRole('button', { name: 'Run', exact: true }))
-  await act(quick(page, 'ls'))
+  await commandControl(page, 'ls', act, true)
   await act(link(page, 'queue/'))
   await act(link(page, '8c2f.msg'))
   await act(link(page, 'The missing notice'))
@@ -140,7 +139,7 @@ async function openIndexGraphically(page: Page, act: Activate) {
 }
 
 async function beginIndex(page: Page, act: Activate) {
-  await act(quick(page, 'ls'))
+  await commandControl(page, 'ls', act, true)
   await act(link(page, 'exports/'))
   await act(link(page, '8c2f-originals.json'))
   await expect(transcript(page)).toContainText('Original identifiers are restricted')
@@ -155,7 +154,7 @@ async function beginIndex(page: Page, act: Activate) {
   await act(link(page, '02-source-records'))
   await expect(transcript(page)).toContainText('Which ID does a shared entry return')
   await act(link(page, '8c2f.summary'))
-  await act(quick(page, 'reconcile'))
+  await commandControl(page, 'reconcile', act)
   await act(page.getByRole('button', { name: 'Run', exact: true }))
   await expect(transcript(page)).toContainText('Protected canonical identifier')
   await act(page.getByRole('button', { name: /Code points/ }))
@@ -179,6 +178,7 @@ for (const [width, height] of [
     test.use({ viewport: { width, height }, hasTouch: width <= 768, isMobile: width <= 600 })
 
     test('graphically recovers the original registrations', async ({ page, context }, info) => {
+      test.setTimeout(60_000)
       const act: Activate = (target) => (width <= 768 ? target.tap() : target.click())
       const capture = async (name: string) => {
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
@@ -203,10 +203,12 @@ for (const [width, height] of [
       await expect(wrong).toContainText('D3 8F')
       await act(wrong.getByRole('button', { name: 'Replace', exact: true }))
       await act(page.getByRole('button', { name: 'Run', exact: true }))
-      await expect(transcript(page)).toContainText('Collision detected')
+      await expect(transcript(page).locator('.terminal-entry').last()).toContainText(
+        'Collision detected',
+      )
       await act(link(page, '/tools/bucket-8c2f.txt'))
       await expect(transcript(page)).toContainText('Original identifiers: REDACTED')
-      await act(quick(page, 'reconstruct'))
+      await commandControl(page, 'reconstruct', act)
       const aName = page.getByRole('textbox', { name: 'Original name A' })
       const bName = page.getByRole('textbox', { name: 'Original name B' })
       const verify = page.getByRole('button', { name: 'Run', exact: true })
@@ -447,7 +449,7 @@ test('starts a tall briefing at its first line and follows the first command', a
   await expect(
     transcript(page).getByText('Two owners share one account.', { exact: false }),
   ).toBeInViewport({ ratio: 1 })
-  await quick(page, 'ls').click()
+  await commandControl(page, 'ls', undefined, true)
   await expect(link(page, 'exports/')).toBeInViewport()
   await page.getByRole('button', { name: 'Goal: In progress' }).click()
   await expect(

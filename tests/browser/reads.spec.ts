@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { commandControl } from './command-controls'
 import { routeFixtures } from './content-routes'
 
 const log = (page: Page) => page.getByRole('log', { name: 'Terminal transcript' })
@@ -60,7 +61,7 @@ test.describe('Earlier reads at keyboard height', () => {
       .getByRole('button', { name: 'Toggle command output', exact: true })
     await disclosure.tap()
     await expect(disclosure).toHaveAttribute('aria-expanded', 'false')
-    await button(page, 'route').tap()
+    await commandControl(page, 'route', (target) => target.tap())
     const envelope = page.getByRole('textbox', { name: 'Envelope recipient' })
     const setDraft = async () => {
       await envelope.focus()

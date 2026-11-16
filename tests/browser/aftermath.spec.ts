@@ -1,11 +1,10 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
+import { commandControl } from './command-controls'
 
 const transcript = (page: Page) => page.getByRole('log', { name: 'Terminal transcript' })
 const last = (page: Page) => transcript(page).locator('.terminal-entry').last()
 const link = (page: Page, name: string) =>
   transcript(page).getByRole('button', { name, exact: true }).last()
-const quick = (page: Page, name: string) =>
-  page.getByRole('group', { name: 'Quick actions' }).getByRole('button', { name, exact: true })
 const field = (page: Page, name: string) => page.getByRole('textbox', { name, exact: true })
 const run = (page: Page) => page.getByRole('button', { name: 'Run', exact: true })
 const scenario = (page: Page) => page.getByRole('combobox', { name: 'Case' })
@@ -57,10 +56,10 @@ for (const [width, height] of [
       await page.goto('/')
       await page.getByRole('region', { name: 'Terminal', exact: true }).waitFor({ timeout: 20_000 })
       await expect(scenario(page)).toHaveValue('006-the-release')
-      await act(quick(page, 'local campaign'))
+      await commandControl(page, 'local campaign', act, true)
       await act(link(page, 'The Other Side'))
       await expect(scenario(page)).toHaveValue('007-the-other-side')
-      await act(quick(page, 'ls'))
+      await commandControl(page, 'ls', act, true)
       await act(link(page, 'outbox/'))
       await act(link(page, 'contracts.txt'))
       await expect(last(page)).toContainText('Final path segment ends')
@@ -71,7 +70,7 @@ for (const [width, height] of [
         throw new Error('Both receipt URLs must be available in the outbox.')
       expect(secondUrl.endsWith('Cafe\u0301')).toBe(true)
 
-      await act(quick(page, 'resolve'))
+      await commandControl(page, 'resolve', act)
       const url = field(page, 'Destination URL')
       await url.fill(secondUrl)
       await submit()
@@ -111,10 +110,10 @@ for (const [width, height] of [
       await act(link(page, 'The Fragments'))
       await expect(scenario(page)).toHaveValue('008-the-fragments')
 
-      await act(quick(page, 'capture'))
+      await commandControl(page, 'capture', act)
       await submit()
       await expect(last(page)).toContainText('0..49 of 49 bytes')
-      await act(quick(page, 'capture'))
+      await commandControl(page, 'capture', act)
       const offset = field(page, 'Byte offset')
       await offset.fill('0')
       await offset.evaluate((el: HTMLTextAreaElement) => {
@@ -131,7 +130,7 @@ for (const [width, height] of [
       await submit()
       await expect(last(page)).toContainText('14..49 of 49 bytes')
 
-      await act(quick(page, 'deframe'))
+      await commandControl(page, 'deframe', act)
       if (width < 600) await page.setViewportSize({ width, height: 435 })
       await expect(run(page)).toBeInViewport({ ratio: 1 })
       await submit()
@@ -156,7 +155,7 @@ for (const [width, height] of [
       await act(link(page, 'The Boundary'))
       await expect(scenario(page)).toHaveValue('009-the-boundary')
 
-      await act(quick(page, 'mirror'))
+      await commandControl(page, 'mirror', act)
       await act(page.getByRole('button', { name: /^Change command:/ }))
       await act(page.getByRole('menuitemradio', { name: /^identifier\b/u }))
       const label = field(page, 'Original label')
@@ -167,13 +166,13 @@ for (const [width, height] of [
       await label.dispatchEvent('compositionend', { data: 'Ᲊora' })
       await submit()
       await expect(last(page)).toContainText('unassigned')
-      await act(quick(page, 'identifier'))
+      await commandControl(page, 'identifier', act)
       await label.fill(String.raw`\u001C89ora`)
       await field(page, 'Unicode version').fill('18.0')
       await submit()
       await expect(last(page)).toContainText('XID_Start true')
 
-      await act(quick(page, 'mirror'))
+      await commandControl(page, 'mirror', act)
       await field(page, 'Label storage').fill('opaque')
       await field(page, 'Legacy handle policy').fill('suffix')
       await submit()
@@ -194,7 +193,7 @@ for (const [width, height] of [
       ).toBeVisible()
       await page.reload()
       await expect(scenario(page)).toHaveValue('009-the-boundary')
-      await act(quick(page, 'local campaign'))
+      await commandControl(page, 'local campaign', act, true)
       await expect(last(page)).toContainText('The Needle')
     })
   })

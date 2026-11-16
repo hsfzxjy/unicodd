@@ -48,6 +48,7 @@ const input = ref<HTMLInputElement>()
 const tag = ref<HTMLButtonElement>()
 const commandPicker = ref<HTMLButtonElement>()
 const runButton = ref<HTMLButtonElement>()
+const promptTools = ref<HTMLElement>()
 let compositionCommit: string | undefined
 const menu = ref<HTMLElement>()
 const text = ref('')
@@ -546,6 +547,8 @@ async function reuseCommand(value: string) {
   input.value?.setSelectionRange(value.length, value.length)
 }
 defineExpose({
+  promptTools,
+  structured: computed(() => Boolean(selected.value)),
   selectCommand,
   applyText,
   insertCommand,
@@ -645,6 +648,7 @@ defineExpose({
         >
           Run
         </button>
+        <div ref="promptTools" class="prompt-tools"></div>
       </div>
       <div v-if="selected && (fields.length || fixedFields.length)" class="composer-arguments">
         <div v-if="fixedFields.length" class="composer-fixed meta">

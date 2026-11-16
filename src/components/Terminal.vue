@@ -2,10 +2,11 @@
 import { nextTick, onMounted, onUnmounted, reactive, ref, useId, watch } from 'vue'
 import CommandComposer from './CommandComposer.vue'
 import type { OperationBinding } from '../lib/scenario'
-import TerminalFile from './TerminalFile.vue'
 import TerminalInspection from './TerminalInspection.vue'
-import TerminalMail from './TerminalMail.vue'
 import TerminalProgress from './TerminalProgress.vue'
+import TerminalReads from './TerminalReads.vue'
+import TerminalResource from './TerminalResource.vue'
+import { useTerminalReads } from './terminalReads'
 import { commandRegistry } from '../lib/commands'
 import { linkStatus, type Action, type Link, type Session } from '../lib/runtime'
 import { inspectRange, notation, unpairedSurrogate } from '../lib/unicode'
@@ -39,11 +40,34 @@ const scrollSpace = '--transcript-scroll-space'
 const scroll = ref<HTMLDivElement>()
 const frame = ref<HTMLElement>()
 const composer = ref<InstanceType<typeof CommandComposer>>()
+const readsControls = ref<InstanceType<typeof TerminalReads>>()
 const following = ref(true)
 const unseenProgress = ref(false)
 const collapsedAnnouncement = ref('')
 const selectedScalar = ref<string>()
 const collapsed = reactive(new Set<number>())
+const {
+  reads,
+  reading,
+  archived,
+  result,
+  resultReturn,
+  openRead,
+  remember,
+  back,
+  showResult,
+  latest,
+  reset: resetReads,
+  workingPosition,
+} = useTerminalReads({
+  entries: () => props.transcript,
+  scroll,
+  following,
+  expand: (id) => collapsed.delete(id),
+  move: moveTranscript,
+  followLatest: scrollToEnd,
+  change: () => emit('change'),
+})
 
 function hexadecimal(value: number, width: number) {
   return value.toString(16).toUpperCase().padStart(width, '0')
@@ -62,23 +86,26 @@ async function toggleOutput(id: number) {
   if (collapsed.has(id)) collapsed.delete(id)
   else collapsed.add(id)
   await nextTick()
-  if (box && box === scroll.value) {
-    const last = box.lastElementChild
-    if (last && top > 0) {
-      // The last entry gives the natural end even when the content fits inside the viewport.
-      const contentEnd =
-        last.getBoundingClientRect().bottom -
-        box.getBoundingClientRect().top +
-        box.scrollTop +
-        Number.parseFloat(getComputedStyle(box).paddingBottom)
-      const space = Math.ceil(top + box.clientHeight - contentEnd)
-      if (space > 0) box.style.setProperty(scrollSpace, `${space}px`)
-      else box.style.removeProperty(scrollSpace)
-    }
-    box.scrollTop = top
-  }
+  if (box && box === scroll.value) moveTranscript(top)
   trackScroll()
   readResourceSelection()
+}
+
+function moveTranscript(top: number) {
+  const box = scroll.value
+  if (!box) return
+  const last = box.lastElementChild
+  const end = last
+    ? last.getBoundingClientRect().bottom -
+      box.getBoundingClientRect().top +
+      box.scrollTop +
+      Number.parseFloat(getComputedStyle(box).paddingBottom)
+    : 0
+  // Reserve space for a deliberate position near the end, even after collapsing output.
+  const space = Math.ceil(top + box.clientHeight - end)
+  if (last && top > 0 && space > 0) box.style.setProperty(scrollSpace, `${space}px`)
+  else box.style.removeProperty(scrollSpace)
+  box.scrollTop = top
 }
 
 function scrollToEnd() {
@@ -87,7 +114,7 @@ function scrollToEnd() {
     box.style.removeProperty(scrollSpace)
     box.scrollTop = box.scrollHeight
   }
-  following.value = true
+  following.value = !reading.value
   unseenProgress.value = false
 }
 
@@ -103,21 +130,25 @@ function trackScroll() {
     const space = Number.parseFloat(box.style.getPropertyValue(scrollSpace))
     const distance = box.scrollHeight - box.scrollTop - box.clientHeight
     if (space && (box.scrollTop === 0 || distance >= space)) box.style.removeProperty(scrollSpace)
-    following.value = box.scrollHeight - box.scrollTop - box.clientHeight < (atOpening() ? 1 : 28)
+    following.value =
+      !reading.value && box.scrollHeight - box.scrollTop - box.clientHeight < (atOpening() ? 1 : 28)
   }
   if (following.value) unseenProgress.value = false
   emit('change')
 }
 
 function saveView(): TerminalView {
+  const working = workingPosition()
   return {
     collapsed: [...collapsed],
-    scrollTop: scroll.value?.scrollTop ?? 0,
-    following: following.value,
+    scrollTop: working?.scrollTop ?? scroll.value?.scrollTop ?? 0,
+    following: working?.following ?? following.value,
   }
 }
 
 function restoreView(view?: TerminalView) {
+  readsControls.value?.close()
+  resetReads()
   collapsed.clear()
   if (Array.isArray(view?.collapsed))
     for (const id of view.collapsed)
@@ -199,6 +230,7 @@ function revealOutput(
   focus: boolean,
   followOnly = false,
 ) {
+  if (reading.value && kind === 'report' && !focus) return
   if (followOnly && !following.value) return
   const entry = props.transcript.at(-1)
   if (!entry || collapsed.has(entry.id)) return
@@ -206,6 +238,7 @@ function revealOutput(
   const selector = kind === 'inspection' ? '.inspection' : '.terminal-' + kind
   const latest = box?.lastElementChild?.querySelector<HTMLElement>(selector)
   if (!box || !latest) return
+  remember()
   const start =
     kind === 'report' ? (latest.closest<HTMLElement>('.entry-output') ?? latest) : latest
   if (start.offsetHeight + 12 > box.clientHeight) {
@@ -292,7 +325,7 @@ defineExpose({
           class="latest-output"
           :class="{ 'latest-progress': unseenProgress }"
           :aria-label="unseenProgress ? 'Latest output, new milestone' : 'Latest output'"
-          @click="scrollToEnd"
+          @click="latest"
         >
           <span class="latest-output-label"
             >Latest<span class="latest-output-word"> output</span></span
@@ -313,9 +346,23 @@ defineExpose({
       tabindex="0"
       @scroll="trackScroll"
     >
+      <section
+        v-if="archived"
+        :key="archived.entry"
+        :data-entry-id="archived.entry"
+        class="earlier-read"
+        aria-label="Earlier read"
+        aria-live="off"
+      >
+        <p class="earlier-read-label">
+          Earlier read · <bdi>{{ archived.source }}</bdi>
+        </p>
+        <TerminalResource :output="archived.output" :busy="busy" @action="emit('action', $event)" />
+      </section>
       <article
         v-for="entry in transcript"
         :key="entry.id"
+        :data-entry-id="entry.id"
         class="terminal-entry"
         :class="{ 'has-command': entry.echo !== undefined, 'remote-entry': entry.connected }"
       >
@@ -402,20 +449,11 @@ defineExpose({
                   </li>
                 </ul>
               </div>
-              <TerminalFile
-                v-else-if="row.kind === 'file'"
-                :path="row.path"
-                :text="row.text"
-                :inspect-lines="row.inspectLines"
-                :inspect-notation="row.inspectNotation"
-                :format="row.format"
+              <TerminalResource
+                v-else-if="row.kind === 'file' || row.kind === 'mail'"
+                :output="row"
                 :busy="busy"
                 @action="emit('action', $event)"
-              />
-              <TerminalMail
-                v-else-if="row.kind === 'mail'"
-                :path="row.path"
-                :messages="row.messages"
               />
               <button
                 v-else-if="row.kind === 'mailNotice'"
@@ -587,6 +625,16 @@ defineExpose({
     </div>
     <div class="terminal-controls">
       <div class="toolbar shortcuts" aria-label="Quick actions" role="group">
+        <TerminalReads
+          ref="readsControls"
+          :reads="reads"
+          :can-go-back="reading && !resultReturn"
+          :result="result"
+          :can-return-to-read="Boolean(resultReturn)"
+          @open="openRead"
+          @back="back"
+          @result="showResult"
+        />
         <button
           v-for="link in shortcuts"
           :key="link.action.type"

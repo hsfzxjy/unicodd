@@ -270,7 +270,9 @@ function toggleSession(section = 'session') {
       const scroll = panel?.parentElement
       if (!panel || !scroll) return
       const target =
-        section === 'campaign' || section.startsWith('host-')
+        section === 'campaign' ||
+        section.startsWith('host-') ||
+        (section === 'session' && shortViewport.value)
           ? panel.querySelector<HTMLElement>(`[data-status-key="${section}"]`)
           : null
       scroll.scrollTop = target
@@ -609,7 +611,10 @@ async function dispatch(action: Action, command?: string) {
                 'status-selected': sessionExpanded && sessionSection === item.key,
               }"
               :aria-label="item.name"
-              :title="item.detail"
+              :aria-description="item.key === 'goal' ? scenario.objective.text : undefined"
+              :title="
+                item.key === 'goal' ? `${item.detail}\n${scenario.objective.text}` : item.detail
+              "
               aria-controls="session-details"
               :aria-expanded="sessionExpanded"
               @click="toggleSession(item.key)"
@@ -626,8 +631,12 @@ async function dispatch(action: Action, command?: string) {
                 <bdi class="context-value">{{ permissionLabel }}</bdi>
               </span>
               <span v-else-if="item.key === 'goal'" class="context-label">
-                <span>Goal</span>{{ ' ' }}
-                <span class="context-value">{{ goalStatus }}</span>
+                <span class="goal-label">Goal</span>{{ ' ' }}
+                <span v-if="caseComplete" class="context-value">{{ goalStatus }}</span>
+                <template v-else>
+                  <span class="goal-stage context-value">{{ goalStatus }}</span>
+                  <bdi class="goal-preview" dir="auto">{{ scenario.objective.text }}</bdi>
+                </template>
               </span>
               <bdi v-else-if="item.label" class="check-label">{{ item.label }}</bdi>
               <span v-if="item.label" class="check-short-label">Host</span>
@@ -678,7 +687,7 @@ async function dispatch(action: Action, command?: string) {
                 All available scenarios complete
               </p>
             </div>
-            <div class="session-identity">
+            <div class="session-identity" data-status-key="session">
               <dl class="session-details">
                 <div>
                   <dt>Location</dt>

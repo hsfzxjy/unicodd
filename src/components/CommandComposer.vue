@@ -46,6 +46,7 @@ const id = useId()
 const root = ref<HTMLElement>()
 const input = ref<HTMLInputElement>()
 const tag = ref<HTMLButtonElement>()
+const commandPicker = ref<HTMLButtonElement>()
 const runButton = ref<HTMLButtonElement>()
 let compositionCommit: string | undefined
 const menu = ref<HTMLElement>()
@@ -470,10 +471,12 @@ function menuKey(event: KeyboardEvent) {
     event.preventDefault()
     event.stopPropagation()
     menuOpen.value = false
-    tag.value?.focus()
+    const trigger = tag.value ?? commandPicker.value
+    trigger?.focus({ preventScroll: true })
     return
   }
-  const count = available.value.length + 1
+  const count = available.value.length + Number(Boolean(selected.value))
+  if (!count) return
   if (['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) {
     event.preventDefault()
     menuIndex.value =
@@ -618,6 +621,23 @@ defineExpose({
           @compositionend="endFreeComposition"
         />
         <button
+          v-if="!selected"
+          ref="commandPicker"
+          type="button"
+          class="command-picker"
+          aria-label="Commands"
+          title="Browse commands"
+          aria-haspopup="menu"
+          :aria-expanded="menuOpen"
+          :aria-controls="menuOpen ? id + '-menu' : undefined"
+          :disabled="busy || composing"
+          @click="toggleMenu"
+          @keydown.down.prevent="toggleMenu"
+          @keydown.up.prevent="toggleMenu"
+        >
+          Commands <ChevronDown class="disclosure-icon" aria-hidden="true" />
+        </button>
+        <button
           ref="runButton"
           type="submit"
           class="run-command"
@@ -626,12 +646,12 @@ defineExpose({
           Run
         </button>
       </div>
-      <div v-if="fixedFields.length" class="composer-fixed meta">
-        <span v-for="field in fixedFields" :key="field.input"
-          ><bdi>{{ field.label }}</bdi> <bdi>{{ field.fixed }}</bdi></span
-        >
-      </div>
-      <div v-if="selected && fields.length" class="composer-arguments">
+      <div v-if="selected && (fields.length || fixedFields.length)" class="composer-arguments">
+        <div v-if="fixedFields.length" class="composer-fixed meta">
+          <span v-for="field in fixedFields" :key="field.input"
+            ><bdi>{{ field.label }}</bdi> <bdi>{{ field.fixed }}</bdi></span
+          >
+        </div>
         <ComposerArgument
           v-for="(field, index) in fields"
           :key="selected + '/' + field.name"
@@ -679,6 +699,7 @@ defineExpose({
         ><span class="meta">{{ command.description }}</span>
       </button>
       <button
+        v-if="selected"
         type="button"
         role="menuitem"
         :tabindex="menuIndex === available.length ? 0 : -1"

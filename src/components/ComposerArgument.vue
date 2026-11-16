@@ -34,6 +34,7 @@ const emit = defineEmits<{
 }>()
 const id = useId()
 const control = ref<HTMLTextAreaElement>()
+const pointView = ref<HTMLElement>()
 const mirror = ref<HTMLDivElement>()
 const drawnCaret = ref<HTMLSpanElement>()
 const focused = ref(false)
@@ -254,7 +255,18 @@ function focusAt(span: Span, focus = true) {
   const raw = props.modelValue
   const start = editorText(raw.slice(0, span.start)).length
   const end = editorText(raw.slice(0, span.end)).length
-  if (focus) field.focus({ preventScroll: true })
+  if (focus) {
+    field.focus({ preventScroll: true })
+    const list = field.closest<HTMLElement>('.composer-arguments')
+    if (list && list.clientHeight && list.scrollHeight > list.clientHeight) {
+      const bounds = list.getBoundingClientRect()
+      const editor = field.getBoundingClientRect()
+      const label = field.closest('.composer-argument')?.getBoundingClientRect()
+      const top = label?.top ?? editor.top
+      if (top < bounds.top) list.scrollTop -= bounds.top - top
+      else if (editor.bottom > bounds.bottom) list.scrollTop += editor.bottom - bounds.bottom
+    }
+  }
   field.setSelectionRange(start, end)
   projection = { raw, start, end }
   selection.value = span
@@ -298,7 +310,18 @@ function selectPoint(span: Span) {
 
 function toggle(view: Inspector) {
   inspector.value = inspector.value === view ? undefined : view
-  if (inspector.value) readSelection()
+  if (!inspector.value) return
+  readSelection()
+  void nextTick(() => {
+    const panel = pointView.value
+    const list = panel?.closest<HTMLElement>('.composer-arguments')
+    if (!panel || !list?.clientHeight || list.scrollHeight <= list.clientHeight) return
+    if (!narrow.matches && !list.closest('.short-viewport')) return
+    // Reveal the start of the inspector without moving the transcript or the command bar.
+    const preview = Math.min(panel.offsetHeight, 80, list.clientHeight * 0.7)
+    const hidden = panel.getBoundingClientRect().top + preview - list.getBoundingClientRect().bottom
+    if (hidden > 0) list.scrollTop += hidden
+  })
 }
 
 function copy(value: string) {
@@ -404,6 +427,7 @@ defineExpose({
     <div
       v-show="active && inspector"
       :id="id + '-points'"
+      ref="pointView"
       class="point-view"
       role="region"
       :aria-label="label + ' Unicode inspector'"

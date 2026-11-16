@@ -41,12 +41,23 @@ const confusables = computed(() =>
 )
 
 const normalization = computed(() => {
-  const seen = new Set([props.row.point.scalar])
+  const seen = new Map<string, string[]>()
   return props.row.normalization.map(({ form, result }) => {
     if (!result.ok) return { form, error: result.error.message }
-    const offerInsert = Boolean(result.value) && !seen.has(result.value)
-    seen.add(result.value)
-    return { form, points: inspect(result.value), text: result.value, offerInsert }
+    const matching = seen.get(result.value)
+    const sameForms: string[] = []
+    if (matching) matching.push(form)
+    else seen.set(result.value, sameForms)
+    const offerInsert =
+      Boolean(result.value) && result.value !== props.row.point.scalar && !matching
+    return {
+      form,
+      points: inspect(result.value),
+      text: result.value,
+      offerInsert,
+      sameForms,
+      repeated: Boolean(matching),
+    }
   })
 })
 </script>
@@ -121,12 +132,16 @@ const normalization = computed(() => {
     </p>
     <dl class="inspection-normalization" aria-label="Normalization">
       <div
-        v-for="{ form, points, text, offerInsert, error } in normalization"
+        v-for="{ form, points, text, offerInsert, error, repeated, sameForms } in normalization"
         :key="form"
         class="inspection-form"
+        :class="{ 'inspection-form-repeat': repeated }"
       >
         <dt>
           <code>{{ form }}</code>
+          <code v-for="same in sameForms" :key="same" class="inspection-form-equivalent">{{
+            same
+          }}</code>
         </dt>
         <dd>
           <template v-if="points">

@@ -439,10 +439,10 @@ h1.terminal-scenario {
   overscroll-behavior: contain;
 }
 .short-viewport .terminal-frame {
-  grid-template-rows: max-content minmax(0, max-content) minmax(52px, 1fr) auto;
+  grid-template-rows: max-content minmax(0, max-content) minmax(72px, 1fr) auto;
 }
 .short-viewport .terminal-session {
-  max-height: min(calc(var(--app-height, 100dvh) * 0.26), 130px);
+  max-height: min(calc(var(--app-height, 100dvh) * 0.17), 86px);
 }
 .session-layer {
   display: grid;
@@ -859,6 +859,11 @@ h1.terminal-scenario {
   align-self: start;
   color: var(--muted);
 }
+.inspection-form-equivalent,
+.context-label .goal-preview,
+.prompt .command-picker {
+  display: none;
+}
 .inspection-form dd {
   align-items: flex-start;
   flex-wrap: nowrap;
@@ -1103,9 +1108,6 @@ h1.terminal-scenario {
   select.terminal-scenario {
     padding-inline: 5px;
   }
-  .terminal-controls {
-    padding-inline: var(--space-1);
-  }
   .shortcuts button {
     padding-inline: 5px;
   }
@@ -1127,16 +1129,6 @@ h1.terminal-scenario {
   }
   .frame-title .session-location .status-mark {
     display: none;
-  }
-}
-@media (max-width: 830px) {
-  .short-viewport .shortcuts {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: thin;
-  }
-  .short-viewport .shortcuts button {
-    flex: none;
   }
 }
 .inspection-encoding {
@@ -1376,7 +1368,7 @@ h1.terminal-scenario {
 .command-menu button:focus {
   outline-offset: -2px;
 }
-.command-menu button:last-child {
+.command-menu button[role='menuitem'] {
   display: block;
   border-top: 1px solid var(--line);
 }
@@ -1489,7 +1481,10 @@ h1.terminal-scenario {
   overscroll-behavior: contain;
 }
 .short-viewport .composer-arguments {
-  max-height: calc(var(--app-height, 100dvh) * 0.31);
+  max-height: min(150px, calc(var(--app-height, 100dvh) * 0.32));
+}
+.short-viewport.session-expanded .composer-arguments {
+  max-height: min(142px, calc(var(--app-height, 100dvh) * 0.26));
 }
 .short-viewport .single-argument .point-view {
   max-height: calc(var(--app-height, 100dvh) * 0.22);
@@ -1524,4 +1519,245 @@ h1.terminal-scenario {
     height: 44px;
     max-height: 44px;
   }
+}
+
+/* Width and visible keyboard height constrain different parts of the Terminal. */
+@media (max-width: 830px) {
+  .terminal-frame {
+    --compact-text: 13px;
+    --compact-meta: 11px;
+    --compact-control: 32px;
+  }
+  .transcript {
+    font-size: var(--compact-text);
+    line-height: 1.46;
+  }
+  .transcript .meta,
+  .mail-headers,
+  .listing-path,
+  .file-path,
+  .listing-detail {
+    font-size: var(--compact-meta);
+  }
+  .mail-headers {
+    grid-template-columns: 7ch minmax(0, 1fr);
+    column-gap: var(--space-1);
+    margin-block: var(--space-1);
+  }
+  .mail-headers .mail-subject,
+  .terminal-mail pre {
+    font-size: 14px;
+  }
+  .terminal-mail pre {
+    margin-top: var(--space-1);
+    line-height: 1.5;
+  }
+  .frame-title .session-context-bar {
+    flex: 1;
+  }
+  .frame-title .session-context-bar .session-location {
+    flex: 0 0 auto;
+  }
+  .session-location .context-label {
+    display: grid;
+    gap: 0;
+  }
+  .frame-title .session-location .context-value {
+    font-size: var(--compact-meta);
+  }
+  .frame-title .goal-status {
+    min-width: 0;
+  }
+  .goal-status:has(.goal-preview) :is(.goal-label, .goal-stage) {
+    display: none;
+  }
+  .context-label .goal-preview {
+    display: -webkit-box;
+    max-inline-size: 34ch;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .goal-status:has(.goal-preview) .status-mark {
+    display: none;
+  }
+  .frame-title .host-status-item .check-label {
+    display: none;
+  }
+  .frame-title .host-status-item .check-short-label {
+    display: inline;
+  }
+  .session-layer {
+    padding-inline: var(--space-2);
+  }
+  .shortcuts {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scroll-padding-inline: var(--space-1);
+  }
+  .shortcuts button {
+    flex: none;
+    min-height: var(--compact-control);
+  }
+  .shortcuts button:focus-visible {
+    outline-offset: -2px;
+  }
+  .prompt .command-picker {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 2px;
+    min-height: var(--touch-height);
+    padding-inline: var(--space-1);
+    color: var(--muted);
+    font: 600 var(--compact-meta)/1.2 var(--sans);
+  }
+  .prompt .command-picker[aria-expanded='true'] {
+    color: var(--accent);
+    background: var(--raised);
+  }
+  .prompt .command-picker[aria-expanded='true'] .disclosure-icon {
+    rotate: 180deg;
+  }
+  .prompt:focus-within {
+    background: var(--inset);
+  }
+  .composer-argument .point-view {
+    padding-inline: var(--space-1);
+    background: transparent;
+  }
+  .composer-argument .pagination {
+    margin-block-end: 2px;
+  }
+  .inspection {
+    margin-top: 0;
+  }
+  .inspection :is(.inspection-category, .inspection-metadata, .inspection-encoding) {
+    font-size: var(--compact-meta);
+  }
+  .inspection :is(.inspection-metadata, .inspection-encoding) {
+    margin-block: 2px;
+  }
+  .inspection .inspection-point {
+    min-height: var(--compact-control);
+    gap: var(--space-1);
+  }
+  .inspection-point bdi {
+    font-size: 15px;
+  }
+  .inspection-form-repeat {
+    display: none;
+  }
+  .inspection-form dt {
+    display: grid;
+    align-content: center;
+    min-height: var(--compact-control);
+    font-size: var(--compact-meta);
+    line-height: 1.15;
+  }
+  .inspection-form-equivalent {
+    display: block;
+  }
+  .inspection-form {
+    border-top: 1px solid var(--line);
+  }
+  .inspection-form dd {
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .inspection-confusables summary {
+    min-height: var(--compact-control);
+  }
+}
+
+@media (max-width: 700px) {
+  .frame-title .session-context-bar .session-location {
+    flex: 0 1 auto;
+    max-width: 42%;
+  }
+  .frame-title .session-context-bar .goal-status {
+    flex: 1;
+    justify-content: flex-start;
+    border-inline-start-color: var(--line);
+  }
+  .session-location .disclosure-icon {
+    display: none;
+  }
+  .context-label .goal-preview {
+    max-inline-size: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .application:not(.short-viewport) .terminal-session {
+    max-height: min(calc(var(--app-height, 100dvh) * 0.22), 186px);
+  }
+  .shortcuts {
+    padding-inline-end: var(--space-3);
+    mask-image: linear-gradient(to left, transparent, #000 var(--space-3));
+    overscroll-behavior-inline: contain;
+    scroll-padding-inline-end: var(--space-3);
+  }
+  .command-line {
+    padding-block: 12px;
+  }
+  .composer-arguments {
+    scrollbar-width: thin;
+    padding-inline-end: var(--space-1);
+  }
+  .structured:not(.single-argument) .composer-argument {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+    padding-block: 2px;
+  }
+  .composer-argument > label,
+  .composer-fixed {
+    font-size: var(--compact-meta);
+    line-height: 1.3;
+  }
+  .argument-editor :is(textarea, .argument-mirror) {
+    line-height: 1.35;
+    padding: 6px var(--space-2);
+  }
+  .structured:not(.single-argument) .argument-editor textarea {
+    min-height: 40px;
+    max-height: 56px;
+    overflow: auto;
+  }
+  .argument-lengths {
+    font-size: var(--compact-meta);
+    line-height: 1.3;
+  }
+  .composer-argument .payload-tools button {
+    min-height: var(--compact-control);
+  }
+  .inspection-summary,
+  .inspection-sequence,
+  .inspection-form dd {
+    gap: 2px var(--space-1);
+  }
+  .inspection-summary > .inspection-category {
+    margin-inline-start: var(--space-1);
+  }
+}
+
+.short-viewport .shortcuts {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.short-viewport .shortcuts button {
+  flex: none;
+}
+.short-viewport .structured:not(.single-argument) .argument-editor textarea {
+  max-height: 52px;
+}
+.short-viewport .structured:not(.single-argument) .argument-editor :is(textarea, .argument-mirror) {
+  line-height: 1.35;
+  padding-block: var(--space-1);
+}
+.short-viewport .session-layer {
+  padding-block: var(--space-1);
 }

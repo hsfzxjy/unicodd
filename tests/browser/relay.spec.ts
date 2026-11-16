@@ -23,7 +23,7 @@ const inspection = (page: Page, notation: string) =>
     .last()
 
 async function run(page: Page, text: string) {
-  const tag = page.getByRole('button', { name: 'Change command', exact: true })
+  const tag = page.getByRole('button', { name: /^Change command:/ })
   if (await tag.count()) {
     await tag.click()
     await page.getByRole('menuitem', { name: 'Edit command name…' }).click()
@@ -121,7 +121,7 @@ test('plays the entire Relay through graphical actions and restores the session 
   await page.reload()
   await expect(panel).toContainText('Local console')
   await expect(panel).toContainText('Complete')
-  await page.getByRole('button', { name: 'Session', exact: true }).click()
+  await page.getByRole('button', { name: /^Session:/ }).click()
   await page.getByRole('button', { name: 'Restart session' }).click()
   await expect(panel).toContainText('Completed earlier')
   await expect(page.getByRole('button', { name: 'Goal: Completed earlier' })).toBeVisible()
@@ -160,7 +160,7 @@ test('reaches equivalent states through typed actions in a different exploration
     'MAINT is not a personal account',
   )
   const suggestions = page.getByRole('group', { name: 'Command suggestions' })
-  const commandTag = page.getByRole('button', { name: 'Change command' })
+  const commandTag = page.getByRole('button', { name: /^Change command:/ })
   const menu = page.getByRole('menu', { name: 'Commands' })
   await cmd(page).fill('local ')
   await expect(cmd(page)).toHaveValue('local ')
@@ -341,7 +341,7 @@ test('saves level workspaces and drops their command history when a game text ch
   const runButton = page.getByRole('button', { name: 'Run', exact: true })
   await expect(runButton).toBeInViewport({ ratio: 1 })
   await page.screenshot({ path: info.outputPath('restored-level-compact.png') })
-  const session = page.getByRole('button', { name: 'Session', exact: true })
+  const session = page.getByRole('button', { name: /^Session:/ })
   await session.click()
   await expect(contextPanel(page)).toBeVisible()
   await expect(runButton).toBeInViewport({ ratio: 1 })
@@ -574,7 +574,7 @@ test.describe('mobile Unicode sequence', () => {
     await input.press('Home')
     await input.press('ArrowRight')
     await input.press('Shift+ArrowRight')
-    await page.getByRole('button', { name: 'Session', exact: true }).tap()
+    await page.getByRole('button', { name: /^Session:/ }).tap()
     await page.setViewportSize({ width: 1280, height: 800 })
     await expect(page.locator('.terminal-frame #session-details')).toBeVisible()
     await page.setViewportSize({ width: 390, height: 844 })
@@ -619,7 +619,7 @@ for (const [width, height] of [
         else await target.click()
       }
       const frame = page.getByRole('region', { name: 'Terminal', exact: true })
-      const sessionToggle = frame.getByRole('button', { name: 'Session', exact: true })
+      const sessionToggle = frame.getByRole('button', { name: /^Session:/ })
       await openRelay(page)
       await expect(contextPanel(page)).toBeHidden()
       await expect(sessionToggle).toHaveAttribute('aria-expanded', 'false')
@@ -634,7 +634,7 @@ for (const [width, height] of [
       await capture('01-incoming-mail')
       await act(link(page, 'relay-07'))
       await expect(
-        frame.getByRole('button', { name: 'Incident 8C2F: Message locked' }),
+        frame.getByRole('button', { name: 'Host: Incident 8C2F: Message locked' }),
       ).toBeInViewport()
       await capture('02-guest')
       await act(quick(page, 'ls'))
@@ -714,9 +714,9 @@ for (const [width, height] of [
       await expect(terminal(page)).toContainText('Authentication accepted')
       await expect(contextPanel(page)).toBeHidden()
       await expect(sessionToggle).toHaveAttribute('title', /Permissions: maintenance/)
-      const queue = frame.getByRole('button', { name: 'Incident 8C2F: Message readable' })
+      const queue = frame.getByRole('button', { name: 'Host: Incident 8C2F: Message readable' })
       await expect(queue).toBeInViewport()
-      await expect(queue.locator('.status-mark')).toHaveText('✓')
+      await expect(queue.locator('.status-mark')).toHaveClass(/lucide-check/)
       await act(queue)
       await expect(sessionToggle).toHaveAttribute('aria-expanded', 'true')
       await expect(frame.locator('#session-details')).toBeVisible()

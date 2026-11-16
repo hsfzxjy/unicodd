@@ -14,7 +14,7 @@ async function openCampaign(page: Page, path = '/') {
 }
 
 async function run(page: Page, text: string) {
-  const tag = page.getByRole('button', { name: 'Change command', exact: true })
+  const tag = page.getByRole('button', { name: /^Change command:/ })
   if (await tag.count()) {
     await tag.click()
     await page.getByRole('menuitem', { name: 'Edit command name…' }).click()
@@ -81,7 +81,7 @@ test('recovers Dead Letter by graphical actions from the development entry', asy
   await page.setViewportSize({ width: 390, height: 420 })
   await openCampaign(page, '/?scenario=002-dead-letter')
   await expect(panel(page)).toContainText('guest')
-  const notice = page.getByRole('button', { name: 'Notice 2917: Delivery paused' })
+  const notice = page.getByRole('button', { name: 'Host: Notice 2917: Delivery paused' })
   await expect(notice.locator('.status-mark')).toBeInViewport()
   await notice.click()
   await expect(panel(page).getByText('Delivery paused', { exact: true })).toBeInViewport()
@@ -97,7 +97,7 @@ test('recovers Dead Letter by graphical actions from the development entry', asy
   await page.setViewportSize({ width: 1280, height: 800 })
   await recoverNotice(page, (target) => target.click())
   await expect(
-    page.getByRole('button', { name: 'Notice 2917: Released for delivery' }),
+    page.getByRole('button', { name: 'Host: Notice 2917: Released for delivery' }),
   ).toBeInViewport()
   await expect(panel(page)).toContainText('Complete')
 })
@@ -190,10 +190,10 @@ for (const [width, height] of [
       if (process.env.PLAYWRIGHT_TEST_PREVIEW || width === 390 || width === 1440)
         await openIndexGraphically(page, act)
       else await openCampaign(page, '/?scenario=003-the-index')
-      await act(page.getByRole('button', { name: 'Session', exact: true }))
+      await act(page.getByRole('button', { name: /^Session:/ }))
       await expect(panel(page)).toContainText('auditor')
       await capture('01-auditor')
-      await act(page.getByRole('button', { name: 'Session', exact: true }))
+      await act(page.getByRole('button', { name: /^Session:/ }))
       const candidateLink = await beginIndex(page, act)
       await candidateLink.scrollIntoViewIfNeeded()
       await capture('02-confusables')
@@ -370,7 +370,7 @@ test('completes and replays the recovery and archive arcs across reloads', async
   await expect(page.getByRole('button', { name: 'Goal: Complete', exact: true })).toBeVisible()
   await run(page, 'local scenario 001-the-relay')
   await expect(panel(page)).toContainText('maintenance')
-  await page.getByRole('button', { name: 'Session', exact: true }).click()
+  await page.getByRole('button', { name: /^Session:/ }).click()
   await page.getByRole('button', { name: 'Restart session' }).click()
   await expect(panel(page)).toContainText('Completed earlier')
   await run(page, 'connect relay-07')

@@ -85,7 +85,7 @@ for (const [width, height] of [
       const prompt = field(page, 'Terminal command')
       await prompt.fill('dispatch')
       await prompt.press('Space')
-      await expect(page.getByRole('button', { name: 'Change command' })).toContainText('dispatch')
+      await expect(page.getByRole('button', { name: /^Change command:/ })).toContainText('dispatch')
       await field(page, 'GW-1842 URL').fill(firstUrl)
       await field(page, 'GW-2917 URL').fill(secondUrl)
       await submit()
@@ -157,7 +157,7 @@ for (const [width, height] of [
       await expect(scenario(page)).toHaveValue('009-the-boundary')
 
       await act(quick(page, 'mirror'))
-      await act(page.getByRole('button', { name: 'Change command' }))
+      await act(page.getByRole('button', { name: /^Change command:/ }))
       await act(page.getByRole('menuitemradio', { name: /^identifier\b/u }))
       const label = field(page, 'Original label')
       await label.fill('Ᲊora')

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ArrowUp, BookOpen } from '@lucide/vue'
 import { nextTick, onMounted, onUnmounted, ref, useId } from 'vue'
 import type { EarlierRead } from './terminalReads'
 
@@ -97,7 +98,7 @@ defineExpose({ close })
     @mousedown="keepEditing"
     @click="toggle"
   >
-    Reads
+    <BookOpen aria-hidden="true" /> Reads
   </button>
   <div
     :id="menuId"
@@ -139,7 +140,8 @@ defineExpose({ close })
     @mousedown="keepEditing"
     @click="emit('result', $event.detail === 0)"
   >
-    {{ canReturnToRead ? 'Back to read' : result?.milestone ? 'Milestone ↑' : 'Result ↑' }}
+    {{ canReturnToRead ? 'Back to read' : result?.milestone ? 'Milestone' : 'Result' }}
+    <ArrowUp v-if="!canReturnToRead" aria-hidden="true" />
   </button>
 </template>
 

@@ -13,6 +13,13 @@
   --warning: #edbc91;
   --evidence: #b8d1ea;
   --error: #f0aaa6;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --icon-size: 16px;
+  --icon-stroke: 1.75;
+  --control-height: 32px;
+  --touch-height: 44px;
   --mono: 'Cascadia Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
   --sans: system-ui, 'Segoe UI', sans-serif;
   background: var(--bg);
@@ -72,6 +79,28 @@ select {
 }
 button {
   -webkit-tap-highlight-color: transparent;
+}
+.lucide {
+  width: var(--icon-size);
+  height: var(--icon-size);
+  stroke-width: var(--icon-stroke);
+  flex: none;
+  vertical-align: middle;
+}
+button.icon-button {
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: var(--control-height);
+  min-block-size: var(--control-height);
+  padding: 0;
+}
+.disclosure-icon {
+  --icon-size: 13px;
+  color: var(--muted);
+}
+.disclosure[aria-expanded='true'] .disclosure-icon,
+details[open] > summary .disclosure-icon {
+  rotate: 90deg;
 }
 button:hover:not(:disabled),
 select:hover:not(:disabled) {
@@ -150,12 +179,11 @@ textarea {
   justify-content: space-between;
 }
 .disclosure {
-  padding-inline: 4px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding-inline: var(--space-1);
   border-color: transparent;
-}
-.disclosure span {
-  color: var(--accent);
-  margin-inline-end: 3px;
 }
 .point-view {
   margin-top: 6px;
@@ -234,7 +262,7 @@ textarea {
 }
 .workspace {
   min-height: 0;
-  padding: 12px 16px 16px;
+  padding: var(--space-2) var(--space-3);
   display: grid;
   grid-template-columns: minmax(0, 1fr);
 }
@@ -250,21 +278,16 @@ textarea {
   grid-template-rows: max-content minmax(0, max-content) minmax(60px, 1fr) auto;
   background: var(--inset);
 }
-.terminal-frame .frame-title {
-  justify-content: flex-start;
-}
+
 .terminal-scenario {
   min-width: 0;
-  overflow: hidden;
-  font-size: 14px;
-  font-weight: 550;
-  color: var(--muted);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  max-width: 28ch;
+  color: var(--text);
+  font: 600 14px/1.3 var(--sans);
 }
 h1.terminal-scenario {
-  padding-inline-start: 2px;
-  border-inline-start: 1px solid var(--control);
+  overflow: hidden;
+  border-inline-start: 1px solid var(--line);
 }
 .frame-title h1.terminal-scenario button {
   display: block;
@@ -278,142 +301,115 @@ h1.terminal-scenario {
 .frame-title h1.terminal-scenario button[aria-expanded='true'] {
   color: var(--accent);
 }
-.title-actions {
-  display: flex;
-  flex: none;
-  margin-inline-start: auto;
-}
-.frame-title .latest-progress {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-.milestone-announcement {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-}
-.terminal-session {
-  min-height: 0;
-  max-height: min(36dvh, 280px);
-  overflow: auto;
-  overscroll-behavior: contain;
-}
-.session-layer {
-  padding: 8px 12px;
-  border-bottom: 1px solid #435966;
-  background: #1b2931;
-  font: 12px/1.45 var(--sans);
-}
-.short-viewport .terminal-frame {
-  grid-template-rows: max-content minmax(0, max-content) minmax(52px, 1fr) auto;
-}
-.short-viewport .terminal-session {
-  max-height: min(calc(var(--app-height, 100dvh) * 0.26), 130px);
-}
-.session-layer-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-.session-layer-heading h2,
-.session-layer .objective-heading h3 {
-  font-size: 12px;
-}
-.session-layer-heading button {
-  min-height: 30px;
-  font-size: 12px;
+.frame-title select {
+  border-color: var(--line);
 }
 .frame-title {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  gap: var(--space-2);
   min-height: 42px;
-  padding-inline: 12px;
+  padding-inline: var(--space-2);
   border-bottom: 1px solid var(--line);
   background: var(--surface);
 }
-.frame-title button {
-  min-height: 30px;
-  border-color: transparent;
-  color: var(--muted);
-  font-size: 12px;
+.frame-title button,
+.frame-title select {
+  min-height: var(--control-height);
 }
-.frame-title .title-notification {
-  position: relative;
-  display: grid;
-  min-width: 36px;
-  place-items: center;
-  padding: 4px 8px;
+.frame-title button {
+  border-color: transparent;
   background: transparent;
 }
+.frame-title button:hover:not(:disabled) {
+  background: var(--raised);
+}
+.title-actions {
+  display: flex;
+  flex: none;
+  margin-inline-start: auto;
+  color: var(--muted);
+}
+.frame-title .latest-progress,
+.frame-title .campaign-status,
 .frame-title .has-notification {
   color: var(--accent);
 }
-.session-indicators {
-  display: flex;
-  flex-wrap: wrap;
-  min-width: 0;
-  align-items: center;
-  gap: 0 3px;
-  margin-inline-start: auto;
+.frame-title .latest-progress {
+  background: #22382f;
 }
-.frame-title .session-indicators button {
+.title-notification {
+  position: relative;
+}
+.notification-count {
+  position: absolute;
+  inset-block-start: 2px;
+  inset-inline-end: 1px;
+  min-width: 13px;
+  border-radius: 5px;
+  padding-inline: 2px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font: 700 10px/12px var(--mono);
+  text-align: center;
+}
+.session-context-bar {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding-inline-start: var(--space-1);
+  border-inline-start: 1px solid var(--line);
+}
+.frame-title .session-context-bar button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 32px;
-  max-width: 100%;
-  gap: 4px;
-  padding: 3px 5px;
-  background: transparent;
-  font: 11px var(--sans);
+  gap: var(--space-1);
+  min-width: var(--control-height);
+  padding: 3px 6px;
+  font: 600 12px/1.25 var(--sans);
 }
-.session-indicators bdi {
+.frame-title .session-context-bar .session-location {
+  min-width: 0;
+  flex: 0 1 auto;
+}
+.context-label {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  text-align: start;
+}
+.context-label bdi,
+.check-label {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.frame-title .session-indicators button:is(.status-selected, .status-reached) {
+.context-value,
+.status-mark {
+  color: var(--muted);
+}
+.status-reached .context-value,
+.status-reached .status-mark,
+.campaign-status .status-mark,
+.host-status-summary.status-changing {
   color: var(--accent);
 }
-.frame-title .session-indicators button:is(:hover, .status-selected) {
+.frame-title button.status-selected {
   background: var(--raised);
+  border-color: var(--control);
 }
-.frame-title .session-indicators .host-status-summary {
+.status-selected .disclosure-icon {
+  rotate: 180deg;
+}
+.frame-title .session-context-bar .host-status-summary,
+.check-short-label {
   display: none;
-}
-.frame-title .session-indicators .host-status-summary.status-changing {
-  color: var(--accent);
 }
 .status-count {
   font-variant-numeric: tabular-nums;
-}
-.status-mark {
-  display: inline-grid;
-  place-items: center;
-  flex: none;
-  min-width: 18px;
-  height: 18px;
-  border-radius: 2px;
-  font: 700 15px/1 var(--sans);
-  white-space: nowrap;
-}
-.goal-status .status-mark,
-.host-status-item .status-mark {
-  border: 1px solid currentColor;
-  font-size: 12px;
-}
-.goal-status .status-mark {
-  border-radius: 50%;
-}
-.status-reached .status-mark {
-  background: #22382f;
 }
 .status-changing .status-mark {
   animation: session-status-change 1000ms ease-out;
@@ -429,49 +425,49 @@ h1.terminal-scenario {
     animation: none;
   }
 }
-.title-icon {
-  position: relative;
-  display: block;
-  width: 17px;
-  height: 13px;
-  border: 1px solid currentColor;
-  border-radius: 2px;
-}
-.hosts-icon::before {
+.milestone-announcement {
   position: absolute;
-  inset: 3px 0;
-  border-block: 1px solid currentColor;
-  content: '';
-}
-.mail-icon {
+  width: 1px;
+  height: 1px;
   overflow: hidden;
+  clip-path: inset(50%);
 }
-.mail-icon::before {
-  position: absolute;
-  inset: -5px 3px auto;
-  height: 10px;
-  transform: rotate(45deg);
-  border: solid currentColor;
-  border-width: 0 1px 1px 0;
-  content: '';
+.terminal-session {
+  min-height: 0;
+  max-height: min(calc(var(--app-height, 100dvh) * 0.34), 250px);
+  overflow: auto;
+  overscroll-behavior: contain;
 }
-.notification-count {
-  position: absolute;
-  inset-block-start: 2px;
-  inset-inline-end: 1px;
-  min-width: 14px;
-  border-radius: 6px;
-  padding-inline: 2px;
-  background: var(--accent);
-  color: var(--accent-ink);
-  font: 700 10px/12px var(--mono);
-  text-align: center;
+.short-viewport .terminal-frame {
+  grid-template-rows: max-content minmax(0, max-content) minmax(52px, 1fr) auto;
+}
+.short-viewport .terminal-session {
+  max-height: min(calc(var(--app-height, 100dvh) * 0.26), 130px);
+}
+.session-layer {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  align-items: start;
+  column-gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--control);
+  background: #1b2931;
+  font: 13px/1.4 var(--sans);
+  overflow-wrap: anywhere;
+}
+.session-identity {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
+  border-inline-start: 1px solid var(--control);
+  padding-inline-start: var(--space-3);
 }
 .session-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
   margin: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr));
-  gap: 6px 12px;
 }
 .session-details dt {
   color: var(--muted);
@@ -480,51 +476,57 @@ h1.terminal-scenario {
 .session-details dd {
   margin: 0;
   font-weight: 550;
-  overflow-wrap: anywhere;
+}
+.restart-session {
+  flex: none;
+  min-height: var(--control-height);
+  padding-inline: var(--space-2);
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
 }
 .host-details {
-  margin-top: 8px;
+  grid-column: 1 / -1;
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--control);
+  column-gap: var(--space-3);
 }
 .host-details .status-explained {
-  grid-column: 1 / -1;
+  flex-basis: 100%;
 }
 .host-status-description {
   display: block;
-  margin-top: 2px;
   color: var(--muted);
   font-weight: 400;
-}
-.objective {
-  margin-top: 9px;
-  padding-top: 8px;
-  border-top: 1px solid var(--line);
 }
 .objective-heading {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
+  gap: var(--space-2);
+}
+.objective-heading h2 {
+  font-size: 13px;
 }
 .objective-heading span {
   color: var(--muted);
-  font: 11px var(--sans);
+  font-size: 12px;
+}
+.objective p + p {
+  margin-top: var(--space-1);
 }
 .objective .objective-done,
 .terminal-line.auth,
 .terminal-line.objective {
   color: var(--accent);
 }
-.objective p {
-  margin-top: 3px;
-  scroll-margin-block: 4px;
-  overflow-wrap: anywhere;
-}
 .transcript {
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
   scroll-padding-block: 6px;
-  padding: 12px 14px 18px;
+  padding: var(--space-2) var(--space-3) var(--space-3);
   font: 14px/1.52 var(--mono);
   overflow-wrap: anywhere;
 }
@@ -538,7 +540,7 @@ h1.terminal-scenario {
   outline-offset: -2px;
 }
 .terminal-entry + .terminal-entry {
-  margin-top: 10px;
+  margin-top: var(--space-2);
 }
 .earlier-read {
   margin-bottom: 10px;
@@ -556,7 +558,7 @@ h1.terminal-scenario {
   font: 12px/1.3 var(--sans);
 }
 .terminal-entry.has-command {
-  border-inline-start: 3px solid #7f95a5;
+  border-inline-start: 2px solid #7f95a5;
 }
 .terminal-entry.remote-entry {
   border-inline-start-color: #698799;
@@ -593,13 +595,10 @@ h1.terminal-scenario {
   flex: none;
 }
 .entry-actions button {
-  min-height: 30px;
-  padding: 2px 7px;
   border: 0;
   border-radius: 0;
   background: transparent;
   color: var(--muted);
-  font-size: 12px;
 }
 .entry-actions button:hover:not(:disabled) {
   color: var(--text);
@@ -608,20 +607,22 @@ h1.terminal-scenario {
   outline-offset: -2px;
 }
 .entry-actions .output-toggle {
-  width: 30px;
   color: var(--accent);
-  font-size: 15px;
 }
 .entry-actions .collapsed-progress {
   background: #294b42;
   color: var(--text);
 }
 .has-command .entry-body {
-  padding: 4px 8px 6px;
+  padding: var(--space-1) var(--space-2) 6px;
   background: var(--surface);
 }
 .terminal-line + .terminal-line {
-  margin-top: 4px;
+  margin-top: var(--space-1);
+}
+.terminal-line.error {
+  padding-inline-start: 6px;
+  border-inline-start: 2px solid var(--error);
 }
 .output-wait {
   margin-top: 2px;
@@ -636,16 +637,16 @@ h1.terminal-scenario {
   --progress-edge: #8dbad8;
   --progress-fill: #203241;
   --progress-highlight: #32536a;
-  margin-block: 7px;
-  padding: 7px 10px;
+  margin-block: var(--space-2);
+  padding: 5px var(--space-2);
   border-inline-start: 3px solid var(--progress-edge);
   background: var(--progress-fill);
   color: var(--text);
 }
 .progress-band h3 {
   display: flex;
-  gap: 8px;
-  align-items: baseline;
+  gap: var(--space-1);
+  align-items: center;
   color: var(--progress-ink);
   font: 700 14px/1.4 var(--sans);
 }
@@ -658,8 +659,7 @@ h1.terminal-scenario {
   --progress-edge: #96cdb6;
   --progress-fill: #1d362f;
   --progress-highlight: #345c50;
-  padding: 10px;
-  border-block: 1px solid var(--progress-edge);
+  padding: 6px var(--space-2);
   border-inline-start-width: 4px;
 }
 .progress-band[data-scope='scenario'] h3 {
@@ -785,10 +785,16 @@ h1.terminal-scenario {
   margin-top: 5px;
 }
 .inspection-confusables summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
   color: var(--accent);
   cursor: pointer;
-  min-height: 28px;
-  align-content: center;
+  min-height: var(--control-height);
+  list-style: none;
+}
+.inspection-confusables summary::-webkit-details-marker {
+  display: none;
 }
 .inspection-confusables .inspection-sequence {
   margin-block: 3px;
@@ -813,6 +819,9 @@ h1.terminal-scenario {
 .inspection-summary {
   column-gap: 12px;
 }
+.inspection-actions {
+  column-gap: var(--space-1);
+}
 .inspection-category {
   color: var(--muted);
   font-size: 12px;
@@ -831,8 +840,8 @@ h1.terminal-scenario {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
-.inspection button:not(.terminal-link) {
-  min-height: 28px;
+.inspection button:not(.terminal-link, .icon-button) {
+  min-height: var(--control-height);
   padding: 2px 8px;
   font: 12px var(--sans);
 }
@@ -846,7 +855,7 @@ h1.terminal-scenario {
 .inspection-form dt {
   display: flex;
   align-items: center;
-  min-height: 28px;
+  min-height: var(--control-height);
   align-self: start;
   color: var(--muted);
 }
@@ -876,19 +885,30 @@ h1.terminal-scenario {
 }
 .terminal-controls {
   position: relative;
-  border-top: 1px solid var(--line);
-  padding: 8px 10px;
+  border-top: 1px solid var(--control);
+  padding: var(--space-1) var(--space-2);
   background: var(--surface);
 }
 .shortcuts {
-  gap: 4px;
-  margin-bottom: 5px;
+  gap: 0 2px;
+  margin-bottom: var(--space-1);
 }
 .shortcuts button,
 .suggestions button {
   min-height: 26px;
-  padding: 2px 7px;
+  padding: 2px 6px;
   font-size: 12px;
+}
+.shortcuts button {
+  border-color: transparent;
+  background: transparent;
+}
+.shortcuts button:hover:not(:disabled),
+.shortcuts button[aria-expanded='true'] {
+  background: var(--raised);
+}
+.shortcuts button .lucide {
+  --icon-size: 13px;
 }
 .prompt {
   display: block;
@@ -930,6 +950,20 @@ h1.terminal-scenario {
 .prompt button:disabled {
   color: var(--muted);
 }
+.prompt button.run-command {
+  border-color: transparent;
+  background: var(--raised);
+  color: var(--accent);
+  font-weight: 700;
+}
+.prompt button.run-command:disabled {
+  background: transparent;
+  color: var(--muted);
+}
+.prompt button.run-command:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
 .suggestions {
   position: absolute;
   z-index: 1;
@@ -952,148 +986,134 @@ h1.terminal-scenario {
 .startup p {
   margin-block: 6px 10px;
 }
-@media (max-width: 700px) {
-  .terminal-frame .frame-title {
-    flex-wrap: wrap;
-    row-gap: 0;
-  }
-  .session-indicators {
-    order: 1;
-    flex-basis: 100%;
-    margin-inline-start: 0;
-    border-top: 1px solid var(--line);
-  }
-}
-@media (max-width: 830px) {
-  .workspace {
-    padding: 8px;
-  }
-  .latest-output-word {
-    display: none;
-  }
-  .objective {
-    margin-top: 5px;
-    padding-top: 5px;
-  }
-  .frame-title {
-    min-height: 34px;
-    padding-inline: 10px;
-  }
-  .transcript {
-    padding: 8px 10px 12px;
-  }
-  .command-help dl {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .command-help dd + dt {
-    margin-top: 4px;
-  }
-}
-@media (max-width: 600px), (pointer: coarse) {
-  button,
-  select,
-  input,
-  .frame-title button,
-  .session-layer-heading button,
-  .inspection button:not(.terminal-link),
-  .inspection-form dt,
-  .inspection-confusables summary,
-  .terminal-file .notation-link,
-  .terminal-link {
-    min-height: 44px;
-  }
-  .shortcuts button,
-  .suggestions button {
-    min-height: 34px;
-  }
-  .terminal-link {
-    min-width: 44px;
-  }
-  .terminal-frame .frame-title {
-    min-height: 44px;
-  }
-  .frame-title .title-notification {
-    min-width: 44px;
-  }
-  .frame-title .session-indicators button {
-    min-width: 44px;
-  }
-  .notification-count {
-    inset-block-start: 6px;
-    inset-inline-end: 4px;
-  }
-  .entry-actions button {
-    min-width: 44px;
-    min-height: 44px;
-  }
-  .command-line {
-    padding-block: 11px;
-  }
-}
-@media (max-width: 480px) {
-  .terminal-frame .frame-title {
-    column-gap: 6px;
-    padding-inline: 8px;
-  }
-  .frame-title .session-indicators button {
-    gap: 3px;
-    padding-inline: 3px;
-  }
-  .wordmark {
-    font-size: 15px;
-  }
-  .terminal-scenario {
-    font-size: 13px;
-  }
-  select.terminal-scenario {
-    padding-inline: 5px;
-  }
-  .title-actions .latest-output {
-    min-width: 44px;
-  }
-  .latest-output-label {
-    display: none;
-  }
-}
-@media (max-width: 600px) {
+
+@media (max-width: 1080px) {
   .frame-title .grouped-host-status .host-status-item {
     display: none;
   }
   .frame-title .grouped-host-status .host-status-summary {
     display: inline-flex;
   }
-  .short-viewport .session-layer {
+}
+@media (max-width: 830px) {
+  .workspace {
+    padding: var(--space-1);
+  }
+  .session-layer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .session-identity {
+    margin-top: var(--space-1);
+    border-inline-start: 0;
+    border-top: 1px solid var(--line);
+    padding-inline-start: 0;
+  }
+  .transcript {
+    padding: var(--space-2);
+  }
+  .command-help dl {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .command-help dd + dt {
+    margin-top: var(--space-1);
+  }
+}
+@media (max-width: 700px) {
+  .frame-title {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 4px 8px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 0 var(--space-1);
   }
-  .short-viewport .session-layer-heading {
-    display: contents;
+  .terminal-scenario {
+    justify-self: start;
+    max-width: 100%;
   }
-  .short-viewport .session-layer-heading button {
-    grid-column: 2;
-    grid-row: 2;
-    align-self: start;
+  .title-actions {
+    margin-inline-start: 0;
   }
-  .short-viewport .session-layer :is(h2, .host-details, .objective) {
+  .session-context-bar {
     grid-column: 1 / -1;
+    grid-row: 2;
+    border-inline-start: 0;
+    border-top: 1px solid var(--line);
+    padding-inline-start: 0;
   }
-  .session-details {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
+  .frame-title .session-context-bar .session-location {
+    flex: 1;
+    justify-content: flex-start;
+  }
+  .context-label {
+    display: grid;
+    gap: 0;
+  }
+  .check-label {
+    display: none;
+  }
+  .check-short-label {
+    display: inline;
+  }
+}
+@media (max-width: 600px), (pointer: coarse) {
+  button,
+  select,
+  input,
+  button.icon-button,
+  .frame-title button,
+  .frame-title select,
+  .inspection-confusables summary,
+  .inspection button:not(.terminal-link, .icon-button),
+  .terminal-file .notation-link,
+  .terminal-link {
+    min-block-size: var(--touch-height);
+  }
+  button.icon-button,
+  .frame-title .session-context-bar button,
+  .terminal-link {
+    min-inline-size: var(--touch-height);
+  }
+  .shortcuts button,
+  .suggestions button {
+    min-height: 34px;
+  }
+  .frame-title .session-context-bar button {
+    min-height: 40px;
+  }
+  .notification-count {
+    inset-block-start: 6px;
+    inset-inline-end: 4px;
+  }
+  .command-line {
+    padding-block: 11px;
+  }
+}
+@media (max-width: 600px) {
+  .workspace {
+    padding: 0;
+  }
+  .terminal-frame {
+    border-inline: 0;
+  }
+  .wordmark {
+    font-size: 15px;
+  }
+  .terminal-scenario,
+  select.terminal-scenario {
+    font-size: 13px;
+  }
+  select.terminal-scenario {
+    padding-inline: 5px;
   }
   .terminal-controls {
-    padding: 5px 7px;
-  }
-  .shortcuts {
-    gap: 4px;
-    margin-bottom: 4px;
+    padding-inline: var(--space-1);
   }
   .shortcuts button {
-    padding-inline: 6px;
+    padding-inline: 5px;
+  }
+  .shortcuts button .lucide.lucide-book-open {
+    display: none;
   }
   .prompt-host {
-    max-width: 25%;
+    max-width: 30%;
     font-size: 12px;
   }
   .prompt input,
@@ -1101,7 +1121,14 @@ h1.terminal-scenario {
     font-size: 16px;
   }
 }
-
+@media (max-width: 360px) {
+  .frame-title {
+    padding-inline: var(--space-1);
+  }
+  .frame-title .session-location .status-mark {
+    display: none;
+  }
+}
 @media (max-width: 830px) {
   .short-viewport .shortcuts {
     flex-wrap: nowrap;
@@ -1112,7 +1139,6 @@ h1.terminal-scenario {
     flex: none;
   }
 }
-
 .inspection-encoding {
   display: flex;
   flex-wrap: wrap;
@@ -1209,23 +1235,22 @@ h1.terminal-scenario {
   flex: none;
 }
 .prompt .command-tag {
-  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--control-height);
   padding: 2px 6px;
   border: 1px solid var(--control);
   border-radius: 2px;
   font: inherit;
   line-height: 1.3;
 }
-.command-tag span {
-  color: var(--muted);
-  font-size: 11px;
-}
 .prompt .run-command {
   margin-inline-start: auto;
   flex: none;
 }
 .composer-arguments {
-  max-height: min(45dvh, 300px);
+  max-height: min(calc(var(--app-height, 100dvh) * 0.32), 240px);
   overflow: auto;
   overscroll-behavior: contain;
   padding-inline-end: 4px;
@@ -1257,14 +1282,14 @@ h1.terminal-scenario {
   box-shadow: inset 0 -1px var(--accent);
 }
 .argument-editor :is(textarea, .argument-mirror) {
-  padding: 7px 6px 4px;
+  padding: 5px 6px var(--space-1);
   font: inherit;
   line-height: 1.5;
   tab-size: 8;
 }
 .argument-editor textarea {
-  min-height: 36px;
-  max-height: 96px;
+  min-height: var(--control-height);
+  max-height: 76px;
   margin: 0;
   border: 0;
   border-radius: 0;
@@ -1301,12 +1326,12 @@ h1.terminal-scenario {
 }
 .composer-argument .payload-tools {
   justify-content: flex-start;
-  gap: 4px 8px;
+  gap: 0 var(--space-1);
 }
 .argument-lengths {
   display: flex;
   flex-wrap: wrap;
-  gap: 0 10px;
+  gap: 0 var(--space-2);
   font-size: 11px;
 }
 .composer-argument .point-view {
@@ -1322,15 +1347,15 @@ h1.terminal-scenario {
   position: absolute;
   z-index: 3;
   inset-inline: 0;
-  bottom: calc(100% + 6px);
+  bottom: calc(100% + var(--space-1));
   max-width: 540px;
-  max-height: min(50dvh, 390px);
+  max-height: min(50dvh, 390px, var(--menu-space, 100dvh));
   overflow-y: auto;
+  overscroll-behavior: contain;
   border: 1px solid var(--control);
   padding: 3px;
   background: var(--surface);
   font-family: var(--mono);
-  box-shadow: 0 4px 12px #0004;
 }
 .command-menu button {
   display: grid;
@@ -1362,7 +1387,7 @@ h1.terminal-scenario {
   .prompt .command-tag,
   .prompt .run-command,
   .command-menu button {
-    min-height: 44px;
+    min-height: var(--touch-height);
   }
   .composer-argument {
     grid-template-columns: minmax(9ch, 15ch) minmax(0, 1fr);
@@ -1373,10 +1398,14 @@ h1.terminal-scenario {
     padding-top: 9px;
   }
   .argument-editor textarea {
-    min-height: 44px;
+    min-height: var(--touch-height);
+    max-height: 64px;
   }
   .composer-argument .payload-tools button {
     min-height: 34px;
+  }
+  .argument-lengths {
+    flex-basis: 100%;
   }
   .command-menu button {
     grid-template-columns: 11ch minmax(0, 1fr);
@@ -1460,7 +1489,7 @@ h1.terminal-scenario {
   overscroll-behavior: contain;
 }
 .short-viewport .composer-arguments {
-  max-height: calc(var(--app-height, 100dvh) * 0.36);
+  max-height: calc(var(--app-height, 100dvh) * 0.31);
 }
 .short-viewport .single-argument .point-view {
   max-height: calc(var(--app-height, 100dvh) * 0.22);

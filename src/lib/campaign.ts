@@ -485,22 +485,27 @@ export function createCampaign(
     complete,
     snapshot,
     level: (id: string) => levels.get(id),
-    invalidateHistory(revision: string) {
+    invalidateHistory(revision: string, compatibleRevision?: string) {
       let changed = false
       for (const [id, level] of levels) {
         if (level.revision === revision) continue
-        levels.set(id, {
-          ...level,
-          revision,
-          journal: undefined,
-          terminal: undefined,
-          composer: level.composer && {
-            ...level.composer,
-            history: [],
-            index: 0,
-            scratch: undefined,
-          },
-        })
+        levels.set(
+          id,
+          compatibleRevision !== undefined && level.revision === compatibleRevision
+            ? { ...level, revision }
+            : {
+                ...level,
+                revision,
+                journal: undefined,
+                terminal: undefined,
+                composer: level.composer && {
+                  ...level.composer,
+                  history: [],
+                  index: 0,
+                  scratch: undefined,
+                },
+              },
+        )
         changed = true
       }
       if (changed) persist()

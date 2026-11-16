@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Check, Flag } from '@lucide/vue'
 import { onMounted, ref } from 'vue'
 import type { ProgressTransition } from '../lib/runtime'
 
@@ -17,7 +18,8 @@ onMounted(() => {
 <template>
   <section ref="band" class="progress-band" :data-scope="progress.scope">
     <h3>
-      <span aria-hidden="true">{{ progress.scope === 'scenario' ? '✓' : '◆' }}</span>
+      <Check v-if="progress.scope === 'scenario'" aria-hidden="true" />
+      <Flag v-else aria-hidden="true" />
       <bdi>{{ progress.title }}</bdi>
     </h3>
     <p dir="auto">{{ progress.text }}</p>

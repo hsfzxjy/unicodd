@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { commandRegistry } from '../../src/lib/commands'
 
 const free = (page: Page) => page.getByRole('textbox', { name: 'Terminal command', exact: true })
-const tag = (page: Page) => page.getByRole('button', { name: 'Change command', exact: true })
+const tag = (page: Page) => page.getByRole('button', { name: /^Change command:/ })
 const run = (page: Page) => page.getByRole('button', { name: 'Run', exact: true })
 const log = (page: Page) => page.getByRole('log')
 const quick = (page: Page, name: string) =>
@@ -584,6 +584,45 @@ test('advances and reverses through both route fields and preserves both reconst
   await expect(free(page)).toBeVisible()
 })
 
+test('keeps a long structured command and its menu usable at 320 × 430', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 })
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await relay(page)
+  await typed(page, 'login 𝐌AINT')
+  await typed(page, 'cat /queue/8c2f.msg')
+  await page.getByRole('combobox', { name: 'Case' }).selectOption('002-dead-letter')
+  await quick(page, 'route').click()
+  const header = field(page, 'Header recipient')
+  const draft = 'a🧪é'.repeat(45)
+  await header.fill(draft)
+  await selection(header, 1, 3)
+  await page.getByRole('button', { name: 'Code points', exact: true }).click()
+  const goal = page.getByRole('button', { name: 'Goal: In progress', exact: true })
+  await goal.click()
+  await page.setViewportSize({ width: 320, height: 430 })
+  await expect(goal).toBeInViewport({ ratio: 1 })
+  await expect(run(page)).toBeInViewport({ ratio: 1 })
+  await expect(log(page)).toBeInViewport({ ratio: 1 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320)
+  await tag(page).press('ArrowDown')
+  const menu = page.getByRole('menu', { name: 'Commands' })
+  await expect(menu).toBeInViewport({ ratio: 1 })
+  await expect(menu.getByRole('menuitemradio', { checked: true })).toBeFocused()
+  await page.keyboard.press('End')
+  await expect(menu.getByRole('menuitem', { name: 'Edit command name…' })).toBeInViewport({
+    ratio: 1,
+  })
+  await page.keyboard.press('Escape')
+  await expect(tag(page)).toBeFocused()
+  await expect(header).toHaveValue(draft)
+  expect(
+    await header.evaluate((element: HTMLTextAreaElement) => [
+      element.selectionStart,
+      element.selectionEnd,
+    ]),
+  ).toEqual([1, 3])
+})
+
 for (const [width, height] of [
   [375, 812],
   [390, 844],
@@ -599,7 +638,8 @@ for (const [width, height] of [
       await relay(page)
       const frame = page.getByRole('region', { name: 'Terminal', exact: true })
       const frameBox = (await frame.boundingBox())!
-      expect(frameBox.width).toBe(Math.min(1200, width - (width <= 830 ? 16 : 32)))
+      const gutter = width <= 600 ? 0 : width <= 830 ? 4 : 12
+      expect(frameBox.width).toBe(Math.min(1200, width - 2 * gutter))
       expect(Math.abs(frameBox.x - (width - frameBox.width) / 2)).toBeLessThan(1)
       const capture = async (name: string) => {
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)

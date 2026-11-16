@@ -1,7 +1,27 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+import {
+  Check,
+  ChevronDown,
+  CircleDashed,
+  Flag,
+  ListChecks,
+  Monitor,
+  RotateCcw,
+  Target,
+  Terminal as TerminalIcon,
+} from '@lucide/vue'
+import {
+  computed,
+  nextTick,
+  onMounted,
+  onUnmounted,
+  ref,
+  shallowRef,
+  watch,
+  type Component,
+} from 'vue'
 import Terminal from './components/Terminal.vue'
-import logicRevision from 'virtual:unicodd-logic-revision'
+import logicRevision, { previousRevision } from 'virtual:unicodd-logic-revision'
 import { createCampaign, type DirectEntry } from './lib/campaign'
 import { actionCommand, puzzleAction } from './lib/commands'
 import type { createContentLoader, ScenarioEntry } from './lib/content'
@@ -166,7 +186,7 @@ interface StatusControl {
   name: string
   label?: string
   detail: string
-  mark: string
+  icon: Component
   reached: boolean
 }
 const hostChecks = computed<StatusControl[]>(() =>
@@ -176,10 +196,10 @@ const hostChecks = computed<StatusControl[]>(() =>
       : [
           {
             key: 'host-' + index,
-            name: `${label}: ${value}`,
+            name: `Host: ${label}: ${value}`,
             label,
             detail: `${label}: ${value}`,
-            mark: reached ? '✓' : '',
+            icon: reached ? Check : CircleDashed,
             reached,
           },
         ],
@@ -189,32 +209,22 @@ const titleStatus = computed<StatusControl[]>(() => {
   const active = session.value
   if (!active) return []
   const role = permissionLabel.value
+  const location = active.host ? '@' + active.host.id : 'Local console'
   return [
     {
       key: 'session',
-      name: 'Session',
+      name: `Session: ${location} ${role}`,
       detail: `${active.host ? 'Connected to ' + active.host.id : 'Local console'}. Signed in as ${active.identity.user}. Permissions: ${role}.`,
-      mark: active.host ? '›_' : '⌂',
+      icon: active.host ? TerminalIcon : Monitor,
       reached: Boolean(active.host && active.identity.role !== active.host.guest.role),
     },
     {
       key: 'goal',
       name: 'Goal: ' + goalStatus.value,
       detail: 'Goal: ' + goalStatus.value,
-      mark: active.completed ? '✓' : caseComplete.value ? '↺' : '•',
+      icon: active.completed ? Check : caseComplete.value ? RotateCcw : Target,
       reached: caseComplete.value,
     },
-    ...(campaignFinished.value
-      ? [
-          {
-            key: 'campaign',
-            name: 'All available scenarios complete',
-            detail: 'All available scenarios complete',
-            mark: '⚑',
-            reached: true,
-          },
-        ]
-      : []),
     ...hostChecks.value,
   ]
 })
@@ -224,7 +234,7 @@ const hostCheckCount = computed(
 const hostCheckDetails = computed(() => hostChecks.value.map(({ detail }) => detail).join('\n'))
 const changedStatus = shallowRef(new Set<string>())
 const statusAnnouncement = ref('')
-watch(titleStatus, (current, previous) => {
+watch([titleStatus, campaignFinished], ([current, finished], [previous, wasFinished]) => {
   if (!transcriptLive.value) {
     changedStatus.value = new Set()
     statusAnnouncement.value = ''
@@ -233,13 +243,19 @@ watch(titleStatus, (current, previous) => {
   const changed = current.filter(
     (item) => previous.find(({ key }) => key === item.key)?.detail !== item.detail,
   )
-  if (changed.length) {
-    changedStatus.value = new Set(changed.map(({ key }) => key))
-    statusAnnouncement.value = changed.map(({ detail }) => detail).join(' ')
+  const campaignCompleted = finished && !wasFinished
+  if (changed.length || campaignCompleted) {
+    changedStatus.value = new Set([
+      ...changed.map(({ key }) => key),
+      ...(campaignCompleted ? ['campaign'] : []),
+    ])
+    statusAnnouncement.value = [
+      ...changed.map(({ detail }) => detail),
+      ...(campaignCompleted ? ['All available scenarios complete'] : []),
+    ].join(' ')
   }
 })
 
-const objectiveText = ref<HTMLElement>()
 const sessionPanel = ref<HTMLElement>()
 
 function toggleSession(section = 'session') {
@@ -250,13 +266,16 @@ function toggleSession(section = 'session') {
   if (sessionExpanded.value) {
     requestAnimationFrame(() => {
       if (!sessionExpanded.value || section !== sessionSection.value) return
-      if (section === 'goal' || section === 'campaign')
-        objectiveText.value?.scrollIntoView({ block: 'nearest' })
-      else if (section.startsWith('host-'))
-        sessionPanel.value
-          ?.querySelector<HTMLElement>(`[data-status-key="${section}"]`)
-          ?.scrollIntoView({ block: 'start' })
-      else sessionPanel.value?.parentElement?.scrollTo({ top: 0 })
+      const panel = sessionPanel.value
+      const scroll = panel?.parentElement
+      if (!panel || !scroll) return
+      const target =
+        section === 'campaign' || section.startsWith('host-')
+          ? panel.querySelector<HTMLElement>(`[data-status-key="${section}"]`)
+          : null
+      scroll.scrollTop = target
+        ? target.getBoundingClientRect().top - panel.getBoundingClientRect().top - 6
+        : 0
     })
   }
 }
@@ -273,7 +292,8 @@ async function loadCatalog() {
   try {
     catalog.value = await props.content.manifest()
     scenarios.value = await props.content.campaign(catalog.value)
-    revision = await historyRevision(logicRevision, [catalog.value, scenarios.value])
+    const definitions = [catalog.value, scenarios.value]
+    revision = await historyRevision(logicRevision, definitions)
     let storage: Storage | undefined
     try {
       if (!direct) storage = window.localStorage
@@ -282,7 +302,10 @@ async function loadCatalog() {
     }
     campaign = createCampaign(scenarios.value, storage, direct)
     await campaign.verifyDossier(props.engine)
-    campaign.invalidateHistory(revision)
+    campaign.invalidateHistory(
+      revision,
+      previousRevision && (await historyRevision(previousRevision, definitions)),
+    )
     scenarioId.value = campaign.current
   } catch (error) {
     loadingError.value = error instanceof Error ? error.message : String(error)
@@ -548,9 +571,27 @@ async function dispatch(action: Action, command?: string) {
             </option>
           </select>
         </template>
+        <template #campaign-status>
+          <button
+            v-if="campaignFinished"
+            type="button"
+            class="icon-button campaign-status"
+            :class="{
+              'status-changing': changedStatus.has('campaign'),
+              'status-selected': sessionExpanded && sessionSection === 'campaign',
+            }"
+            aria-label="All available scenarios complete"
+            title="All available scenarios complete"
+            aria-controls="session-details"
+            :aria-expanded="sessionExpanded"
+            @click="toggleSession('campaign')"
+          >
+            <Flag class="status-mark" aria-hidden="true" />
+          </button>
+        </template>
         <template #session-status>
           <div
-            class="session-indicators"
+            class="session-context-bar"
             :class="{ 'grouped-host-status': hostChecks.length > 1 }"
             role="group"
             aria-label="Session status"
@@ -560,6 +601,7 @@ async function dispatch(action: Action, command?: string) {
               :key="item.key"
               type="button"
               :class="{
+                'session-location': item.key === 'session',
                 'host-status-item': item.key.startsWith('host-'),
                 'goal-status': item.key === 'goal',
                 'status-reached': item.reached,
@@ -572,8 +614,28 @@ async function dispatch(action: Action, command?: string) {
               :aria-expanded="sessionExpanded"
               @click="toggleSession(item.key)"
             >
-              <span :key="item.detail" class="status-mark" aria-hidden="true">{{ item.mark }}</span>
-              <bdi v-if="item.label && hostChecks.length > 1">{{ item.label }}</bdi>
+              <component
+                :is="item.icon"
+                :key="item.detail"
+                class="status-mark"
+                aria-hidden="true"
+              />
+              <span v-if="item.key === 'session'" class="context-label">
+                <bdi>{{ session.host ? '@' + session.host.id : 'Local console' }}</bdi
+                >{{ ' ' }}
+                <bdi class="context-value">{{ permissionLabel }}</bdi>
+              </span>
+              <span v-else-if="item.key === 'goal'" class="context-label">
+                <span>Goal</span>{{ ' ' }}
+                <span class="context-value">{{ goalStatus }}</span>
+              </span>
+              <bdi v-else-if="item.label" class="check-label">{{ item.label }}</bdi>
+              <span v-if="item.label" class="check-short-label">Host</span>
+              <ChevronDown
+                v-if="item.key === 'session' || item.key === 'goal'"
+                class="disclosure-icon"
+                aria-hidden="true"
+              />
             </button>
             <button
               v-if="hostChecks.length > 1"
@@ -589,7 +651,7 @@ async function dispatch(action: Action, command?: string) {
               :aria-expanded="sessionExpanded"
               @click="toggleSession('host-summary')"
             >
-              <span :key="hostCheckDetails" class="status-mark" aria-hidden="true">☷</span>
+              <ListChecks :key="hostCheckDetails" class="status-mark" aria-hidden="true" />
               <span class="status-count" aria-hidden="true">{{ hostCheckCount }}</span>
             </button>
           </div>
@@ -603,10 +665,43 @@ async function dispatch(action: Action, command?: string) {
             class="session-layer"
             aria-label="Session context"
           >
-            <div class="session-layer-heading">
-              <h2>Session</h2>
+            <div class="objective">
+              <div class="objective-heading">
+                <h2>Goal</h2>
+                <span :class="{ 'objective-done': caseComplete }">{{ goalStatus }}</span>
+              </div>
+              <p dir="auto">{{ scenario.objective.text }}</p>
+              <p v-if="caseComplete && !session.completed" class="muted">
+                This case still counts as complete. You can replay its goal in this session.
+              </p>
+              <p v-if="campaignFinished" class="objective-done" data-status-key="campaign">
+                All available scenarios complete
+              </p>
+            </div>
+            <div class="session-identity">
+              <dl class="session-details">
+                <div>
+                  <dt>Location</dt>
+                  <dd>
+                    <bdi>{{ session.host?.id ?? 'Local console' }}</bdi>
+                  </dd>
+                </div>
+                <div>
+                  <dt>Signed in as</dt>
+                  <dd>
+                    <bdi>{{ session.identity.user }}</bdi>
+                  </dd>
+                </div>
+                <div v-if="session.identity.user !== permissionLabel">
+                  <dt>Permissions</dt>
+                  <dd>
+                    <bdi>{{ permissionLabel }}</bdi>
+                  </dd>
+                </div>
+              </dl>
               <button
                 type="button"
+                class="restart-session"
                 title="Clears this session’s transcript and drafts. Campaign progress and mail stay saved."
                 :disabled="busy"
                 @click="dispatch({ type: 'reset' })"
@@ -614,26 +709,6 @@ async function dispatch(action: Action, command?: string) {
                 Restart session
               </button>
             </div>
-            <dl class="session-details">
-              <div>
-                <dt>Location</dt>
-                <dd>
-                  <bdi>{{ session.host?.id ?? 'Local console' }}</bdi>
-                </dd>
-              </div>
-              <div>
-                <dt>Signed in as</dt>
-                <dd>
-                  <bdi>{{ session.identity.user }}</bdi>
-                </dd>
-              </div>
-              <div>
-                <dt>Permissions</dt>
-                <dd>
-                  <bdi>{{ permissionLabel }}</bdi>
-                </dd>
-              </div>
-            </dl>
             <dl
               v-if="hostStatus?.length"
               class="session-details host-details"
@@ -656,17 +731,6 @@ async function dispatch(action: Action, command?: string) {
                 </dd>
               </div>
             </dl>
-            <div class="objective">
-              <div class="objective-heading">
-                <h3>Goal</h3>
-                <span :class="{ 'objective-done': caseComplete }">{{ goalStatus }}</span>
-              </div>
-              <p ref="objectiveText" dir="auto">{{ scenario.objective.text }}</p>
-              <p v-if="caseComplete && !session.completed">
-                This case still counts as complete. You can replay its goal in this session.
-              </p>
-              <p v-if="campaignFinished" class="objective-done">All available scenarios complete</p>
-            </div>
           </aside>
         </template>
       </Terminal>

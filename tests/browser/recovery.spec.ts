@@ -88,7 +88,7 @@ for (const [width, height] of [
         await editor.fill(value)
       }
       const select = async (name: string) => {
-        await act(page.getByRole('button', { name: 'Change command', exact: true }))
+        await act(page.getByRole('button', { name: /^Change command:/ }))
         await act(page.getByRole('menuitemradio', { name: new RegExp('^' + name + '\\b') }))
       }
       const capture = async (name: string) => {
@@ -243,7 +243,7 @@ for (const [width, height] of [
       await expect(last(page)).toContainText('Verified original records')
       await expect(log(page).getByRole('heading', { name: 'Dry run passed' })).toHaveCount(1)
       await act(quick(page, 'commit'))
-      await expect(page.getByRole('button', { name: 'Change command' })).toContainText('commit')
+      await expect(page.getByRole('button', { name: /^Change command:/ })).toContainText('commit')
       await expect(log(page).getByRole('heading', { name: 'The Release · Complete' })).toHaveCount(
         0,
       )
@@ -266,11 +266,11 @@ for (const [width, height] of [
       await expect(last(page)).toContainText('Please tell Support both cases can close.')
       await capture('04-ending')
       await page.reload()
-      await act(page.getByRole('button', { name: 'Session', exact: true }))
+      await act(page.getByRole('button', { name: /^Session:/ }))
       await expect(page.getByRole('complementary', { name: 'Session context' })).toContainText(
         'Complete',
       )
-      await act(page.getByRole('button', { name: 'Session', exact: true }))
+      await act(page.getByRole('button', { name: /^Session:/ }))
       await act(page.getByRole('button', { name: /^Open local inbox/ }))
       await expect(last(page)).toContainText('it-worked · Mira / Registration 0002917 · Read')
       await expect(last(page).getByRole('button', { name: 'Thank you', exact: true })).toHaveCount(

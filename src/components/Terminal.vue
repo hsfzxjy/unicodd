@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ArrowDownToLine, ChevronDown, ChevronRight, Flag, Mail, Pencil, Server } from '@lucide/vue'
 import { nextTick, onMounted, onUnmounted, reactive, ref, useId, watch } from 'vue'
 import CommandComposer from './CommandComposer.vue'
 import type { OperationBinding } from '../lib/scenario'
@@ -271,6 +272,11 @@ function focusTranscript() {
   scroll.value?.focus({ preventScroll: true })
 }
 
+function showLatest(event: MouseEvent) {
+  latest()
+  if (event.detail === 0) focusTranscript()
+}
+
 defineExpose({
   focusTranscript,
   insertCommand: (text: string) => composer.value?.insertCommand(text),
@@ -292,29 +298,30 @@ defineExpose({
       <slot name="scenario" />
       <slot name="session-status" />
       <div class="title-actions">
+        <slot name="campaign-status" />
         <button
           type="button"
-          class="title-notification"
+          class="icon-button title-notification"
           :class="{ 'has-notification': newHosts > 0 }"
           :aria-label="newHosts ? `Open local hosts, ${newHosts} new` : 'Open local hosts'"
           title="Open local hosts"
           :aria-disabled="busy || undefined"
           @click="openTitleList('hosts')"
         >
-          <span class="title-icon hosts-icon" aria-hidden="true"></span>
+          <Server aria-hidden="true" />
           <span v-if="newHosts" class="notification-count" aria-hidden="true">{{ newHosts }}</span>
         </button>
         <button
           v-if="unreadMail !== undefined"
           type="button"
-          class="title-notification"
+          class="icon-button title-notification"
           :class="{ 'has-notification': unreadMail > 0 }"
           :aria-label="unreadMail ? `Open local inbox, ${unreadMail} unread` : 'Open local inbox'"
           title="Open local inbox"
           :aria-disabled="busy || undefined"
           @click="openTitleList('mail')"
         >
-          <span class="title-icon mail-icon" aria-hidden="true"></span>
+          <Mail aria-hidden="true" />
           <span v-if="unreadMail" class="notification-count" aria-hidden="true">{{
             unreadMail
           }}</span>
@@ -322,15 +329,14 @@ defineExpose({
         <button
           v-if="!following"
           type="button"
-          class="latest-output"
+          class="icon-button latest-output"
           :class="{ 'latest-progress': unseenProgress }"
           :aria-label="unseenProgress ? 'Latest output, new milestone' : 'Latest output'"
-          @click="latest"
+          :title="unseenProgress ? 'Latest output, new milestone' : 'Latest output'"
+          @click="showLatest"
         >
-          <span class="latest-output-label"
-            >Latest<span class="latest-output-word"> output</span></span
-          >
-          ↓
+          <Flag v-if="unseenProgress" aria-hidden="true" />
+          <ArrowDownToLine v-else aria-hidden="true" />
         </button>
       </div>
     </div>
@@ -383,17 +389,18 @@ defineExpose({
           <div class="entry-actions">
             <button
               type="button"
+              class="icon-button"
               aria-label="Edit this command"
               title="Load this command into the prompt for editing"
               :disabled="!composer?.canReuse"
               @click.stop="composer?.reuseCommand(entry.echo)"
             >
-              Edit
+              <Pencil aria-hidden="true" />
             </button>
             <button
               v-if="entry.output.length || entry.waiting"
               type="button"
-              class="output-toggle"
+              class="icon-button output-toggle"
               :class="{
                 'collapsed-progress':
                   collapsed.has(entry.id) &&
@@ -405,7 +412,8 @@ defineExpose({
               :title="collapsed.has(entry.id) ? 'Show output' : 'Hide output'"
               @click.stop="toggleOutput(entry.id)"
             >
-              <span aria-hidden="true">{{ collapsed.has(entry.id) ? '◂' : '▾' }}</span>
+              <ChevronRight v-if="collapsed.has(entry.id)" aria-hidden="true" />
+              <ChevronDown v-else aria-hidden="true" />
             </button>
           </div>
         </div>

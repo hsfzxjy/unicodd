@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ChevronDown } from '@lucide/vue'
 import {
   computed,
   nextTick,
@@ -166,7 +167,21 @@ watchPostEffect(() => {
   snapshot()
   if (!pending.value) emit('change')
 })
+const menuResize = new ResizeObserver(fitMenu)
+
+function fitMenu() {
+  const composer = root.value
+  if (!menu.value || !composer) return
+  const viewportTop = window.visualViewport?.offsetTop ?? 0
+  const available = composer.getBoundingClientRect().top - viewportTop - 8
+  menu.value.style.setProperty('--menu-space', `${Math.max(0, available)}px`)
+}
+
 onMounted(() => {
+  if (root.value) menuResize.observe(root.value)
+  menuResize.observe(document.documentElement)
+  window.visualViewport?.addEventListener('resize', fitMenu)
+  window.visualViewport?.addEventListener('scroll', fitMenu)
   const saved = props.initial
   if (!saved) return
   if (Array.isArray(saved.drafts)) {
@@ -445,6 +460,7 @@ async function toggleMenu() {
   )
   if (menuOpen.value) {
     await nextTick()
+    fitMenu()
     menu.value?.querySelectorAll<HTMLButtonElement>('button')[menuIndex.value]?.focus()
   }
 }
@@ -473,7 +489,12 @@ function outside(event: PointerEvent) {
   if (!root.value?.contains(event.target as Node)) menuOpen.value = false
 }
 window.addEventListener('pointerdown', outside)
-onBeforeUnmount(() => window.removeEventListener('pointerdown', outside))
+onBeforeUnmount(() => {
+  window.removeEventListener('pointerdown', outside)
+  window.visualViewport?.removeEventListener('resize', fitMenu)
+  window.visualViewport?.removeEventListener('scroll', fitMenu)
+  menuResize.disconnect()
+})
 function applyText(mode: 'insert' | 'replace', value: string) {
   if (!canInsert.value) return
   const span = activeEditor.value?.context()
@@ -565,15 +586,15 @@ defineExpose({
           ref="tag"
           type="button"
           class="command-tag"
-          aria-label="Change command"
+          :aria-label="'Change command: ' + selected"
           aria-haspopup="menu"
           :aria-expanded="menuOpen"
-          :aria-controls="id + '-menu'"
+          :aria-controls="menuOpen ? id + '-menu' : undefined"
           :disabled="busy || composing"
           @click="toggleMenu"
           @keydown="tagKey"
         >
-          {{ selected }} <span aria-hidden="true">▾</span>
+          {{ selected }} <ChevronDown class="disclosure-icon" aria-hidden="true" />
         </button>
         <input
           v-else

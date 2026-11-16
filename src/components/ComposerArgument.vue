@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ChevronLeft, ChevronRight } from '@lucide/vue'
 import type { ArgumentView } from '../lib/workspace'
 import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch, watchPostEffect } from 'vue'
 import {
@@ -380,7 +381,7 @@ defineExpose({
         :aria-controls="id + '-points'"
         @click="toggle('points')"
       >
-        <span aria-hidden="true">{{ inspector === 'points' ? '▾' : '▸' }}</span> Code points
+        <ChevronRight class="disclosure-icon" aria-hidden="true" /> Code points
       </button>
       <button
         type="button"
@@ -389,7 +390,7 @@ defineExpose({
         :aria-controls="id + '-points'"
         @click="toggle('bytes')"
       >
-        <span aria-hidden="true">{{ inspector === 'bytes' ? '▾' : '▸' }}</span> UTF-8 bytes
+        <ChevronRight class="disclosure-icon" aria-hidden="true" /> UTF-8 bytes
       </button>
       <button
         v-if="unicode"
@@ -412,9 +413,27 @@ defineExpose({
       </p>
       <template v-else>
         <div v-if="pages > 1" class="toolbar pagination">
-          <button type="button" :disabled="page === 0" @click="page--">Previous</button>
+          <button
+            type="button"
+            class="icon-button"
+            aria-label="Previous"
+            title="Previous page"
+            :disabled="page === 0"
+            @click="page--"
+          >
+            <ChevronLeft aria-hidden="true" />
+          </button>
           <span class="meta" role="status">Page {{ page + 1 }} of {{ pages }}</span>
-          <button type="button" :disabled="page + 1 === pages" @click="page++">Next</button>
+          <button
+            type="button"
+            class="icon-button"
+            aria-label="Next"
+            title="Next page"
+            :disabled="page + 1 === pages"
+            @click="page++"
+          >
+            <ChevronRight aria-hidden="true" />
+          </button>
         </div>
         <div
           v-if="visible.length"

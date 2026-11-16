@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ChevronRight, Copy } from '@lucide/vue'
 import { computed } from 'vue'
 import type { Action, Inspection } from '../lib/runtime'
 import { describe, inspect } from '../lib/unicode'
@@ -67,10 +68,13 @@ const normalization = computed(() => {
       <div class="inspection-actions">
         <button
           type="button"
+          class="icon-button"
+          aria-label="Copy"
+          title="Copy character"
           :aria-disabled="busy || undefined"
           @click="emit('action', { type: 'copy', text: row.point.scalar })"
         >
-          Copy
+          <Copy aria-hidden="true" />
         </button>
         <button
           type="button"
@@ -158,6 +162,7 @@ const normalization = computed(() => {
     </dl>
     <details v-if="row.details.ok && confusables.length" class="inspection-confusables">
       <summary>
+        <ChevronRight class="disclosure-icon" aria-hidden="true" />
         Confusables ({{ confusables.length
         }}{{ row.details.value.confusablesTruncated ? '+' : '' }})
       </summary>

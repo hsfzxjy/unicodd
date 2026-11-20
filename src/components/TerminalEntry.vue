@@ -5,11 +5,11 @@ import TerminalListing from './TerminalListing.vue'
 import TerminalProgress from './TerminalProgress.vue'
 import TerminalReport from './TerminalReport.vue'
 import TerminalResource from './TerminalResource.vue'
-import { commandRegistry } from '../lib/commands'
+import { commandDefinition, commandRegistry, type CommandName } from '../lib/commands'
 import type { Action, Session } from '../lib/runtime'
 import type { Entry } from '../lib/workspace'
 
-defineProps<{
+const props = defineProps<{
   entry: Entry
   outputId: string
   collapsed: boolean
@@ -22,7 +22,20 @@ defineProps<{
   canInsertCommand: boolean
   canReplace: boolean
 }>()
-const emit = defineEmits<{ action: [Action]; toggle: []; mail: []; reuse: [string] }>()
+const emit = defineEmits<{
+  action: [Action]
+  compose: [CommandName]
+  toggle: []
+  mail: []
+  reuse: [string]
+}>()
+
+function helpCommand(name: CommandName, referenceConnected: boolean) {
+  // Local help prints console command names without the prefix.
+  if (props.connected && !referenceConnected)
+    return commandDefinition(`local ${name}`)?.name ?? name
+  return name
+}
 
 function echoText(value: string) {
   if (value.length <= 512) return value
@@ -135,12 +148,22 @@ function echoText(value: string) {
           <div v-else-if="row.kind === 'help'" class="command-help">
             <dl>
               <template
-                v-for="{ usage, description } in commandRegistry.filter(({ name }) =>
+                v-for="{ name, usage, description } in commandRegistry.filter(({ name }) =>
                   row.commands.includes(name),
                 )"
-                :key="usage"
+                :key="name"
               >
-                <dt>{{ usage }}</dt>
+                <dt>
+                  <button
+                    type="button"
+                    class="terminal-link"
+                    :title="'Edit ' + helpCommand(name, row.connected)"
+                    :disabled="!canReuse"
+                    @click="emit('compose', helpCommand(name, row.connected))"
+                  >
+                    {{ usage }}
+                  </button>
+                </dt>
                 <dd>{{ description }}</dd>
               </template>
             </dl>
@@ -268,11 +291,12 @@ function echoText(value: string) {
 .command-help dl {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
+  align-items: baseline;
   column-gap: 14px;
   margin: 3px 0 8px;
 }
-.command-help dt {
-  color: var(--accent);
+.command-help button {
+  text-align: start;
 }
 .command-help dd {
   margin: 0;

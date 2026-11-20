@@ -226,6 +226,74 @@ test('reaches equivalent states through typed actions in a different exploration
   await expect(goalButton(page, 'Complete')).toBeVisible()
 })
 
+test.describe('Help command editing', () => {
+  test.use({ hasTouch: true, isMobile: true })
+
+  test('opens scoped commands from help and restores the previous draft', async ({
+    page,
+  }, info) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await openRelay(page)
+    const references = terminal(page).locator('.command-help')
+    const entries = terminal(page).locator('.terminal-entry')
+    const tag = page.getByRole('button', { name: /^Change command:/ })
+    const runButton = page.getByRole('button', { name: 'Run', exact: true })
+
+    await run(page, 'help')
+    const connect = references.last().getByRole('button', { name: 'connect <host>', exact: true })
+    await expect(connect).toBeEnabled()
+    const localCount = await entries.count()
+    await connect.press('Enter')
+    const host = page.getByRole('textbox', { name: 'host', exact: true })
+    await expect(tag).toHaveText('connect')
+    await expect(host).toBeFocused()
+    await expect(entries).toHaveCount(localCount)
+    await page.screenshot({ path: info.outputPath('local-help-desktop.png') })
+    await host.fill('relay-07')
+    await host.press('Enter')
+    await expect(sessionButton(page)).toHaveAccessibleName(/@relay-07/)
+
+    await page.setViewportSize({ width: 390, height: 435 })
+    await run(page, 'help')
+    const remoteHelp = references.nth(1)
+    const login = remoteHelp.getByRole('button', { name: 'login [alias]', exact: true })
+    await login.tap()
+    const draft = alias(page)
+    await draft.fill('a🧪b')
+    await draft.press('Home')
+    await draft.press('ArrowRight')
+    await draft.press('Shift+ArrowRight')
+
+    const remoteCount = await entries.count()
+    await remoteHelp.getByRole('button', { name: 'local help', exact: true }).tap()
+    await expect(tag).toHaveText('local help')
+    await expect(tag).toBeFocused()
+    await expect(entries).toHaveCount(remoteCount)
+    await runButton.tap()
+
+    const scopedHelp = references.nth(2)
+    const localMail = scopedHelp.getByRole('button', { name: 'mail [message]', exact: true })
+    await expect(localMail).toHaveAttribute('title', 'Edit local mail')
+    const scopedCount = await entries.count()
+    await localMail.tap()
+    await expect(tag).toHaveText('local mail')
+    await expect(page.getByRole('textbox', { name: 'message', exact: true })).toBeFocused()
+    await expect(entries).toHaveCount(scopedCount)
+    await expect(runButton).toBeInViewport({ ratio: 1 })
+    await page.screenshot({ path: info.outputPath('local-help-mobile.png') })
+
+    await login.tap()
+    await expect(draft).toBeFocused()
+    await expect(draft).toHaveValue('a🧪b')
+    expect(
+      await draft.evaluate((field: HTMLTextAreaElement) => [
+        field.selectionStart,
+        field.selectionEnd,
+      ]),
+    ).toEqual([1, 3])
+  })
+})
+
 test('shows host and mail alerts and updates read status in existing lists', async ({
   page,
 }, info) => {

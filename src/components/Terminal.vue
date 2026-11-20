@@ -5,6 +5,7 @@ import TerminalEntry from './TerminalEntry.vue'
 import TerminalReads from './TerminalReads.vue'
 import TerminalResource from './TerminalResource.vue'
 import { useTerminalTranscript } from '../composables/useTerminalTranscript'
+import type { CommandName } from '../lib/commands'
 import type { Action, Link, Response, Session } from '../lib/runtime'
 import type { OperationBinding } from '../lib/scenario'
 import { notation } from '../lib/unicode'
@@ -78,12 +79,15 @@ function showLatest(event: MouseEvent) {
   if (event.detail === 0) focusTranscript()
 }
 
+function selectCommand(name: CommandName) {
+  return composer.value?.selectCommand(name)
+}
+
 defineExpose({
   focusTranscript,
   insertCommand: (text: string) => composer.value?.insertCommand(text),
   applyText: (mode: 'insert' | 'replace', text: string) => composer.value?.applyText(mode, text),
-  selectCommand: (name: import('../lib/commands').CommandName) =>
-    composer.value?.selectCommand(name),
+  selectCommand,
   revealOutput,
   saveView,
   restoreView,
@@ -134,6 +138,7 @@ defineExpose({
         :can-insert-command="Boolean(composer?.canInsertCommand)"
         :can-replace="Boolean(composer?.canReplace)"
         @action="emit('action', $event)"
+        @compose="selectCommand"
         @toggle="toggleOutput(entry.id)"
         @mail="openTitleList('mail')"
         @reuse="composer?.reuseCommand($event)"
@@ -170,9 +175,7 @@ defineExpose({
           :title="link.label"
           :disabled="busy"
           @click="
-            link.action.type === 'commit'
-              ? composer?.selectCommand('commit')
-              : emit('action', link.action)
+            link.action.type === 'commit' ? selectCommand('commit') : emit('action', link.action)
           "
         >
           {{ connected && 'scope' in link.action && link.action.scope === 'local' ? 'local ' : ''

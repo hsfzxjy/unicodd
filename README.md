@@ -43,6 +43,8 @@ Enter moves to the next parameter or runs from the last. Shift+Enter inserts a n
 
 The active parameter can offer Code points, UTF-8, UTF-16, or WTF-8. Choose a representation from the title when several are available. The title shows a zero-based caret position or half-open selection range and a total in that representation's units. Selecting a group selects its source character or escape. The expanded inspector toolbar stays above the scrolling groups. Drag the grip at the top of an argument editor or focus it and use Up/Down to resize it. The browser remembers each command argument's height. Explicit Insert and Replace actions use the active parameter's remembered selection. Edit this command in the transcript restores the raw command for reuse.
 
+Drag over inspector blocks to select a continuous range. On touch, swipe sideways or hold a block before dragging across rows. An immediate vertical swipe scrolls.
+
 ## Authoring scenarios
 
 The game reads the manifest and UTF-8 content files at runtime. Publish the contents of `public/content/` under `content/` on the static site.

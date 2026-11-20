@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ChevronRight, Search, Sigma, TextCursor, TextCursorInput } from '@lucide/vue'
 import { computed, nextTick, ref, useId } from 'vue'
+import { useInspectorDrag } from '../composables/useInspectorDrag'
 import {
   argumentInspectors,
   encodeArgument,
@@ -41,6 +42,11 @@ const selected = computed(() => position.value.selected)
 const selectedScalar = computed(() => {
   const points = selected.value?.points
   if (points?.length === 1 && points[0].valid) return points[0].scalar
+})
+const drag = useInspectorDrag(scroll, (first, last) => {
+  const head = view.value.groups[first]?.point
+  const tail = view.value.groups[last]?.point
+  if (head && tail) emit('select', { start: head.start, end: tail.end })
 })
 
 function showPreview() {
@@ -183,18 +189,29 @@ defineExpose({
           :class="{ 'argument-byte-grid': kind !== 'code-points' }"
           role="group"
           :aria-label="props.label + (kind === 'code-points' ? ' code points' : ' ' + label)"
+          @pointerdown="drag.pointerDown"
+          @pointermove="drag.pointerMove"
+          @pointerup="drag.pointerEnd"
+          @pointercancel="drag.pointerEnd"
+          @lostpointercapture="drag.pointerEnd"
+          @touchstart.passive="drag.touchStart"
+          @touchmove="drag.touchMove"
+          @touchend="drag.touchEnd"
+          @touchcancel="drag.touchEnd"
+          @contextmenu="drag.contextMenu"
         >
           <button
             v-for="({ point, offset, text, description }, index) in view.groups"
             :key="point.start"
             type="button"
             class="point"
+            :data-point-index="index"
             :aria-label="description"
             :title="description"
             :aria-pressed="
               selected !== undefined && point.start >= selected.start && point.end <= selected.end
             "
-            @click="emit('select', point)"
+            @click="drag.click($event, index)"
           >
             <bdi>{{ point.glyph }}</bdi>
             <code :class="{ 'argument-byte-values': kind !== 'code-points' }">{{ text }}</code>
@@ -290,6 +307,7 @@ defineExpose({
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(69px, 1fr));
   gap: 4px;
+  user-select: none;
 }
 .argument-byte-grid {
   display: flex;

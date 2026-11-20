@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { commandControl } from './command-controls'
 
 async function fixture(page: Page) {
@@ -207,4 +207,103 @@ test('marks the caret boundary in a wrapping code-point grid', async ({ page }, 
   await input.press('End')
   await expect(points.last().locator('.point-caret.at-end')).toBeVisible()
   await expect(marker).toHaveCount(1)
+})
+
+async function center(locator: Locator) {
+  const bounds = (await locator.boundingBox())!
+  return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }
+}
+
+test('drags a range across rows and scrolls to select offscreen inspector blocks', async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 390, height: 650 })
+  await fixture(page)
+  const input = page.getByRole('textbox', { name: 'Account alias' })
+  const range = page.getByLabel('Selected unit range')
+  const kind = page.getByRole('combobox', { name: 'Account alias inspector type' })
+  await input.fill(String.raw`a\u00AE🧪bcdefg`)
+  await kind.selectOption('utf-8')
+  const bytes = page.getByRole('group', { name: 'Account alias UTF-8' }).getByRole('button')
+  const start = await center(bytes.nth(6))
+  const end = await center(bytes.nth(1))
+  expect(start.y).toBeGreaterThan(end.y)
+  await page.mouse.move(start.x, start.y)
+  await page.mouse.down()
+  await page.mouse.move(end.x, end.y, { steps: 8 })
+  await expect(range).toHaveText('1-11')
+  await page.mouse.up()
+  await expect(range).toHaveText('1-11')
+  await expect(bytes.and(page.getByRole('button', { pressed: true }))).toHaveCount(6)
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await page.screenshot({ path: info.outputPath('inspector-desktop-range.png') })
+  await page.setViewportSize({ width: 390, height: 650 })
+  await page.getByRole('button', { name: 'Delete', exact: true }).click()
+  await expect(input).toHaveValue('afg')
+
+  await input.fill('x'.repeat(100))
+  await kind.selectOption('code-points')
+  const points = page.getByRole('group', { name: 'Account alias code points' }).getByRole('button')
+  const first = await center(points.first())
+  const scroll = page.locator('.point-scroll')
+  const bounds = (await scroll.boundingBox())!
+  await page.mouse.move(first.x, first.y)
+  await page.mouse.down()
+  await page.mouse.move(first.x, bounds.y + bounds.height - 6)
+  await expect.poll(() => scroll.evaluate((node) => node.scrollTop)).toBeGreaterThan(60)
+  await page.mouse.up()
+  const selected = points.and(page.getByRole('button', { pressed: true }))
+  expect(await selected.count()).toBeGreaterThan(16)
+  await expect(selected.first()).toHaveAccessibleName('1. U+0078, x')
+})
+
+test.describe('touch range selection', () => {
+  test.use({ viewport: { width: 390, height: 435 }, isMobile: true, hasTouch: true })
+
+  test('selects with a swipe or a held drag and keeps native vertical scrolling', async ({
+    page,
+  }, info) => {
+    await fixture(page)
+    const input = page.getByRole('textbox', { name: 'Account alias' })
+    const range = page.getByLabel('Selected unit range')
+    await input.fill('abcdefghijklmnopqrstuvwxyz'.repeat(4))
+    await page.getByRole('button', { name: 'Code points', exact: true }).tap()
+    const points = page
+      .getByRole('group', { name: 'Account alias code points' })
+      .getByRole('button')
+    const touch = await page.context().newCDPSession(page)
+    const start = await center(points.nth(1))
+    const across = await center(points.nth(3))
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [start] })
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [across] })
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    await expect(range).toHaveText('1-4')
+
+    const lower = await center(points.nth(6))
+    expect(lower.y).toBeGreaterThan(start.y)
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [lower] })
+    await touch.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: [{ x: lower.x, y: lower.y - 48 }],
+    })
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    const scroll = page.locator('.point-scroll')
+    await expect.poll(() => scroll.evaluate((node) => node.scrollTop)).toBeGreaterThan(0)
+    await expect(range).toHaveText('1-4')
+
+    await scroll.evaluate((node) => {
+      node.scrollTop = 0
+    })
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [start] })
+    await page.waitForTimeout(350)
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [lower] })
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    await expect(range).toHaveText('1-7')
+    await page.screenshot({ path: info.outputPath('inspector-touch-range.png') })
+    await expect
+      .poll(() =>
+        input.evaluate((field: HTMLTextAreaElement) => [field.selectionStart, field.selectionEnd]),
+      )
+      .toEqual([1, 7])
+  })
 })

@@ -225,6 +225,62 @@ defineExpose({
 .short-viewport .terminal-frame {
   grid-template-rows: max-content minmax(72px, 1fr) auto;
 }
+/* Shared patterns span child components. Keep their specificity low for local overrides. */
+:where(.terminal-frame) :deep(.prompt-host) {
+  color: var(--muted);
+  font-weight: 650;
+}
+:where(.terminal-frame) :deep(.prompt-host.remote) {
+  color: var(--accent);
+}
+:where(.terminal-frame) :deep(.milestone-announcement) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+:where(.terminal-frame) :deep(.terminal-link) {
+  min-height: 26px;
+  padding: 1px 4px;
+  margin-inline-start: -4px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+:where(.terminal-frame) :deep(.transcript-prose) {
+  font: 14px/1.5 var(--sans);
+}
+:where(.terminal-frame) :deep(.transcript-label),
+:where(.terminal-frame) :deep(.transcript-detail) {
+  color: var(--muted);
+  font: 400 var(--transcript-meta-size, 12px)/1.35 var(--sans);
+}
+:where(.terminal-frame) :deep(.transcript-label) {
+  font-weight: 650;
+}
+:where(.terminal-frame) :deep(.transcript-detail) {
+  font-size: 12px;
+}
+:where(.terminal-frame) :deep(.transcript-list) {
+  display: grid;
+  grid-template-columns: fit-content(var(--list-label-width, 48%)) minmax(0, 1fr) max-content;
+  column-gap: var(--space-2);
+  padding: 0;
+  list-style: none;
+}
+:where(.terminal-frame) :deep(.transcript-list-row) {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: subgrid;
+  align-items: baseline;
+}
+:where(.terminal-frame) :deep(.transcript-list-row + .transcript-list-row) {
+  box-shadow: inset 0 1px var(--line);
+}
 .transcript {
   overflow: auto;
   overscroll-behavior: contain;
@@ -284,6 +340,12 @@ defineExpose({
 @media (pointer: coarse) {
   .shortcuts :deep(> button) {
     min-height: 34px;
+  }
+}
+@media (max-width: 600px), (pointer: coarse) {
+  :where(.terminal-frame) :deep(.terminal-link) {
+    min-block-size: var(--touch-height);
+    min-inline-size: var(--touch-height);
   }
 }
 @media (max-width: 600px) {

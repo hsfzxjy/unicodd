@@ -21,3 +21,15 @@ const emit = defineEmits<{ action: [Action] }>()
   />
   <TerminalMail v-else :path="output.path" :messages="output.messages" />
 </template>
+
+<style scoped>
+:where(.terminal-file, .terminal-mail) :deep(.file-path) {
+  color: var(--muted);
+  font-size: var(--transcript-meta-size, 12px);
+}
+:where(.terminal-file, .terminal-mail) :deep(.resource-text) {
+  margin: 3px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+</style>

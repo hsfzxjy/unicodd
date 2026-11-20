@@ -91,6 +91,7 @@ const lines = computed(() =>
 <style scoped>
 .terminal-file pre {
   max-width: 86ch;
+  font: inherit;
 }
 .terminal-file[data-format='log'] pre {
   max-width: 106ch;

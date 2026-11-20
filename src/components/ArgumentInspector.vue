@@ -303,6 +303,9 @@ defineExpose({
   overscroll-behavior: contain;
   padding: 4px 6px;
 }
+.muted {
+  color: var(--muted);
+}
 .point-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(69px, 1fr));

@@ -62,7 +62,14 @@ function listingIcon(action: Action) {
           :class="{
             'listing-title': link.tracking?.kind === 'mail' || link.action.type === 'scenario',
           }"
-          :aria-describedby="link.detail || link.status ? listId + '-' + index : undefined"
+          :aria-describedby="
+            [
+              link.detail && listId + '-' + index + '-detail',
+              link.status && listId + '-' + index + '-status',
+            ]
+              .filter(Boolean)
+              .join(' ') || undefined
+          "
           :aria-disabled="busy || undefined"
           :disabled="link.action.type === 'connect' && connected && link.action.host === prompt"
           @click="emit('action', link.action)"
@@ -70,10 +77,14 @@ function listingIcon(action: Action) {
           <span class="listing-icon" aria-hidden="true"><component :is="link.icon" /></span>
           <bdi>{{ link.label }}</bdi>
         </button>
-        <span v-if="link.detail || link.status" :id="listId + '-' + index" class="listing-detail">
+        <span
+          v-if="link.detail || link.status"
+          :id="listId + '-' + index + '-detail'"
+          class="listing-detail"
+        >
           <bdi v-if="link.detail">{{ link.detail }}</bdi>
         </span>
-        <span class="listing-status">{{ link.status }}</span>
+        <span :id="listId + '-' + index + '-status'" class="listing-status">{{ link.status }}</span>
       </li>
     </ul>
   </div>

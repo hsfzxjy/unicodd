@@ -134,7 +134,7 @@ async function openIndexGraphically(page: Page, act: Activate) {
   await act(link(page, 'The missing notice'))
   await expect(transcript(page)).toContainText('The relay handed it to postbox-03')
   await act(page.getByRole('button', { name: 'Open local hosts, 1 new', exact: true }))
-  await expect(transcript(page).locator('.terminal-list').last()).toContainText('postbox-03 · New')
+  await expect(link(page, 'Dead Letter')).toHaveAccessibleDescription('postbox-03 New')
   await act(link(page, 'Dead Letter'))
   await recoverNotice(page, act)
   await act(link(page, 'Re: The missing notice'))
@@ -391,8 +391,8 @@ test('completes and replays the recovery and archive arcs across reloads', async
   await expect(
     transcript(page).getByRole('button', { name: 'We have the records', exact: true }),
   ).toHaveCount(1)
-  await expect(transcript(page)).toContainText(
-    'we-have-the-records · Mira / Registration 0002917 · Read',
+  await expect(link(page, 'We have the records')).toHaveAccessibleDescription(
+    'we-have-the-records · Mira / Registration 0002917 Read',
   )
   await run(page, 'local campaign')
   page.once('dialog', (dialog) => dialog.accept())

@@ -274,7 +274,9 @@ for (const [width, height] of [
       )
       await act(goal)
       await act(page.getByRole('button', { name: /^Open local inbox/ }))
-      await expect(last(page)).toContainText('it-worked · Mira / Registration 0002917 · Read')
+      await expect(link(page, 'It worked')).toHaveAccessibleDescription(
+        'it-worked · Mira / Registration 0002917 Read',
+      )
       await expect(last(page).getByRole('button', { name: 'Thank you', exact: true })).toHaveCount(
         1,
       )

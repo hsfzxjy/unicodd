@@ -12,7 +12,7 @@
       "from": "Mara / Security",
       "to": "Rowan / Directory Team",
       "subject": "RE: Login compatibility",
-      "body": "Agreed.\n\nI filed a change request, but it has been moved to the next maintenance window.\n\nApparently the gateway is considered \"stable\" because nobody has reported a successful unauthorized login.\n\nLet's hope that's a good definition of stable.\n\n— Mara"
+      "body": "The change request moved to the next maintenance window. The reason I was given is that nobody has reported a successful unauthorized login.\n\nKeep the capture. We’ll need those field lengths when we review the change.\n\n— Mara"
     }
   ]
 }

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { commandControl } from './command-controls'
 
 const access = (page: Page) => page.getByRole('heading', { name: 'MONONYM access console' })
@@ -61,6 +61,15 @@ for (const [width, height] of [
       await expect(page.getByText('Goal shows your task.', { exact: false })).toBeVisible()
       expect(await preferences(page)).toEqual({ campaign: null, onboarding: null })
       await page.screenshot({ path: info.outputPath('opening-reference.png') })
+      if (width === 320) {
+        await page.evaluate(() => (document.documentElement.style.fontSize = '200%'))
+        const lastParagraph = page.getByText('Use Back to return to your work.', { exact: false })
+        await lastParagraph.scrollIntoViewIfNeeded()
+        await expect(lastParagraph).toBeInViewport()
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
+        await primary(page).scrollIntoViewIfNeeded()
+        await expect(primary(page)).toBeInViewport({ ratio: 1 })
+      }
       await page.reload()
       await expect(access(page)).toBeVisible()
       await expect(page.getByText('Goal shows your task.', { exact: false })).toBeHidden()
@@ -111,6 +120,55 @@ test('reopens controls in both Help scopes during a remote session', async ({ pa
   await help.last().getByRole('button', { name: 'connect <host>', exact: true }).click()
   await expect(page.getByRole('button', { name: /Change command: local connect/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /^Session:.*relay-07/ })).toBeVisible()
+})
+
+test.describe('Relay after a touch opening', () => {
+  test.use({
+    viewport: { width: 390, height: 430 },
+    hasTouch: true,
+    isMobile: true,
+    reducedMotion: 'reduce',
+  })
+
+  test('keeps the guest boundary and Unicode selection through Earlier reads', async ({ page }) => {
+    await page.goto('/')
+    await primary(page).tap()
+    await expect(request(page)).toContainText('I gave them 8C2F')
+    await button(page, 'Open local hosts, 1 new').tap()
+    await log(page).getByRole('button', { name: 'relay-07', exact: true }).last().tap()
+    await run(page, 'cat /queue/8c2f.msg')
+    await expect(log(page)).toContainText('Permission denied')
+    await expect(button(page, 'The missing notice')).toHaveCount(0)
+    await expect(button(page, 'Goal: In progress')).toBeVisible()
+
+    const tap = (target: Locator) => target.tap()
+    await commandControl(page, 'login', tap)
+    const alias = page.getByRole('textbox', { name: 'Account alias' })
+    await alias.fill('\u{1D40C}AINT')
+    await alias.press('Home')
+    await alias.press('Shift+ArrowRight')
+    await button(page, 'Earlier reads').tap()
+    await page
+      .getByRole('list', { name: 'Earlier reads' })
+      .getByRole('button', { name: /^A favor/ })
+      .tap()
+    await expect(request(page)).toBeInViewport()
+    await button(page, 'Back').tap()
+    expect(
+      await alias.evaluate((field: HTMLTextAreaElement) => [
+        field.selectionStart,
+        field.selectionEnd,
+      ]),
+    ).toEqual([0, 2])
+    await expect(alias).toHaveValue('\u{1D40C}AINT')
+    await button(page, 'Run').tap()
+    await expect(log(page)).toContainText('Authentication accepted')
+    await expect(button(page, 'Goal: In progress')).toBeVisible()
+    await expect(button(page, 'The missing notice')).toHaveCount(0)
+    await log(page).getByRole('button', { name: '/queue/8c2f.msg', exact: true }).tap()
+    await expect(page.getByRole('heading', { name: 'The Relay · Complete' })).toBeVisible()
+    await expect(button(page, 'The missing notice')).toBeVisible()
+  })
 })
 
 test('preserves the preference through cancelled and confirmed campaign reset', async ({

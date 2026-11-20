@@ -168,7 +168,7 @@ test('reaches equivalent states through typed actions in a different exploration
   await expect(link(page, '03-maintenance-policy')).toBeVisible()
   await run(page, 'cat /mail/03-maintenance-policy')
   await expect(mail(page, '/mail/03-maintenance-policy')).toContainText(
-    'MAINT is not a personal account',
+    'MAINT is the message queue’s account.',
   )
   const suggestions = page.getByRole('group', { name: 'Command suggestions' })
   const commandTag = page.getByRole('button', { name: /^Change command:/ })

@@ -26,7 +26,7 @@
         "user": "guest",
         "role": "guest"
       },
-      "welcome": "The delivery queue holds messages waiting to be sent. This hold keeps recovery messages from reaching the wrong account owner.",
+      "welcome": "The hold on notice 2917 keeps recovery messages from reaching the wrong account owner.",
       "status": [
         {
           "label": "Notice 2917",
@@ -145,7 +145,7 @@
             "milestone": {
               "id": "notice-released",
               "title": "Notice 2917 released",
-              "text": "Quarantined → Released. The message is available in the delivery queue."
+              "text": "The notice is out of quarantine and ready to read."
             }
           },
           {

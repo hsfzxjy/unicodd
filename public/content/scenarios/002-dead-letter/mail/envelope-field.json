@@ -6,7 +6,7 @@
       "to": "Nia / Messaging",
       "subject": "Envelope field on a manual route",
       "date": "2026-08-21",
-      "body": "The envelope is addressed separately from the header. It still uses the compatibility lookup so older route sheets can be copied. Manual routing rejects the canonical alias at the gateway.\n\nThe recipient slot is six UTF-8 bytes, including any width variants. I left an old address card under /samples. Before handing the body off, the relay compares the two resolved destinations."
+      "body": "Manual routing checks the envelope separately. The gateway rejects the canonical alias, and the transport slot holds six UTF-8 bytes, including width variants. The lookup still accepts compatible spellings from old route sheets. I left an address card under /samples.\n\nThe body only goes through once the resolved header and envelope agree."
     }
   ]
 }

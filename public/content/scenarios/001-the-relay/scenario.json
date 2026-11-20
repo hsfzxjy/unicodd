@@ -1,7 +1,7 @@
 {
   "version": 1,
   "title": "The Relay",
-  "introduction": "Local operator session. Guest access to MONONYM, an account and messaging provider.",
+  "introduction": "Local operator session. Guest access.",
   "outputTiming": {
     "connect": [
       {

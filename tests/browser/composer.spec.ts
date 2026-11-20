@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { commandControl } from './command-controls'
 import { commandRegistry } from '../../src/lib/commands'
+import { skipOpening } from './opening'
 
 const free = (page: Page) => page.getByRole('textbox', { name: 'Terminal command', exact: true })
 const tag = (page: Page) => page.getByRole('button', { name: /^Change command:/ })
@@ -21,6 +22,7 @@ async function typed(page: Page, text: string) {
   await free(page).press('Enter')
 }
 async function relay(page: Page) {
+  await skipOpening(page)
   await page.goto('/')
   await page.getByRole('button', { name: 'relay-07', exact: true }).click()
   await expect(log(page).getByText('Relay queue online.', { exact: false })).toBeVisible()

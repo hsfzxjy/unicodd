@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { commandControl } from './command-controls'
+import { skipOpening } from './opening'
 
 const transcript = (page: Page) => page.getByRole('log', { name: 'Terminal transcript' })
 const link = (page: Page, name: string | RegExp) =>
@@ -11,6 +12,7 @@ const goalButton = (page: Page, status: string) =>
   page.getByRole('button', { name: 'Goal: ' + status, exact: true })
 
 async function openCampaign(page: Page, path = '/') {
+  if (path === '/') await skipOpening(page)
   await page.goto(path)
   await page.getByRole('region', { name: 'Terminal', exact: true }).waitFor()
 }
@@ -462,7 +464,10 @@ test('starts a tall briefing at its first line and follows the first command', a
 
 test('ignores debug mode and direct scenario entry on the built site', async ({ page }) => {
   test.skip(!process.env.PLAYWRIGHT_TEST_PREVIEW, 'Requires the production build')
-  await openCampaign(page, '/?debug=1&scenario=006-the-release')
+  await page.goto('/?debug=1&scenario=006-the-release')
+  await expect(page.getByRole('heading', { name: 'MONONYM access console' })).toBeVisible()
+  await page.getByRole('button', { name: 'Read Mira’s request' }).click()
+  await expect(page.getByRole('region', { name: 'Inbox message' })).toBeFocused()
   await expect(page.getByRole('combobox', { name: 'Debug level' })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'The Relay' })).toBeVisible()
   await expect(session(page)).toHaveAccessibleName(/Local console/)

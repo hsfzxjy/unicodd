@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { commandControl } from './command-controls'
 import { routeFixtures } from './content-routes'
+import { skipOpening } from './opening'
 
 const compatible = '\u{1D40C}AINT'
 const terminal = (page: Page) => page.getByRole('log', { name: 'Terminal transcript' })
@@ -36,6 +37,7 @@ async function run(page: Page, text: string) {
 }
 
 async function openRelay(page: Page) {
+  await skipOpening(page)
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'The Relay' })).toBeVisible()
 }
@@ -372,6 +374,7 @@ test('saves level workspaces and drops their command history when a game text ch
   page,
 }, info) => {
   await routeFixtures(page, true)
+  await skipOpening(page)
   await page.goto('/')
   const selector = page.getByRole('combobox', { name: 'Case' })
   const log = terminal(page)

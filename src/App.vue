@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+import FirstRun from './components/FirstRun.vue'
 import Terminal from './components/Terminal.vue'
 import TerminalSession from './components/TerminalSession.vue'
 import TerminalTitle from './components/TerminalTitle.vue'
 import { useVisibleViewport } from './composables/useVisibleViewport'
 import logicRevision, { previousRevision } from 'virtual:unicodd-logic-revision'
-import { createCampaign, type DirectEntry } from './lib/campaign'
+import { campaignKey, createCampaign, type DirectEntry } from './lib/campaign'
 import { actionCommand, puzzleAction } from './lib/commands'
 import type { createContentLoader, ScenarioEntry } from './lib/content'
 import { createRuntime, type Action, type Link, type Session } from './lib/runtime'
@@ -52,6 +53,12 @@ const session = shallowRef<Session>()
 const catalogLoading = ref(true)
 const loadingError = ref('')
 const attempt = ref(0)
+const opening = ref(false)
+const onboardingKey = 'unicodd.onboarding.v1'
+const relayId = '001-the-relay'
+const requestId = 'favor'
+let storage: Storage | undefined
+let readOpeningRequest = false
 const busy = ref(false)
 const openPanel = ref<TerminalPanel>()
 const application = ref<HTMLElement>()
@@ -173,27 +180,65 @@ const unreadMail = computed(() => {
     return active.deliveredMail.filter((id) => !active.readMail.includes(id)).length
 })
 
+function needsOpening() {
+  const first = scenarios.value.find(
+    ({ available, initiallyDiscovered }) => available && initiallyDiscovered,
+  )
+  if (direct !== undefined || first?.id !== relayId || !first.inbox?.initial.includes(requestId))
+    return false
+  try {
+    return (
+      storage?.getItem(campaignKey) == null &&
+      storage?.getItem('unicodd.objective.' + relayId) !== 'true' &&
+      storage?.getItem(onboardingKey) !== 'seen'
+    )
+  } catch {
+    // A storage object can be present while access to its keys is blocked.
+    storage = undefined
+    return true
+  }
+}
+
+async function startCampaign() {
+  const definitions = [catalog.value, scenarios.value]
+  campaign = createCampaign(scenarios.value, storage, direct)
+  await campaign.verifyDossier(props.engine)
+  campaign.invalidateHistory(
+    revision,
+    previousRevision && (await historyRevision(previousRevision, definitions)),
+  )
+  scenarioId.value = campaign.current
+}
+
+async function enterFromOpening() {
+  if (!opening.value) return
+  opening.value = false
+  catalogLoading.value = true
+  readOpeningRequest = needsOpening()
+  try {
+    await startCampaign()
+  } catch (error) {
+    readOpeningRequest = false
+    loadingError.value = error instanceof Error ? error.message : String(error)
+  } finally {
+    catalogLoading.value = false
+  }
+}
+
 async function loadCatalog() {
   catalogLoading.value = true
   loadingError.value = ''
   try {
     catalog.value = await props.content.manifest()
     scenarios.value = await props.content.campaign(catalog.value)
-    const definitions = [catalog.value, scenarios.value]
-    revision = await historyRevision(logicRevision, definitions)
-    let storage: Storage | undefined
+    revision = await historyRevision(logicRevision, [catalog.value, scenarios.value])
     try {
-      if (!direct) storage = window.localStorage
+      if (direct === undefined) storage = window.localStorage
     } catch {
       // Continue without persistence if the browser blocks storage.
     }
-    campaign = createCampaign(scenarios.value, storage, direct)
-    await campaign.verifyDossier(props.engine)
-    campaign.invalidateHistory(
-      revision,
-      previousRevision && (await historyRevision(previousRevision, definitions)),
-    )
-    scenarioId.value = campaign.current
+    opening.value = needsOpening()
+    if (!opening.value) await startCampaign()
   } catch (error) {
     loadingError.value = error instanceof Error ? error.message : String(error)
   } finally {
@@ -261,6 +306,20 @@ watch([scenarioId, attempt], async ([id]) => {
   workspaceReady = true
   transcriptLive.value = true
   saveLevel()
+  if (readOpeningRequest) {
+    readOpeningRequest = false
+    const response = await dispatch({ type: 'mail', id: requestId, scope: 'local' })
+    if (runtime !== active) return
+    if (response?.output?.some(({ kind }) => kind === 'mail')) {
+      try {
+        storage?.setItem(onboardingKey, 'seen')
+      } catch {
+        // The request is still readable when persistence is unavailable.
+      }
+    } else {
+      terminal.value?.focusTranscript()
+    }
+  }
 })
 void loadCatalog()
 
@@ -472,8 +531,9 @@ async function dispatch(action: Action, command?: string) {
         </template>
       </Terminal>
     </main>
-    <main v-else class="startup">
-      <template v-if="loadingError">
+    <main v-else class="startup" :class="{ 'startup-opening': opening }">
+      <FirstRun v-if="opening" @read-request="enterFromOpening" />
+      <template v-else-if="loadingError">
         <h1>Could not load scenario content</h1>
         <p role="alert" class="error" dir="auto">{{ loadingError }}</p>
         <button type="button" @click="loadCatalog()">Retry</button>
@@ -504,13 +564,20 @@ async function dispatch(action: Action, command?: string) {
 .startup p {
   margin-block: 6px 10px;
 }
+.startup-opening {
+  min-block-size: 0;
+  overflow-y: auto;
+  padding: var(--space-2) var(--space-3);
+}
 @media (max-width: 830px) {
-  .workspace {
+  .workspace,
+  .startup-opening {
     padding: var(--space-1);
   }
 }
 @media (max-width: 600px) {
-  .workspace {
+  .workspace,
+  .startup-opening {
     padding: 0;
   }
 }

@@ -1,5 +1,10 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { commandControl } from './command-controls'
+import { skipOpening } from './opening'
+
+test.beforeEach(async ({ page }) => {
+  await skipOpening(page)
+})
 
 async function fixture(page: Page) {
   await page.goto('/')

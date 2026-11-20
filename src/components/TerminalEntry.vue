@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ChevronDown, ChevronRight, Mail, Pencil } from '@lucide/vue'
+import ConsoleControls from './ConsoleControls.vue'
 import TerminalInspection from './TerminalInspection.vue'
 import TerminalListing from './TerminalListing.vue'
 import TerminalProgress from './TerminalProgress.vue'
@@ -150,6 +151,7 @@ function echoText(value: string) {
             @action="emit('action', $event)"
           />
           <div v-else-if="row.kind === 'help'" class="command-help">
+            <ConsoleControls />
             <dl class="transcript-list">
               <div
                 v-for="{ name, usage, description } in commandRegistry.filter(({ name }) =>

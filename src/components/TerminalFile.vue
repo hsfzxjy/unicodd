@@ -83,7 +83,7 @@ const lines = computed(() =>
         </template>
         <template v-else>{{ line.text }}</template>
       </p>
-      <p class="meta">Select a character to inspect it.</p>
+      <p class="transcript-detail">Select a character to inspect it.</p>
     </template>
   </section>
 </template>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronDown, ChevronRight, Pencil } from '@lucide/vue'
+import { ChevronDown, ChevronRight, Mail, Pencil } from '@lucide/vue'
 import TerminalInspection from './TerminalInspection.vue'
 import TerminalListing from './TerminalListing.vue'
 import TerminalProgress from './TerminalProgress.vue'
@@ -13,7 +13,7 @@ const props = defineProps<{
   entry: Entry
   outputId: string
   collapsed: boolean
-  activity: Pick<Session, 'visitedHosts' | 'readMail' | 'readResources'>
+  activity: Pick<Session, 'visitedHosts' | 'deliveredMail' | 'readMail' | 'readResources'>
   prompt: string
   connected: boolean
   busy: boolean
@@ -118,16 +118,18 @@ function echoText(value: string) {
             :busy="busy"
             @action="emit('action', $event)"
           />
-          <button
-            v-else-if="row.kind === 'mailNotice'"
-            type="button"
-            class="terminal-link mail-notice"
-            aria-label="New mail, open local inbox"
-            :aria-disabled="busy || undefined"
-            @click="emit('mail')"
-          >
-            NEW MAIL
-          </button>
+          <template v-else-if="row.kind === 'mailNotice'">
+            <button
+              v-if="activity.deliveredMail.some((id) => !activity.readMail.includes(id))"
+              type="button"
+              class="terminal-link mail-notice transcript-label"
+              aria-label="New mail, open local inbox"
+              :aria-disabled="busy || undefined"
+              @click="emit('mail')"
+            >
+              <Mail aria-hidden="true" /> New mail
+            </button>
+          </template>
           <TerminalInspection
             v-else-if="row.kind === 'inspection'"
             :row="row"
@@ -146,12 +148,13 @@ function echoText(value: string) {
             @action="emit('action', $event)"
           />
           <div v-else-if="row.kind === 'help'" class="command-help">
-            <dl>
-              <template
+            <dl class="transcript-list">
+              <div
                 v-for="{ name, usage, description } in commandRegistry.filter(({ name }) =>
                   row.commands.includes(name),
                 )"
                 :key="name"
+                class="transcript-list-row"
               >
                 <dt>
                   <button
@@ -164,10 +167,10 @@ function echoText(value: string) {
                     {{ usage }}
                   </button>
                 </dt>
-                <dd>{{ description }}</dd>
-              </template>
+                <dd class="transcript-detail">{{ description }}</dd>
+              </div>
             </dl>
-            <p>
+            <p class="transcript-detail">
               {{
                 row.connected
                   ? 'File paths start at this host’s root. The title bar opens local mail and hosts without disconnecting.'
@@ -180,7 +183,17 @@ function echoText(value: string) {
             :progress="row.progress"
             :fresh="Boolean(entry.freshProgress)"
           />
-          <p v-else :class="['terminal-line', row.kind]" dir="auto">{{ row.text }}</p>
+          <p
+            v-else
+            :class="[
+              'terminal-line',
+              row.kind,
+              row.kind === 'message' && row.narrative && 'transcript-prose',
+            ]"
+            dir="auto"
+          >
+            {{ row.text }}
+          </p>
         </template>
       </div>
       <p
@@ -269,6 +282,9 @@ function echoText(value: string) {
 .terminal-line {
   white-space: pre-wrap;
 }
+.terminal-line.transcript-prose {
+  max-inline-size: 76ch;
+}
 .terminal-line + .terminal-line {
   margin-top: var(--space-1);
 }
@@ -285,14 +301,14 @@ function echoText(value: string) {
   border: 0;
 }
 .mail-notice {
-  font-size: 12px;
-  font-weight: 650;
+  --icon-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--accent);
 }
 .command-help dl {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  align-items: baseline;
-  column-gap: 14px;
+  --list-label-width: 55%;
   margin: 3px 0 8px;
 }
 .command-help button {
@@ -302,10 +318,10 @@ function echoText(value: string) {
   margin: 0;
 }
 @media (max-width: 830px) {
-  .command-help dl {
+  .command-help :is(dl, .transcript-list-row) {
     grid-template-columns: minmax(0, 1fr);
   }
-  .command-help dd + dt {
+  .command-help .transcript-list-row + .transcript-list-row {
     margin-top: var(--space-1);
   }
 }

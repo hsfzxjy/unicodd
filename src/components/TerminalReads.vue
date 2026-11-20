@@ -120,11 +120,11 @@ defineExpose({ close })
             @click="choose(read, $event)"
           >
             <bdi>{{ read.label }}</bdi>
-            <bdi class="read-source">{{ read.source }}</bdi>
+            <bdi class="transcript-detail">{{ read.source }}</bdi>
           </button>
         </li>
       </ul>
-      <p v-else class="reads-empty">Open a file or message to see it here.</p>
+      <p v-else class="reads-empty transcript-detail">Open a file or message to see it here.</p>
     </div>
   </Teleport>
   <button
@@ -168,6 +168,9 @@ defineExpose({ close })
   padding: 0;
   list-style: none;
 }
+.reads-menu li + li {
+  box-shadow: inset 0 1px var(--line);
+}
 .reads-menu .read-choice {
   display: flex;
   align-items: center;
@@ -187,13 +190,6 @@ defineExpose({ close })
 }
 .reads-menu .read-choice:hover {
   background: var(--raised);
-}
-.read-source,
-.reads-empty {
-  color: var(--muted);
-}
-.read-source {
-  font-size: 12px;
 }
 .reads-empty {
   padding: 5px 7px;

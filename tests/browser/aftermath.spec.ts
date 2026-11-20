@@ -186,8 +186,17 @@ for (const [width, height] of [
         last(page).getByRole('heading', { name: 'Archive references verified' }),
       ).toBeInViewport()
       await expect(last(page)).toContainText('18.0.0 search collision')
+      const reportLink = link(page, '/reports/reconciliation.txt')
+      if (width < 600)
+        expect(
+          await reportLink.locator('bdi').evaluate((label) => {
+            const range = document.createRange()
+            range.selectNodeContents(label)
+            return range.getClientRects().length
+          }),
+        ).toBe(1)
       await snap('03-bridge')
-      await act(link(page, '/reports/reconciliation.txt'))
+      await act(reportLink)
       await expect(
         last(page).getByRole('heading', { name: 'The Boundary · Complete' }),
       ).toBeVisible()

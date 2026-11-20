@@ -177,6 +177,37 @@ code,
   overflow-wrap: anywhere;
   font: inherit;
 }
+.transcript-prose {
+  font: 14px/1.5 var(--sans);
+}
+.transcript-label,
+.transcript-detail {
+  color: var(--muted);
+  font: 400 var(--transcript-meta-size, 12px)/1.35 var(--sans);
+}
+.transcript-label {
+  font-weight: 650;
+}
+.transcript-detail {
+  font-size: 12px;
+}
+.transcript-list {
+  display: grid;
+  grid-template-columns: fit-content(var(--list-label-width, 48%)) minmax(0, 1fr);
+  column-gap: var(--space-2);
+  padding: 0;
+  list-style: none;
+}
+.transcript-list-row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: subgrid;
+  align-items: baseline;
+}
+.transcript-list-row + .transcript-list-row {
+  box-shadow: inset 0 1px var(--line);
+}
 @media (max-width: 600px), (pointer: coarse) {
   button,
   select,

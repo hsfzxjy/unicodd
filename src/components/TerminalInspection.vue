@@ -129,17 +129,17 @@ const normalization = computed(() => {
     </p>
     <p class="inspection-encoding meta">
       <span
-        >UTF-8 <code>{{ utf8 }}</code></span
+        ><span class="transcript-label">UTF-8</span> <code>{{ utf8 }}</code></span
       >
       <span
-        >UTF-16 <code>{{ utf16 }}</code></span
+        ><span class="transcript-label">UTF-16</span> <code>{{ utf16 }}</code></span
       >
     </p>
     <dl class="inspection-normalization" aria-label="Normalization">
       <div
         v-for="{ form, points, text, offerInsert, error, repeated, sameForms } in normalization"
         :key="form"
-        class="inspection-form"
+        class="inspection-form transcript-list-row"
         :class="{ 'inspection-form-repeat': repeated }"
       >
         <dt>
@@ -201,7 +201,7 @@ const normalization = computed(() => {
           <span class="meta">{{ point.script }}</span>
         </button>
       </div>
-      <p class="meta">
+      <p class="transcript-detail">
         Related scalars from UTS #39 · Unicode {{ row.details.value.unicodeVersion }}
       </p>
     </details>
@@ -217,6 +217,11 @@ details[open] > summary .disclosure-icon {
   flex-wrap: wrap;
   column-gap: 12px;
   margin: 4px 0;
+}
+.inspection-metadata bdi,
+.inspection-encoding code {
+  color: var(--text);
+  font-weight: 550;
 }
 .inspection-confusables {
   margin-top: 5px;
@@ -386,7 +391,7 @@ details[open] > summary .disclosure-icon {
   .inspection-form {
     grid-template-columns: 4ch minmax(0, 1fr);
     column-gap: var(--compact-gap);
-    border-top: 1px solid var(--line);
+    box-shadow: inset 0 1px var(--line);
   }
   .inspection-form:has(.inspection-form-equivalent:nth-child(4)) {
     grid-template-columns: 8ch minmax(0, 1fr);

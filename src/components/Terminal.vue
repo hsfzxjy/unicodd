@@ -21,7 +21,7 @@ const props = defineProps<{
   busy: boolean
   context: string
   operations: readonly OperationBinding[]
-  activity: Pick<Session, 'visitedHosts' | 'readMail' | 'readResources'>
+  activity: Pick<Session, 'visitedHosts' | 'deliveredMail' | 'readMail' | 'readResources'>
   initialComposer?: ComposerSave
   execute: (action: Action, echo?: string) => Promise<Response | undefined>
 }>()
@@ -118,7 +118,7 @@ defineExpose({
         aria-label="Earlier read"
         aria-live="off"
       >
-        <p class="earlier-read-label">
+        <p class="earlier-read-label transcript-label">
           Earlier read · <bdi>{{ archived.source }}</bdi>
         </p>
         <TerminalResource :output="archived.output" :busy="busy" @action="emit('action', $event)" />
@@ -255,8 +255,6 @@ defineExpose({
   z-index: 1;
   margin-bottom: 4px;
   background: var(--surface);
-  color: var(--muted);
-  font: 12px/1.3 var(--sans);
 }
 .terminal-controls {
   position: relative;

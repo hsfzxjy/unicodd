@@ -15,10 +15,9 @@ const logicFiles = [
   'wasm/pkg/unicodd_core_bg.wasm',
 ].sort()
 const logicPaths = logicFiles.map((name) => fileURLToPath(new URL(name, root)))
-// The previous fingerprint included SFC bytes, so bridge that known build only
-// while the journal contract and hashed logic/WASM match this upgrade.
-const upgradeLogic = '22ef1239a0abd2f651f7fa4c41e59cc542ad3e01f20337c3eb10eafbdf47b285'
-const previousLogic = '5496bcd0897ddbbb7d42c63d8557ebe472d4e280292cd52b897a17648a574636'
+// Replay the preceding build's journals with the new transcript presentation metadata.
+const upgradeLogic = '44d423b425f2a3aa9aa24167c86879bb19ffc7bb634e37689a2d1fd0a9d8e0fb'
+const previousLogic = '1:de93be50d744f7f7a11ddff4e3ca1b8193cdb862e36e38774da0abcbe3bc5c68'
 
 export default defineConfig({
   plugins: [

@@ -22,7 +22,7 @@ onMounted(() => {
       <Flag v-else aria-hidden="true" />
       <bdi>{{ progress.title }}</bdi>
     </h3>
-    <p dir="auto">{{ progress.text }}</p>
+    <p class="transcript-prose" dir="auto">{{ progress.text }}</p>
   </section>
 </template>
 
@@ -47,7 +47,6 @@ onMounted(() => {
 }
 .progress-band p {
   margin-top: 3px;
-  font-size: 13px;
 }
 .progress-band[data-scope='scenario'] {
   --progress-ink: #d4f3e5;

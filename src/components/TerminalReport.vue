@@ -27,112 +27,118 @@ function usePayload(text: string) {
 </script>
 
 <template>
-  <div class="terminal-report" tabindex="-1">
-    <div
+  <ul class="terminal-report transcript-list" role="list" aria-label="Report" tabindex="-1">
+    <li
       v-for="(record, number) in rows"
       :key="number"
-      class="report-row"
+      class="report-row transcript-list-row"
       :class="{ 'audit-row': record.audit }"
     >
-      <strong
+      <strong class="report-label"
         ><bdi>{{ record.label }}</bdi></strong
       >
-      <span v-if="record.details" class="report-details">
-        <bdi v-for="(detail, index) in record.details" :key="index">{{ detail }}</bdi>
-      </span>
-      <span v-if="record.hex" class="report-hex" dir="ltr">
-        <span v-if="record.hex.chunkStart" class="report-chunk">chunk</span>
-        <button
-          v-for="(byte, index) in record.hex.bytes"
-          :key="index"
-          type="button"
-          class="terminal-link"
-          :class="{
-            'report-invalid-byte':
-              record.hex.highlight &&
-              record.hex.offset + index >= record.hex.highlight[0] &&
-              record.hex.offset + index < record.hex.highlight[1],
-          }"
-          :aria-label="
-            'Use offset 0x' +
-            hexadecimal(record.hex.offset + index, 4) +
-            ' for byte ' +
-            hexadecimal(byte, 2)
-          "
-          :aria-disabled="busy || !canInsert || undefined"
-          @click="usePayload('0x' + hexadecimal(record.hex.offset + index, 4))"
-        >
-          {{ hexadecimal(byte, 2) }}
-        </button>
-      </span>
-      <span v-else-if="record.fields.length" class="report-fields" data-resource-text>
-        <bdi v-for="(field, index) in record.fields" :key="index">{{ field }}</bdi>
-      </span>
-      <template v-if="record.source">
-        <bdi class="report-source" data-resource-text
-          >{{ record.source.before }}<mark>{{ record.source.hit }}</mark
-          >{{ record.source.after }}</bdi
-        >
-        <span class="report-details" dir="ltr">
-          <template v-for="[space, label] in sourceCoordinates" :key="space">
-            <button
-              v-if="canInsert"
-              type="button"
-              class="terminal-link"
-              :aria-label="'Use ' + label + ' range ' + record.source.coordinates[space].join('-')"
-              :aria-disabled="busy || undefined"
-              @click="usePayload(record.source.coordinates[space].join('-'))"
-            >
-              {{ label }} {{ record.source.coordinates[space].join('–') }}
-            </button>
-            <span v-else>{{ label }} {{ record.source.coordinates[space].join('–') }}</span>
-            <span v-if="space === 'graphemes' && !record.source.coordinates.exactGraphemes"
-              >(covering)</span
-            >
-          </template>
+      <div class="report-content">
+        <span v-if="record.details" class="report-details">
+          <bdi v-for="(detail, index) in record.details" :key="index">{{ detail }}</bdi>
         </span>
-      </template>
-      <button
-        v-if="record.serialized !== undefined"
-        type="button"
-        class="terminal-link"
-        :aria-disabled="busy || undefined"
-        @click="emit('action', { type: 'copy', text: record.serialized })"
-      >
-        {{ record.copyLabel ?? (record.audit ? 'Copy line' : 'Copy cursor') }}
-      </button>
-      <span v-if="record.inspect" class="report-points">
-        <template v-for="(field, index) in record.inspect" :key="index">
+        <span v-if="record.hex" class="report-hex" dir="ltr">
+          <span v-if="record.hex.chunkStart" class="transcript-label">chunk</span>
           <button
-            v-for="point in inspectRange(field, 0, 24)"
-            :key="point.start"
+            v-for="(byte, index) in record.hex.bytes"
+            :key="index"
             type="button"
             class="terminal-link"
-            :aria-disabled="busy || undefined"
-            @click="emit('action', { type: 'inspect', character: point.scalar })"
+            :class="{
+              'report-invalid-byte':
+                record.hex.highlight &&
+                record.hex.offset + index >= record.hex.highlight[0] &&
+                record.hex.offset + index < record.hex.highlight[1],
+            }"
+            :aria-label="
+              'Use offset 0x' +
+              hexadecimal(record.hex.offset + index, 4) +
+              ' for byte ' +
+              hexadecimal(byte, 2)
+            "
+            :aria-disabled="busy || !canInsert || undefined"
+            @click="usePayload('0x' + hexadecimal(record.hex.offset + index, 4))"
           >
-            {{ point.notation }}
+            {{ hexadecimal(byte, 2) }}
           </button>
+        </span>
+        <span v-else-if="record.fields.length" class="report-fields" data-resource-text>
+          <bdi v-for="(field, index) in record.fields" :key="index">{{ field }}</bdi>
+        </span>
+        <template v-if="record.source">
+          <bdi class="report-source" data-resource-text
+            >{{ record.source.before }}<mark>{{ record.source.hit }}</mark
+            >{{ record.source.after }}</bdi
+          >
+          <span class="report-details" dir="ltr">
+            <template v-for="[space, label] in sourceCoordinates" :key="space">
+              <button
+                v-if="canInsert"
+                type="button"
+                class="terminal-link"
+                :aria-label="
+                  'Use ' + label + ' range ' + record.source.coordinates[space].join('-')
+                "
+                :aria-disabled="busy || undefined"
+                @click="usePayload(record.source.coordinates[space].join('-'))"
+              >
+                {{ label }} {{ record.source.coordinates[space].join('–') }}
+              </button>
+              <span v-else>{{ label }} {{ record.source.coordinates[space].join('–') }}</span>
+              <span v-if="space === 'graphemes' && !record.source.coordinates.exactGraphemes"
+                >(covering)</span
+              >
+            </template>
+          </span>
         </template>
-      </span>
-    </div>
-  </div>
+        <button
+          v-if="record.serialized !== undefined"
+          type="button"
+          class="terminal-link"
+          :aria-disabled="busy || undefined"
+          @click="emit('action', { type: 'copy', text: record.serialized })"
+        >
+          {{ record.copyLabel ?? (record.audit ? 'Copy line' : 'Copy cursor') }}
+        </button>
+        <span v-if="record.inspect" class="report-points">
+          <template v-for="(field, index) in record.inspect" :key="index">
+            <button
+              v-for="point in inspectRange(field, 0, 24)"
+              :key="point.start"
+              type="button"
+              class="terminal-link"
+              :aria-disabled="busy || undefined"
+              @click="emit('action', { type: 'inspect', character: point.scalar })"
+            >
+              {{ point.notation }}
+            </button>
+          </template>
+        </span>
+      </div>
+    </li>
+  </ul>
 </template>
 
 <style scoped>
 .terminal-report {
-  display: grid;
-  gap: 3px;
+  --list-label-width: 32%;
+  row-gap: 3px;
   overflow-wrap: anywhere;
 }
-.report-row {
+.report-content {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 2px 10px;
+  min-width: 0;
 }
-.report-row strong {
-  color: var(--muted);
+.report-label {
+  min-width: 0;
+  font-weight: 650;
 }
 .report-hex {
   display: flex;
@@ -144,9 +150,6 @@ function usePayload(text: string) {
 }
 .report-hex button {
   padding-inline: 0.2rem;
-}
-.report-chunk {
-  color: var(--muted);
 }
 .report-hex .report-invalid-byte {
   border-bottom: 2px solid currentColor;
@@ -190,6 +193,16 @@ function usePayload(text: string) {
 @media (min-width: 540px) {
   .audit-row .report-fields {
     flex-basis: auto;
+  }
+}
+@media (max-width: 600px) {
+  .terminal-report {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .report-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px var(--space-2);
   }
 }
 </style>

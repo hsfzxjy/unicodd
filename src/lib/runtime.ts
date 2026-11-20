@@ -73,6 +73,7 @@ export type Action =
 export interface Link {
   label: string
   detail?: string
+  resourceType?: Resource['type']
   tracking?: { kind: 'host' | 'mail' | 'resource'; key: string }
   action: Action
 }
@@ -92,7 +93,8 @@ export interface ProgressTransition extends Milestone {
 }
 
 export type Output =
-  | { kind: 'message' | 'error' | 'auth'; text: string }
+  | { kind: 'message'; text: string; narrative?: true }
+  | { kind: 'error' | 'auth'; text: string }
   | { kind: 'objective'; text: string; progress?: ProgressTransition }
   | { kind: 'milestone'; text: string; progress: ProgressTransition }
   | { kind: 'listing'; path?: string; title?: string; empty?: string; links: Link[] }
@@ -315,11 +317,12 @@ export function createRuntime(
   }
 
   const message = (text: string): Output => ({ kind: 'message', text })
+  const narrative = (text: string): Output => ({ kind: 'message', text, narrative: true })
   const error = (text: string): Response => ({ output: [{ kind: 'error', text }] })
   const isTransient = (code: EngineError['code']) =>
     code === 'engine_unavailable' || code === 'evaluation_failure'
   const welcome = (): Output[] => [
-    message(scenario.introduction),
+    narrative(scenario.introduction),
     ...(campaign.staleDossier(scenario.id)
       ? [
           message(
@@ -327,7 +330,7 @@ export function createRuntime(
           ),
         ]
       : []),
-    ...(state.host ? [message(state.host.welcome)] : []),
+    ...(state.host ? [narrative(state.host.welcome)] : []),
     ...welcomeMail(),
     ...(state.host ? [] : hosts()),
   ]
@@ -431,6 +434,7 @@ export function createRuntime(
     return {
       label,
       detail: allows(resource.access) ? undefined : 'restricted',
+      resourceType: resource.type,
       tracking:
         resource.type === 'directory'
           ? undefined
@@ -743,7 +747,7 @@ export function createRuntime(
           return error(`Unknown host in the local directory: ${action.host}`)
         campaign.visitHost(hostKey(host))
         state = { ...state, host, identity: host.guest, visitedHosts: campaign.visitedHosts }
-        return { output: [message(host.welcome)] }
+        return { output: [narrative(host.welcome)] }
       }
       case 'ls':
       case 'cat':

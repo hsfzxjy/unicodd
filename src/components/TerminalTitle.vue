@@ -6,6 +6,7 @@ import {
   History,
   ListChecks,
   Mail,
+  MailOpen,
   Monitor,
   Server,
   Target,
@@ -185,7 +186,8 @@ watch(titleStatus, (current, previous) => {
         :aria-disabled="busy || undefined"
         @click="emit('list', 'mail')"
       >
-        <Mail aria-hidden="true" />
+        <Mail v-if="unreadMail" aria-hidden="true" />
+        <MailOpen v-else aria-hidden="true" />
         <span v-if="unreadMail" class="notification-count" aria-hidden="true">{{
           unreadMail
         }}</span>

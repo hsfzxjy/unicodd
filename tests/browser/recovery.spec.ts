@@ -33,6 +33,7 @@ async function seedIndexSave(page: Page) {
 test('prepares the release independently through the development entry', async ({ page }) => {
   test.skip(Boolean(process.env.PLAYWRIGHT_TEST_PREVIEW), 'Requires the development entry')
   await page.goto('/?scenario=006-the-release')
+  await log(page).waitFor({ timeout: 20_000 })
   await expect(page.getByRole('combobox', { name: 'Case' })).toHaveValue('006-the-release')
   await commandControl(page, 'prepare')
   await field(page, 'Identity key').fill('registration')
@@ -47,6 +48,7 @@ test('keeps the Release briefing visible in a short viewport', async ({ page }) 
   page.on('pageerror', (error) => errors.push(error))
   await page.setViewportSize({ width: 390, height: 420 })
   await page.goto('/?debug=1&scenario=006-the-release')
+  await log(page).waitFor({ timeout: 20_000 })
   await expect(
     log(page).getByText('Both owners approved the split.', { exact: false }),
   ).toBeInViewport({ ratio: 1 })

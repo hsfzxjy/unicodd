@@ -588,16 +588,19 @@ defineExpose({
           @keydown.down.prevent="toggleMenu"
           @keydown.up.prevent="toggleMenu"
         >
-          <SquareTerminal /> <ChevronDown class="disclosure-icon" aria-hidden="true" />
+          <SquareTerminal aria-hidden="true" />
+          <ChevronDown class="disclosure-icon" aria-hidden="true" />
         </button>
         <div ref="promptTools" class="prompt-tools"></div>
         <button
           ref="runButton"
           type="submit"
           class="run-command"
+          aria-label="Run"
+          title="Run"
           :disabled="busy || composing || pending || (!selected && !text.trim())"
         >
-          <Play />
+          <Play aria-hidden="true" />
         </button>
       </div>
       <div v-if="selected && (fields.length || fixedFields.length)" class="composer-arguments">
@@ -811,7 +814,9 @@ defineExpose({
 
 .prompt.single-argument {
   display: grid;
-  grid-template-columns: minmax(0, max-content) max-content minmax(24px, 1fr) max-content max-content;
+  grid-template-columns:
+    minmax(0, max-content) max-content minmax(24px, 1fr)
+    max-content max-content;
   align-items: center;
   column-gap: 6px;
 }
@@ -835,7 +840,6 @@ defineExpose({
 .single-argument .prompt-tools {
   grid-column: 4;
   grid-row: 1;
-  
 }
 .single-argument .composer-fixed {
   grid-column: 1 / -1;

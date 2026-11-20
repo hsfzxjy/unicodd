@@ -213,7 +213,7 @@
             {
               "check": "route-authorized",
               "stage": "route-authorized",
-              "message": "Check the endpoint owner and exact resource path for each receipt."
+              "message": "Dispatch could not verify an authorized vault and resource for each receipt."
             },
             {
               "check": "distinct-endpoints",
@@ -229,7 +229,7 @@
     "text": "Verify that each receipt reached its registered vault, then read the gateway report.",
     "read": "final-report",
     "handoff": "dispatch",
-    "message": "The two archival receipts reached their own vaults. Application ingestion is still pending.",
+    "message": "Vault delivery verified. Application ingestion is still pending.",
     "onComplete": [
       {
         "type": "deliverMail",

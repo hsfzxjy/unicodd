@@ -66,19 +66,19 @@ const baseCommands = [
   {
     name: 'connect',
     usage: 'connect <host>',
-    description: 'Open a guest session on a host from the local console.',
+    description: 'Connect to a listed host from the local console.',
     arguments: [argument('host', 'host')],
   },
   {
     name: 'ls',
     usage: 'ls [path]',
-    description: 'List a directory. Paths are relative to /.',
+    description: 'List a directory on the connected host.',
     arguments: [argument('path', 'path', false)],
   },
   {
     name: 'cat',
     usage: 'cat <path>',
-    description: 'Read a file.',
+    description: 'Read a file or archived mail thread.',
     arguments: [argument('path', 'path')],
   },
   { name: 'whoami', usage: 'whoami', description: 'Show the current identity.', arguments: [] },
@@ -177,7 +177,7 @@ const baseCommands = [
   ),
   recoveryCommand(
     'mirror',
-    'Reconcile archive records with both identifier indexes.',
+    'Verify archive references across both readers.',
     'label-storage',
     'handle-policy',
     'search-version',
@@ -205,7 +205,7 @@ const baseCommands = [
   ),
   recoveryCommand(
     'map-span',
-    'Map a range between decoded body and raw JSON.',
+    'Translate a source range between offset spaces.',
     'record',
     'offset-space',
     'range',

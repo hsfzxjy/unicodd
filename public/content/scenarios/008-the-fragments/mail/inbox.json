@@ -6,7 +6,7 @@
       "to": "Local operator",
       "subject": "Use the captured link offsets",
       "date": "2026-08-29",
-      "body": "The gateway report and the receiver agree on the sweep. Start from the capture bytes; the application line offsets were counted after the legacy decoder changed the buffer."
+      "body": "I matched the capture to the gateway report. The application counted its line offsets after the legacy decoder changed the buffer. Use the captured link offsets when you compare it with the sender’s ledger."
     },
     {
       "id": "bridge-import-review",

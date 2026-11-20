@@ -97,7 +97,7 @@
           "access": {
             "flag": "publication_verified"
           },
-          "denied": "Run the full verification before opening this report."
+          "denied": "Publication report is unavailable until the output audit passes."
         },
         {
           "id": "01-preview",

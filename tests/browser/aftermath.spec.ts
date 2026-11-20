@@ -107,8 +107,16 @@ for (const [width, height] of [
       await expect(link(page, '/reports/gateway.txt')).toBeVisible()
       await act(link(page, '/reports/gateway.txt'))
       await expect(gatewayComplete).toBeVisible()
+      await expect(last(page)).toContainText(
+        'Vault delivery verified. Application ingestion is still pending.',
+      )
       await act(link(page, 'The Fragments'))
       await expect(scenario(page)).toHaveValue('008-the-fragments')
+      const progress = page.getByRole('button', { name: /^Progress:/ })
+      await expect(progress).toHaveAttribute(
+        'title',
+        /Application acknowledgments: Acknowledgments pending/,
+      )
 
       await commandControl(page, 'capture', act)
       await submit()
@@ -141,6 +149,10 @@ for (const [width, height] of [
       await field(page, 'Chunk boundaries').fill('2,4,16,17,18,24,29,30,47,48')
       await submit()
       await expect(last(page)).toContainText('Both owner-bound ACKs verified.')
+      await expect(progress).toHaveAttribute(
+        'title',
+        /Application acknowledgments: Acknowledgments verified/,
+      )
       await expect(
         last(page).getByRole('heading', { name: 'Receiver acknowledgments verified' }),
       ).toBeInViewport()

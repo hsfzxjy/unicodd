@@ -86,7 +86,7 @@
           "access": {
             "flag": "delivery_verified"
           },
-          "denied": "Run the full verification before opening this report."
+          "denied": "Delivery report is unavailable until receiver readback passes."
         },
         {
           "id": "01-names",

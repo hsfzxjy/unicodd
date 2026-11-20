@@ -1,6 +1,10 @@
 import { expect, test } from '@playwright/test'
 import { skipOpening } from './opening'
 
+test.beforeEach(async ({ page }) => {
+  await skipOpening(page)
+})
+
 for (const [width, height] of [
   [320, 568],
   [390, 430],
@@ -127,7 +131,6 @@ test('compact normalization keeps each form visible and represents only equal re
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  await skipOpening(page)
   await page.goto('/')
   const command = page.getByRole('textbox', { name: 'Terminal command' })
   await command.fill('inspect U+01FA')

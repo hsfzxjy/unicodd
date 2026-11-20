@@ -192,7 +192,7 @@
             {
               "check": "opaque-labels",
               "stage": "opaque-labels",
-              "message": "Store original labels as opaque data separate from identifiers and authorization."
+              "message": "The exchange requires an original label field independent of lookup and authorization."
             },
             {
               "check": "legacy-queryable",

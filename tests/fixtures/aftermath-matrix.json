@@ -178,7 +178,7 @@
       ],
       "failed": ["route-authorized"],
       "rows": [],
-      "diagnostic": "Check the endpoint owner"
+      "diagnostic": "Dispatch could not verify an authorized vault and resource for each receipt."
     },
     {
       "id": "historical-two-transport-successes",

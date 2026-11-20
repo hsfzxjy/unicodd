@@ -6,7 +6,7 @@
       "to": "Local operator",
       "subject": "Two assignments on the register",
       "date": "2026-08-29",
-      "body": "The register now has a separate verified owner for each endpoint. The confirmation must name the endpoint and the resource bound to the actual receipt. I can see two successful requests in the gateway log. The endpoint evidence only accounts for one."
+      "body": "The registry has two verified assignments. I need a vault confirmation for each receipt with the endpoint, owner and exact resource it received. The evidence so far accounts for one receipt. I can sign off once both confirmations match the registry."
     }
   ]
 }

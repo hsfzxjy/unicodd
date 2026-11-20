@@ -74,9 +74,14 @@ async function openTitleList(type: 'hosts' | 'mail') {
   }
 }
 
-function showLatest(event: MouseEvent) {
-  latest()
-  if (event.detail === 0) focusTranscript()
+async function showLatest(event: MouseEvent) {
+  await latest()
+  if (event.detail !== 0) return
+  const heading = scroll.value?.lastElementChild?.querySelector<HTMLElement>(
+    '.progress-band[data-scope="scenario"] h3',
+  )
+  if (heading?.getClientRects().length) heading.focus({ preventScroll: true })
+  else focusTranscript()
 }
 
 function selectCommand(name: CommandName) {

@@ -24,7 +24,7 @@ async function run(page: Page, command: string) {
 }
 
 for (const [width, height] of [
-  [320, 568],
+  [320, 360],
   [390, 430],
   [390, 844],
   [1440, 900],
@@ -58,7 +58,13 @@ for (const [width, height] of [
         await expect(controls(page)).toBeFocused()
         await page.keyboard.press('Space')
       }
-      await expect(page.getByText('Goal shows your task.', { exact: false })).toBeVisible()
+      await expect(
+        page.getByText('Hosts and Mail in the title bar', { exact: false }),
+      ).toBeVisible()
+      await expect(
+        page.getByText('Choose a command, fill any fields and use Run.', { exact: false }),
+      ).toBeVisible()
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
       expect(await preferences(page)).toEqual({ campaign: null, onboarding: null })
       await page.screenshot({ path: info.outputPath('opening-reference.png') })
       if (width === 320) {
@@ -95,11 +101,23 @@ for (const [width, height] of [
       await expect(access(page)).toHaveCount(0)
       await expect(request(page)).toHaveCount(1)
       await expect(button(page, 'Open local inbox')).toBeVisible()
+      if (width === 320) {
+        await expect(
+          log(page).getByRole('button', { name: 'relay-07', exact: true }),
+        ).not.toBeInViewport()
+        await button(page, 'Open local hosts, 1 new').tap()
+        const host = log(page).getByRole('button', { name: 'relay-07', exact: true }).last()
+        await expect(host).toBeInViewport({ ratio: 1 })
+        await host.tap()
+        await expect(page.getByRole('button', { name: /^Session:.*relay-07/ })).toBeVisible()
+      }
     })
   })
 }
 
-test('reopens controls in both Help scopes during a remote session', async ({ page }) => {
+test('reveals controls immediately in both Help scopes during a remote session', async ({
+  page,
+}, info) => {
   await page.setViewportSize({ width: 390, height: 430 })
   await page.goto('/')
   await primary(page).press('Space')
@@ -107,18 +125,33 @@ test('reopens controls in both Help scopes during a remote session', async ({ pa
   await button(page, 'Open local hosts, 1 new').click()
   await log(page).getByRole('button', { name: 'relay-07', exact: true }).last().click()
   await commandControl(page, 'help', undefined, true)
-  const help = log(page).locator('.command-help')
+  const help = log(page).getByRole('region', { name: 'Command reference' })
   await expect(help).toHaveCount(1)
-  await controls(page).click()
+  await expect(help).toBeFocused()
+  await expect(controls(page)).toBeInViewport({ ratio: 1 })
+  await expect(help.getByText('Goal shows your task.', { exact: false })).toBeHidden()
+  await page.screenshot({ path: info.outputPath('remote-help.png') })
+  await page.keyboard.press('Tab')
+  await expect(controls(page)).toBeFocused()
+  await page.keyboard.press('Space')
   await expect(help.getByText('Goal shows your task.', { exact: false })).toBeVisible()
   await expect(help.getByRole('button', { name: 'local connect <host>' })).toBeVisible()
+  await expect(help.getByRole('button', { name: 'login [alias]', exact: true })).toBeVisible()
   await run(page, 'local help')
   await expect(help).toHaveCount(2)
+  const prompt = page.getByRole('textbox', { name: 'Terminal command' })
+  await expect(prompt).toBeFocused()
+  await expect(prompt).toBeEditable()
+  await expect(controls(page).last()).toBeInViewport({ ratio: 1 })
   await expect(help.last().getByText('Goal shows your task.', { exact: false })).toBeHidden()
+  await expect(help.last().getByRole('button', { name: 'login [alias]', exact: true })).toHaveCount(
+    0,
+  )
   await controls(page).last().click()
   await expect(help.last().getByText('Goal shows your task.', { exact: false })).toBeVisible()
   await help.last().getByRole('button', { name: 'connect <host>', exact: true }).click()
   await expect(page.getByRole('button', { name: /Change command: local connect/ })).toBeVisible()
+  await expect(page.getByRole('textbox', { name: 'host', exact: true })).toBeFocused()
   await expect(page.getByRole('button', { name: /^Session:.*relay-07/ })).toBeVisible()
 })
 
@@ -127,48 +160,68 @@ test.describe('Relay after a touch opening', () => {
     viewport: { width: 390, height: 430 },
     hasTouch: true,
     isMobile: true,
-    reducedMotion: 'reduce',
   })
 
-  test('keeps the guest boundary and Unicode selection through Earlier reads', async ({ page }) => {
-    await page.goto('/')
-    await primary(page).tap()
-    await expect(request(page)).toContainText('I gave them 8C2F')
-    await button(page, 'Open local hosts, 1 new').tap()
-    await log(page).getByRole('button', { name: 'relay-07', exact: true }).last().tap()
-    await run(page, 'cat /queue/8c2f.msg')
-    await expect(log(page)).toContainText('Permission denied')
-    await expect(button(page, 'The missing notice')).toHaveCount(0)
-    await expect(button(page, 'Goal: In progress')).toBeVisible()
+  for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+    test(`opens the authorized incident after the guest denial (${reducedMotion})`, async ({
+      page,
+    }, info) => {
+      await page.emulateMedia({ reducedMotion })
+      await page.goto('/')
+      await primary(page).tap()
+      await expect(request(page)).toContainText('I gave them 8C2F')
+      await button(page, 'Open local hosts, 1 new').tap()
+      await log(page).getByRole('button', { name: 'relay-07', exact: true }).last().tap()
+      await run(page, 'cat /queue/8c2f.msg')
+      await expect(log(page)).toContainText('Permission denied')
+      await expect(button(page, 'The missing notice')).toHaveCount(0)
+      await expect(button(page, 'Goal: In progress')).toBeVisible()
 
-    const tap = (target: Locator) => target.tap()
-    await commandControl(page, 'login', tap)
-    const alias = page.getByRole('textbox', { name: 'Account alias' })
-    await alias.fill('\u{1D40C}AINT')
-    await alias.press('Home')
-    await alias.press('Shift+ArrowRight')
-    await button(page, 'Earlier reads').tap()
-    await page
-      .getByRole('list', { name: 'Earlier reads' })
-      .getByRole('button', { name: /^A favor/ })
-      .tap()
-    await expect(request(page)).toBeInViewport()
-    await button(page, 'Back').tap()
-    expect(
-      await alias.evaluate((field: HTMLTextAreaElement) => [
-        field.selectionStart,
-        field.selectionEnd,
-      ]),
-    ).toEqual([0, 2])
-    await expect(alias).toHaveValue('\u{1D40C}AINT')
-    await button(page, 'Run').tap()
-    await expect(log(page)).toContainText('Authentication accepted')
-    await expect(button(page, 'Goal: In progress')).toBeVisible()
-    await expect(button(page, 'The missing notice')).toHaveCount(0)
-    await log(page).getByRole('button', { name: '/queue/8c2f.msg', exact: true }).tap()
-    await expect(page.getByRole('heading', { name: 'The Relay · Complete' })).toBeVisible()
-    await expect(button(page, 'The missing notice')).toBeVisible()
-  })
+      const tap = (target: Locator) => target.tap()
+      await commandControl(page, 'login', tap)
+      const alias = page.getByRole('textbox', { name: 'Account alias' })
+      await alias.fill('\u{1D40C}AINT')
+      await alias.press('Home')
+      await alias.press('Shift+ArrowRight')
+      await button(page, 'Earlier reads').tap()
+      await page
+        .getByRole('list', { name: 'Earlier reads' })
+        .getByRole('button', { name: /^A favor/ })
+        .tap()
+      await expect(request(page)).toBeInViewport()
+      await button(page, 'Back').tap()
+      expect(
+        await alias.evaluate((field: HTMLTextAreaElement) => [
+          field.selectionStart,
+          field.selectionEnd,
+        ]),
+      ).toEqual([0, 2])
+      await expect(alias).toHaveValue('\u{1D40C}AINT')
+      await button(page, 'Run').tap()
+      await expect(log(page)).toContainText('Authentication accepted')
+      await expect(button(page, 'Goal: In progress')).toBeVisible()
+      await expect(button(page, 'The missing notice')).toHaveCount(0)
+      await log(page).getByRole('button', { name: '/queue/8c2f.msg', exact: true }).tap()
+      const incident = log(page).getByRole('region', { name: 'File /queue/8c2f.msg' })
+      const complete = page.getByRole('heading', { name: 'The Relay · Complete' })
+      await expect(incident).toBeFocused()
+      await expect(incident.locator('.file-path')).toBeInViewport({ ratio: 1 })
+      await expect(incident.locator('.resource-text')).toContainText(
+        'Two original registration records were recovered and independently verified.',
+      )
+      await expect(complete).not.toBeInViewport({ ratio: 1 })
+      await page.screenshot({ path: info.outputPath('incident-start.png') })
+      await button(page, 'Latest output, new milestone').tap()
+      await expect(complete).toBeInViewport({ ratio: 1 })
+      await expect(button(page, 'The missing notice')).toBeInViewport({ ratio: 1 })
+      await expect(button(page, 'Dead Letter')).toBeInViewport({ ratio: 1 })
+      await page.screenshot({ path: info.outputPath('incident-completion.png') })
+      await run(page, 'cat /queue/8c2f.msg')
+      await expect(incident).toHaveCount(2)
+      await expect(complete).toHaveCount(1)
+      await expect(button(page, 'The missing notice')).toHaveCount(1)
+    })
+  }
 })
 
 test('preserves the preference through cancelled and confirmed campaign reset', async ({

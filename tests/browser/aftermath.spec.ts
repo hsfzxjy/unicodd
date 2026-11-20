@@ -117,6 +117,22 @@ for (const [width, height] of [
         'title',
         /Application acknowledgments: Acknowledgments pending/,
       )
+      const ingestionPath = '/reports/ingestion.txt'
+      const ingestion = transcript(page).getByRole('region', { name: 'File ' + ingestionPath })
+      const fragmentsComplete = transcript(page).getByRole('heading', {
+        name: 'The Fragments · Complete',
+      })
+      const readIngestion = async () => {
+        const prompt = field(page, 'Terminal command')
+        await prompt.fill('cat ' + ingestionPath)
+        await prompt.press('Enter')
+      }
+      await readIngestion()
+      await expect(last(page)).toContainText(
+        'Verify both application ACKs and isolate malformed frames before reading this report.',
+      )
+      await expect(ingestion).toHaveCount(0)
+      await expect(fragmentsComplete).toHaveCount(0)
 
       await commandControl(page, 'capture', act)
       await submit()
@@ -159,11 +175,31 @@ for (const [width, height] of [
       await expect(last(page)).toContainText('bytes 23..25 · frame resumes at 27')
       await link(page, 'Use offset 0x0017 for byte E2').scrollIntoViewIfNeeded()
       await snap('02-receiver')
-      if (width < 600) await page.setViewportSize({ width, height })
-      await act(link(page, '/reports/ingestion.txt'))
+      if (width < 600) await page.setViewportSize({ width, height: 430 })
+      await act(link(page, ingestionPath))
+      await expect(ingestion).toBeFocused()
+      await expect(ingestion.locator('.file-path')).toBeInViewport({ ratio: 1 })
+      await expect(ingestion.locator('.resource-text')).toHaveText(
+        'APPLICATION INGESTION / LINK 07\n\n' +
+          'The application stored both correlated ACKs and retained malformed frames in quarantine. ' +
+          'The source receipts and dispatch evidence are attached to the archival batch.',
+      )
+      await snap('03-ingestion-start')
+      if (width < 600) {
+        await expect(fragmentsComplete).not.toBeInViewport()
+        await act(page.getByRole('button', { name: 'Latest output, new milestone', exact: true }))
+      }
+      await expect(fragmentsComplete).toBeInViewport({ ratio: 1 })
+      await expect(link(page, 'Legacy archive import review')).toBeInViewport({ ratio: 1 })
+      await expect(link(page, 'The Boundary')).toBeInViewport({ ratio: 1 })
+      await snap('04-ingestion-completion')
+      await readIngestion()
+      await expect(ingestion).toHaveCount(2)
+      await expect(fragmentsComplete).toHaveCount(1)
       await expect(
-        last(page).getByRole('heading', { name: 'The Fragments · Complete' }),
-      ).toBeVisible()
+        transcript(page).getByRole('button', { name: 'Legacy archive import review', exact: true }),
+      ).toHaveCount(1)
+      if (width < 600) await page.setViewportSize({ width, height })
       await act(link(page, 'The Boundary'))
       await expect(scenario(page)).toHaveValue('009-the-boundary')
 

@@ -150,7 +150,12 @@ function echoText(value: string) {
             :can-replace="canReplace"
             @action="emit('action', $event)"
           />
-          <div v-else-if="row.kind === 'help'" class="command-help">
+          <section
+            v-else-if="row.kind === 'help'"
+            class="command-help"
+            aria-label="Command reference"
+            tabindex="-1"
+          >
             <ConsoleControls />
             <dl class="transcript-list">
               <div
@@ -181,7 +186,7 @@ function echoText(value: string) {
                   : 'This console opens remote sessions and holds your inbox and campaign.'
               }}
             </p>
-          </div>
+          </section>
           <TerminalProgress
             v-else-if="(row.kind === 'milestone' || row.kind === 'objective') && row.progress"
             :progress="row.progress"

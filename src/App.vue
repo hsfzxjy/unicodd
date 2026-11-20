@@ -338,6 +338,11 @@ async function dispatch(action: Action, command?: string) {
   const isCurrent = () => runtime === active && scenarioId.value === id
   let delayed = false
   let focusBeforePause: Element | null = null
+  const focusAtSubmission = document.activeElement
+  const fromEditor =
+    command !== undefined &&
+    (focusAtSubmission instanceof HTMLInputElement ||
+      focusAtSubmission instanceof HTMLTextAreaElement)
   busy.value = true
   let response
   let clipboard: boolean | undefined
@@ -448,19 +453,20 @@ async function dispatch(action: Action, command?: string) {
       row.kind === 'inspection' ||
       row.kind === 'mail' ||
       row.kind === 'file' ||
-      row.kind === 'report',
+      row.kind === 'report' ||
+      row.kind === 'help',
   )
   if (readable) {
     await nextTick()
-    if (isCurrent())
-      terminal.value?.revealOutput(
-        readable.kind,
-        command === undefined &&
-          (!delayed ||
-            document.activeElement === focusBeforePause ||
-            document.activeElement === document.body),
-        delayed,
-      )
+    if (isCurrent()) {
+      const focused = document.activeElement
+      const focus =
+        readable.kind === 'help'
+          ? !fromEditor && (focused === focusAtSubmission || focused === document.body)
+          : command === undefined &&
+            (!delayed || focused === focusBeforePause || focused === document.body)
+      terminal.value?.revealOutput(readable.kind, focus, delayed)
+    }
   }
   return response
 }

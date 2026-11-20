@@ -4,12 +4,14 @@
     <div class="controls-copy">
       <p dir="auto">
         Open hosts, folders, files and messages from the transcript. Goal shows your task. Session
-        shows your location and access. Hosts and Mail open local lists while you’re connected.
+        shows your location and access. Hosts and Mail in the title bar open the local directory and
+        inbox, including during a host session.
       </p>
       <p dir="auto">
-        Type a command and press Enter, or use a shortcut. On small screens, use Commands. Choose
-        <code>help</code> for the command reference. Select a command there to edit it. Fill the
-        fields and choose Run. In the fields, Enter moves to the next field and runs from the last.
+        Type a command and press Enter, or use a shortcut. On small screens, open Commands. Choose a
+        command, fill any fields and use Run. Run <code>help</code> to open the command reference.
+        Select a command there to edit it. In an argument field, Enter moves to the next field and
+        runs from the last.
       </p>
       <p dir="auto">
         Use <code>inspect</code> for a Unicode character or code point. Copy the character or use

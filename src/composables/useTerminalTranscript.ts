@@ -3,6 +3,15 @@ import { useTerminalReads } from './useTerminalReads'
 import { unpairedSurrogate } from '../lib/unicode'
 import type { Entry, TerminalView } from '../lib/workspace'
 
+const outputSelectors = {
+  inspection: '.inspection',
+  mail: '.terminal-mail',
+  file: '.terminal-file',
+  report: '.terminal-report',
+  list: '.terminal-list',
+  help: '.command-help',
+}
+
 export function useTerminalTranscript({
   entries,
   scroll,
@@ -192,29 +201,28 @@ export function useTerminalTranscript({
     { flush: 'post' },
   )
 
-  function revealOutput(
-    kind: 'inspection' | 'mail' | 'file' | 'report' | 'list',
-    focus: boolean,
-    followOnly = false,
-  ) {
+  function revealOutput(kind: keyof typeof outputSelectors, focus: boolean, followOnly = false) {
     if (reading.value && kind === 'report' && !focus) return
     if (followOnly && !following.value) return
     const entry = entries().at(-1)
     if (!entry || collapsed.has(entry.id)) return
     const box = scroll.value
-    const selector = kind === 'inspection' ? '.inspection' : '.terminal-' + kind
-    const latest = box?.lastElementChild?.querySelector<HTMLElement>(selector)
-    if (!box || !latest) return
+    const last = box?.lastElementChild
+    if (!box || !last) return
+    const latest = last.querySelector<HTMLElement>(outputSelectors[kind])
+    if (!latest) return
     remember()
-    const start =
-      kind === 'report' ? (latest.closest<HTMLElement>('.entry-output') ?? latest) : latest
-    if (start.offsetHeight + 12 > box.clientHeight) {
-      box.scrollTop += start.getBoundingClientRect().top - box.getBoundingClientRect().top - 6
+    const output = latest.closest<HTMLElement>('.entry-output') ?? latest
+    const start = kind === 'report' ? output : latest
+    const top = start.getBoundingClientRect().top
+    if (output.getBoundingClientRect().bottom - top + 12 > box.clientHeight) {
+      const viewport = box.getBoundingClientRect()
+      box.scrollTop += top - viewport.top - 6
       trackScroll()
       if (entry.freshProgress) {
-        const band = box.lastElementChild?.querySelector('.progress-band')
+        const band = Array.from(last.querySelectorAll('.progress-band')).at(-1)
         unseenProgress.value = Boolean(
-          band && band.getBoundingClientRect().bottom > box.getBoundingClientRect().bottom,
+          band && band.getBoundingClientRect().bottom > viewport.bottom,
         )
       }
     } else {

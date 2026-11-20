@@ -45,7 +45,8 @@ async function openRelay(page: Page) {
 test('plays the entire Relay through graphical actions and restores the session after reload', async ({
   page,
   context,
-}) => {
+}, info) => {
+  await page.setViewportSize({ width: 1280, height: 800 })
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   await openRelay(page)
   const panel = contextPanel(page)
@@ -115,7 +116,13 @@ test('plays the entire Relay through graphical actions and restores the session 
   await commandControl(page, 'ls', undefined, true)
   await link(page, 'queue/').click()
   await link(page, '8c2f.msg').click()
+  await expect(incident(page)).toBeFocused()
+  await expect(incident(page)).toBeInViewport({ ratio: 1 })
   await expect(incident(page)).toContainText('independently')
+  await expect(page.getByRole('heading', { name: 'The Relay · Complete' })).toBeInViewport({
+    ratio: 1,
+  })
+  await page.screenshot({ path: info.outputPath('incident-desktop.png') })
   await expect(page.getByRole('button', { name: 'Goal: Complete', exact: true })).toBeVisible()
   await commandControl(page, 'clear', undefined, true)
   await expect(terminal(page)).toBeEmpty()
@@ -249,7 +256,8 @@ test.describe('Help command editing', () => {
     const tag = page.getByRole('button', { name: /^Change command:/ })
     const runButton = page.getByRole('button', { name: 'Run', exact: true })
 
-    await run(page, 'help')
+    await commandControl(page, 'help')
+    await expect(references.last()).toBeFocused()
     const connect = references.last().getByRole('button', { name: 'connect <host>', exact: true })
     await expect(connect).toBeEnabled()
     const localCount = await entries.count()
@@ -279,9 +287,13 @@ test.describe('Help command editing', () => {
     await expect(tag).toHaveText('local help')
     await expect(tag).toBeFocused()
     await expect(entries).toHaveCount(remoteCount)
-    await runButton.tap()
+    await tag.press('Enter')
 
     const scopedHelp = references.nth(2)
+    await expect(scopedHelp).toBeFocused()
+    await expect(scopedHelp.getByText('Console controls', { exact: true })).toBeInViewport({
+      ratio: 1,
+    })
     const localMail = scopedHelp.getByRole('button', { name: 'mail [message]', exact: true })
     await expect(localMail).toHaveAttribute('title', 'Edit local mail')
     const scopedCount = await entries.count()

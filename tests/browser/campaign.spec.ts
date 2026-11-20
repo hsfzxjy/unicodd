@@ -108,6 +108,51 @@ test('recovers Dead Letter by graphical actions from the development entry', asy
   await expect(goalButton(page, 'Complete')).toBeVisible()
 })
 
+test('continues from the Dead Letter completion by keyboard at 390 × 430', async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 390, height: 430 })
+  await page.addInitScript(() => {
+    if (localStorage.getItem('unicodd.campaign')) return
+    localStorage.setItem(
+      'unicodd.campaign',
+      JSON.stringify({
+        version: 1,
+        current: '002-dead-letter',
+        completed: ['001-the-relay'],
+        delivered: ['missing-notice'],
+        read: [],
+      }),
+    )
+  })
+  await openCampaign(page)
+  await expect(session(page)).toHaveAccessibleName(/@postbox-03/)
+  await recoverNotice(page, (target) => target.click())
+  const letter = transcript(page).getByRole('region', { name: 'Mail /delivered/2917.msg' })
+  const complete = transcript(page).getByRole('heading', { name: 'Dead Letter · Complete' })
+  await expect(letter).toBeFocused()
+  await expect(letter.locator('.file-path')).toBeInViewport({ ratio: 1 })
+  await expect(complete).not.toBeInViewport()
+  await page
+    .getByRole('button', { name: 'Latest output, new milestone', exact: true })
+    .press('Enter')
+  await expect(complete).toBeFocused()
+  await expect(complete).toBeInViewport({ ratio: 1 })
+
+  const scrollTop = () => transcript(page).evaluate((el) => el.scrollTop)
+  const end = await scrollTop()
+  await page.keyboard.press('Tab')
+  const reply = link(page, 'Re: The missing notice')
+  await expect(reply).toBeFocused()
+  await expect(reply).toBeInViewport({ ratio: 1 })
+  expect(await scrollTop()).toBe(end)
+  await page.keyboard.press('Tab')
+  await expect(link(page, 'The Index')).toBeFocused()
+  await expect(link(page, 'The Index')).toBeInViewport({ ratio: 1 })
+  await expect(complete).toBeInViewport({ ratio: 1 })
+  await page.screenshot({ path: info.outputPath('dead-letter-completion.png') })
+})
+
 async function openIndexGraphically(page: Page, act: Activate) {
   await openCampaign(page)
   await expect(page.getByRole('heading', { name: 'The Relay' })).toBeVisible()

@@ -127,6 +127,18 @@ watch(titleStatus, (current, previous) => {
     </select>
     <div class="title-actions">
       <button
+        v-if="!following"
+        type="button"
+        class="icon-button latest-output"
+        :class="{ 'latest-progress': unseenProgress }"
+        :aria-label="unseenProgress ? 'Latest output, new milestone' : 'Latest output'"
+        :title="unseenProgress ? 'Latest output, new milestone' : 'Latest output'"
+        @click="emit('latest', $event)"
+      >
+        <Flag v-if="unseenProgress" aria-hidden="true" />
+        <ArrowDownToLine v-else aria-hidden="true" />
+      </button>
+      <button
         v-for="item in titleStatus"
         :key="item.key"
         type="button"
@@ -177,18 +189,6 @@ watch(titleStatus, (current, previous) => {
         <span v-if="unreadMail" class="notification-count" aria-hidden="true">{{
           unreadMail
         }}</span>
-      </button>
-      <button
-        v-if="!following"
-        type="button"
-        class="icon-button latest-output"
-        :class="{ 'latest-progress': unseenProgress }"
-        :aria-label="unseenProgress ? 'Latest output, new milestone' : 'Latest output'"
-        :title="unseenProgress ? 'Latest output, new milestone' : 'Latest output'"
-        @click="emit('latest', $event)"
-      >
-        <Flag v-if="unseenProgress" aria-hidden="true" />
-        <ArrowDownToLine v-else aria-hidden="true" />
       </button>
     </div>
     <p class="milestone-announcement" role="status" dir="auto">{{ statusAnnouncement }}</p>

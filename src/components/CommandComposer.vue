@@ -859,7 +859,7 @@ defineExpose({
     display: flex;
     grid-column: 1 / -1;
   }
-  .single-argument .run-command {
+  .prompt .run-command {
     margin-inline-start: unset;
   }
 }

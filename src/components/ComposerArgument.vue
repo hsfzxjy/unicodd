@@ -353,6 +353,10 @@ defineExpose({
   background: transparent;
   line-height: 1.3;
 }
+.point[aria-pressed='true'] {
+  background-color: #27343e;
+}
+
 .point-caret {
   position: absolute;
   inset-block: 6px;

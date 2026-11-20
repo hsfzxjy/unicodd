@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowUp, BookOpen } from '@lucide/vue'
+import { ArrowUp, BookCheck } from '@lucide/vue'
 import { nextTick, onMounted, onUnmounted, ref, useId } from 'vue'
 import type { EarlierRead } from '../composables/useTerminalReads'
 
@@ -26,8 +26,8 @@ function positionMenu() {
   const openAbove = above > below
   const width = Math.min(380, innerWidth - 22)
   menu.value.style.top = openAbove ? 'auto' : `${anchor.bottom + 3}px`
-  menu.value.style.bottom = openAbove ? `${innerHeight - anchor.top + 3}px` : 'auto'
-  menu.value.style.left = `${Math.min(Math.max(11, anchor.left), innerWidth - width - 11)}px`
+  menu.value.style.bottom = openAbove ? `${innerHeight - anchor.top + 8}px` : 'auto'
+  menu.value.style.left = `${Math.min(Math.max(11, anchor.left), innerWidth - width)}px`
   menu.value.style.maxHeight = `${Math.max(60, Math.max(above, below) - 8)}px`
 }
 
@@ -36,7 +36,7 @@ function repositionMenu() {
 }
 
 function close() {
-  if (menu.value?.matches(':popover-open')) menu.value.hidePopover()
+  if (menu.value?.matches(':popover-open') || opened.value) menu.value?.hidePopover()
 }
 
 function closeWithEscape(event: KeyboardEvent) {
@@ -68,7 +68,7 @@ function keepEditing(event: MouseEvent) {
 
 function toggle(event: MouseEvent) {
   if (!menu.value) return
-  if (menu.value.matches(':popover-open')) return close()
+  if (menu.value.matches(':popover-open') || opened.value) return close()
   positionMenu()
   menu.value.showPopover()
   if (event.detail === 0)
@@ -101,7 +101,7 @@ defineExpose({ close })
       @mousedown="keepEditing"
       @click="toggle"
     >
-      <BookOpen aria-hidden="true" /> Reads
+      <BookCheck aria-hidden="true" />
     </button>
     <div
       :id="menuId"

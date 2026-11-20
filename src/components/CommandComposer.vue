@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronDown } from '@lucide/vue'
+import { ChevronDown, Play, SquareTerminal } from '@lucide/vue'
 import {
   computed,
   nextTick,
@@ -588,17 +588,17 @@ defineExpose({
           @keydown.down.prevent="toggleMenu"
           @keydown.up.prevent="toggleMenu"
         >
-          Commands <ChevronDown class="disclosure-icon" aria-hidden="true" />
+          <SquareTerminal /> <ChevronDown class="disclosure-icon" aria-hidden="true" />
         </button>
+        <div ref="promptTools" class="prompt-tools"></div>
         <button
           ref="runButton"
           type="submit"
           class="run-command"
           :disabled="busy || composing || pending || (!selected && !text.trim())"
         >
-          Run
+          <Play />
         </button>
-        <div ref="promptTools" class="prompt-tools"></div>
       </div>
       <div v-if="selected && (fields.length || fixedFields.length)" class="composer-arguments">
         <div v-if="fixedFields.length" class="composer-fixed meta">
@@ -666,7 +666,7 @@ defineExpose({
 .prompt {
   display: block;
   padding-inline-start: 7px;
-  border-inline-start: 2px solid var(--control);
+  /* border-inline-start: 2px solid var(--control); */
   background: var(--inset);
   font-family: var(--mono);
 }
@@ -774,6 +774,9 @@ defineExpose({
   font: inherit;
   line-height: 1.3;
 }
+.prompt .prompt-tools {
+  margin-inline-start: auto;
+}
 .prompt .run-command {
   margin-inline-start: auto;
   flex: none;
@@ -808,7 +811,7 @@ defineExpose({
 
 .prompt.single-argument {
   display: grid;
-  grid-template-columns: minmax(0, max-content) max-content minmax(24px, 1fr) max-content;
+  grid-template-columns: minmax(0, max-content) max-content minmax(24px, 1fr) max-content max-content;
   align-items: center;
   column-gap: 6px;
 }
@@ -826,12 +829,13 @@ defineExpose({
   grid-row: 1;
 }
 .single-argument .run-command {
-  grid-column: 4;
+  grid-column: 5;
   grid-row: 1;
 }
 .single-argument .prompt-tools {
-  grid-column: 5;
+  grid-column: 4;
   grid-row: 1;
+  
 }
 .single-argument .composer-fixed {
   grid-column: 1 / -1;
@@ -850,6 +854,9 @@ defineExpose({
   .single-argument .prompt-line {
     display: flex;
     grid-column: 1 / -1;
+  }
+  .single-argument .run-command {
+    margin-inline-start: unset;
   }
 }
 @media (max-width: 830px) {
@@ -899,7 +906,7 @@ defineExpose({
     font: 600 var(--compact-meta) / var(--compact-leading) var(--sans);
   }
   .prompt-tools :deep(> button .lucide) {
-    display: none;
+    /* display: none; */
   }
   .prompt-tools :deep(> button[aria-expanded='true']) {
     color: var(--accent);

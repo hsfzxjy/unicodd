@@ -235,7 +235,7 @@ defineExpose({
 .transcript {
   overflow: auto;
   overscroll-behavior: contain;
-  scrollbar-gutter: stable;
+  scrollbar-gutter: auto;
   scroll-padding-block: 6px;
   padding: var(--space-2) var(--space-3) var(--space-3);
   font: 14px/1.52 var(--mono);
@@ -268,7 +268,7 @@ defineExpose({
 .terminal-controls {
   position: relative;
   border-top: 1px solid var(--control);
-  padding: var(--space-1) var(--space-2);
+  /* padding: 0 var(--space-2); */
   background: var(--surface);
 }
 .shortcuts {

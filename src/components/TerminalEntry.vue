@@ -287,7 +287,7 @@ function echoText(value: string) {
 }
 @media (max-width: 600px), (pointer: coarse) {
   .command-line {
-    padding-block: 11px;
+    padding-block: 6px;
   }
 }
 @media (max-width: 600px) {
@@ -297,7 +297,7 @@ function echoText(value: string) {
 }
 @media (max-width: 600px) {
   .command-line {
-    padding-block: 12px;
+    padding-block: 6px;
   }
 }
 </style>

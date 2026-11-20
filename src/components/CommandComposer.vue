@@ -879,7 +879,7 @@ defineExpose({
   .prompt-line :is(input, button),
   .prompt-tools :deep(> button),
   .prompt :is(.command-tag, .run-command) {
-    min-height: 36px;
+    min-height: 1em;
     padding-block: var(--compact-inset);
   }
   .prompt .run-command,

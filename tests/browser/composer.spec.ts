@@ -830,11 +830,13 @@ for (const [width, height] of [
       await commandControl(page, 'login')
       const alias = field(page, 'Account alias')
       await expect(alias).toHaveAttribute('placeholder', 'Account alias')
+      await expect(alias).toHaveCSS('font-size', '13px')
       await alias.fill('a🧪é​'.repeat(100))
       expect((await alias.boundingBox())!.height).toBe(width === 768 ? 44 : 36)
       await selection(alias, 0, 1)
       const pointsToggle = page.getByRole('button', { name: 'Code points', exact: true })
       await pointsToggle.click()
+      await expect(page.locator('.argument-mirror')).toHaveCSS('font-size', '13px')
       await page
         .getByRole('form', { name: 'Command composer' })
         .getByRole('button', { name: 'Inspect', exact: true })

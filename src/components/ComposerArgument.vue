@@ -167,6 +167,7 @@ defineExpose({
 .argument-editor :is(textarea, .argument-mirror) {
   padding: 5px 6px var(--space-1);
   font: inherit;
+  font-size: var(--compact-text, 13px);
   line-height: 1.5;
   tab-size: 8;
 }
@@ -240,7 +241,6 @@ defineExpose({
     column-gap: 6px;
   }
   .argument-editor :is(textarea, .argument-mirror) {
-    font-size: 16px;
     padding-top: 9px;
   }
   .argument-editor textarea {

@@ -129,7 +129,6 @@ function menuKey(event: KeyboardEvent) {
   border: 1px solid var(--control);
   padding: 3px;
   background: var(--surface);
-  font-family: var(--mono);
 }
 .command-menu button {
   display: grid;

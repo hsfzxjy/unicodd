@@ -108,7 +108,6 @@ function listingIcon(action: Action) {
   text-underline-offset: 3px;
 }
 .listing-title {
-  font-family: var(--sans);
   font-weight: 600;
 }
 .listing-icon {

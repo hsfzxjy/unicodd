@@ -47,7 +47,9 @@ test.describe('Earlier reads at keyboard height', () => {
     })
     await page.goto('/')
     await log(page).waitFor({ timeout: 20_000 })
-    await expect(page.getByRole('combobox', { name: 'Case' })).toHaveValue('002-dead-letter')
+    const cases = page.getByRole('combobox', { name: 'Case' })
+    await expect(cases).toHaveValue('002-dead-letter')
+    await expect(cases).toHaveCSS('font-family', /^system-ui\b/u)
     const oldRule = '/mail/01-delivery-hold'
     const rollout = '/spool/router-history.txt'
     await type(page, `cat ${oldRule}`)
@@ -78,6 +80,7 @@ test.describe('Earlier reads at keyboard height', () => {
     const reads = button(page, 'Earlier reads')
     await reads.tap()
     await expect(picker(page)).toBeVisible()
+    await expect(choice(page, oldRule)).toHaveCSS('font-family', /^system-ui\b/u)
     await page.keyboard.press('Escape')
     await expect(picker(page)).toBeHidden()
     await expect(envelope).toBeFocused()

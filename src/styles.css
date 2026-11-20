@@ -76,6 +76,11 @@ button,
 select {
   cursor: pointer;
 }
+button,
+select,
+summary {
+  font-family: var(--sans);
+}
 button {
   -webkit-tap-highlight-color: transparent;
 }
@@ -125,6 +130,9 @@ bdi,
 code,
 .meta {
   font-family: var(--mono);
+}
+:is(button, select, summary) :is(code, .meta) {
+  font-family: inherit;
 }
 .meta {
   color: var(--muted);

@@ -791,6 +791,7 @@ for (const [width, height] of [
       const gutter = width <= 600 ? 0 : width <= 830 ? 4 : 12
       expect(frameBox.width).toBe(Math.min(1200, width - 2 * gutter))
       expect(Math.abs(frameBox.x - (width - frameBox.width) / 2)).toBeLessThan(1)
+      const systemFont = /^system-ui\b/u
       const capture = async (name: string) => {
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
         await expect(run(page)).toBeInViewport({ ratio: 1 })
@@ -798,9 +799,14 @@ for (const [width, height] of [
       }
       await capture('01-free')
       await free(page).fill('help ')
+      await expect(tag(page)).toHaveCSS('font-family', systemFont)
       await capture('02-zero')
       await tag(page).click()
-      await expect(page.getByRole('menu', { name: 'Commands' })).toBeInViewport({ ratio: 1 })
+      const menu = page.getByRole('menu', { name: 'Commands' })
+      await expect(menu).toBeInViewport({ ratio: 1 })
+      const item = menu.getByRole('menuitemradio').first()
+      await expect(item).toHaveCSS('font-family', systemFont)
+      await expect(item.locator('.meta')).toHaveCSS('font-family', systemFont)
       await expect(page.getByRole('menuitemradio', { name: /^reconstruct / })).toHaveCount(0)
       await capture('03-dropdown')
       await page.keyboard.press('Escape')
@@ -831,6 +837,9 @@ for (const [width, height] of [
       const alias = field(page, 'Account alias')
       await expect(alias).toHaveAttribute('placeholder', 'Account alias')
       await expect(alias).toHaveCSS('font-size', '13px')
+      const inspectorType = page.getByRole('combobox', { name: 'Account alias inspector type' })
+      await expect(inspectorType).toHaveCSS('font-family', systemFont)
+      await expect(inspectorType.locator('option').first()).toHaveCSS('font-family', systemFont)
       await alias.fill('a🧪é​'.repeat(100))
       expect((await alias.boundingBox())!.height).toBe(width === 768 ? 44 : 36)
       await selection(alias, 0, 1)
@@ -858,6 +867,7 @@ for (const [width, height] of [
         .getByRole('group', { name: 'Account alias code points' })
         .getByRole('button')
       await expect(points).toHaveCount(500)
+      await expect(points.first().locator('code')).toHaveCSS('font-family', systemFont)
       await expect(inspector.getByText(/^Page \d+ of \d+$/)).toHaveCount(0)
       await expect(inspector).toBeInViewport({ ratio: 1 })
       await expect(alias).toBeInViewport({ ratio: 1 })

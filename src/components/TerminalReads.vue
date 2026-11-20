@@ -183,7 +183,6 @@ defineExpose({ close })
   background: transparent;
   text-align: start;
   overflow-wrap: anywhere;
-  font: 13px/1.35 var(--mono);
 }
 .reads-menu .read-choice:focus-visible {
   outline-offset: -2px;

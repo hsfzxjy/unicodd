@@ -770,7 +770,7 @@ defineExpose({
   padding: 2px 6px;
   border: 1px solid var(--control);
   border-radius: 2px;
-  font: inherit;
+  font-size: inherit;
   line-height: 1.3;
 }
 .prompt .prompt-tools {

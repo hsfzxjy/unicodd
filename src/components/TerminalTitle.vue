@@ -283,7 +283,7 @@ h1.terminal-scenario {
   padding-inline: 2px;
   background: var(--accent);
   color: var(--accent-ink);
-  font: 700 10px/12px var(--mono);
+  font: 700 10px/12px var(--sans);
   text-align: center;
 }
 .status-changing .status-mark {

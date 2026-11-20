@@ -109,9 +109,12 @@ function snapshot(): Draft {
       ? { start: input.value.selectionStart ?? 0, end: input.value.selectionEnd ?? 0 }
       : undefined,
     spans: fields.value.map((_, index) => editors.get(index)?.context() ?? { start: 0, end: 0 }),
-    tools: fields.value.map(
-      (_, index) => editors.get(index)?.saveView() ?? { expanded: false, page: 0 },
-    ),
+    // Older builds expect a page in saved drafts.
+    tools: fields.value.map((_, index) => ({
+      expanded: false,
+      ...editors.get(index)?.saveView(),
+      page: 0,
+    })),
   }
 }
 function cache() {

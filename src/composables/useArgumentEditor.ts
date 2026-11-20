@@ -16,7 +16,6 @@ export function useArgumentEditor(
     control,
     mirror,
     drawnCaret,
-    revealSelection,
     update,
     activate,
     composition,
@@ -24,7 +23,6 @@ export function useArgumentEditor(
     control: Ref<HTMLTextAreaElement | undefined>
     mirror: Ref<HTMLDivElement | undefined>
     drawnCaret: Ref<HTMLSpanElement | undefined>
-    revealSelection: (text: string, offset: number) => void
     update: (text: string) => void
     activate: () => void
     composition: (active: boolean) => void
@@ -117,7 +115,7 @@ export function useArgumentEditor(
   })
   watch(() => props.modelValue, syncControl)
 
-  function readSelection(reveal = true, raw = props.modelValue) {
+  function readSelection(raw = props.modelValue) {
     const field = control.value
     if (!field || composing) return
     if (
@@ -131,7 +129,6 @@ export function useArgumentEditor(
         end: rawOffset(raw, field.selectionEnd),
       })
     }
-    if (reveal) revealSelection(raw, selection.value.start)
   }
 
   function onFocus() {
@@ -160,7 +157,7 @@ export function useArgumentEditor(
     before = undefined
     update(draft)
     resize()
-    void nextTick(() => readSelection(true, draft))
+    void nextTick(() => readSelection(draft))
   }
 
   function startComposition() {
@@ -228,7 +225,7 @@ export function useArgumentEditor(
   }
 
   function captureSelection() {
-    if (document.activeElement === control.value) readSelection(false)
+    if (document.activeElement === control.value) readSelection()
   }
 
   function clearProjection() {

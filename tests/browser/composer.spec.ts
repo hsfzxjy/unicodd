@@ -716,12 +716,20 @@ for (const [width, height] of [
         await capture('06-keyboard-height')
       }
       await page.getByRole('button', { name: 'Code points', exact: true }).click()
-      await expect(page.getByRole('group', { name: 'Account alias code points' })).toBeVisible()
-      await expect(
-        page.getByRole('region', { name: 'Account alias Unicode inspector' }),
-      ).toBeInViewport({ ratio: 1 })
+      const inspector = page.getByRole('region', { name: 'Account alias Unicode inspector' })
+      const points = inspector
+        .getByRole('group', { name: 'Account alias code points' })
+        .getByRole('button')
+      await expect(points).toHaveCount(500)
+      await expect(inspector.getByText(/^Page \d+ of \d+$/)).toHaveCount(0)
+      await expect(inspector).toBeInViewport({ ratio: 1 })
       await expect(alias).toBeInViewport({ ratio: 1 })
       await capture('07-code-points')
+      const last = points.last()
+      await expect(last).toHaveAccessibleName('500. U+200B, ZWSP')
+      await last.click()
+      await expect(last).toHaveAttribute('aria-pressed', 'true')
+      await capture('08-code-points-end')
     })
   })
 }

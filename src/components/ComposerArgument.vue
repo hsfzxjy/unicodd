@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ChevronLeft, ChevronRight } from '@lucide/vue'
+import { ChevronRight } from '@lucide/vue'
 import { useArgumentEditor } from '../composables/useArgumentEditor'
 import type { ArgumentView } from '../lib/workspace'
-import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from 'vue'
+import { computed, nextTick, ref, useId } from 'vue'
 import {
   inspect,
   inspectRange,
@@ -57,20 +57,13 @@ const {
   control,
   mirror,
   drawnCaret,
-  revealSelection(raw, offset) {
-    if (inspector.value !== 'points') return
-    const index = pointIndex(raw, offset)
-    page.value = Math.min(pages.value - 1, Math.floor(index / pageSize.value))
-  },
   update: (text) => emit('update:modelValue', text),
   activate: () => emit('activate'),
   composition: (active) => emit('composition', active),
 })
 type Inspector = 'points' | 'bytes'
 const inspector = ref<Inspector>()
-const page = ref(0)
 const narrow = matchMedia('(max-width: 600px)')
-const pageSize = ref(narrow.matches ? 16 : 48)
 const caretOffset = computed(() =>
   selection.value.start === selection.value.end ? selection.value.start : undefined,
 )
@@ -94,23 +87,21 @@ const count = computed(() => {
   for (const _ of props.modelValue) total++
   return total
 })
-const pages = computed(() => Math.max(1, Math.ceil(count.value / pageSize.value)))
 const encoder = new TextEncoder()
 const malformedOffset = computed(() => unpairedSurrogate(props.modelValue))
 const utf8Length = computed(() =>
   malformedOffset.value === undefined ? encoder.encode(props.modelValue).length : undefined,
 )
-const visible = computed(() => {
-  if (inspector.value === 'bytes' && malformedOffset.value === undefined)
-    return inspect(props.modelValue)
-  if (inspector.value === 'points')
-    return inspectRange(props.modelValue, page.value * pageSize.value, pageSize.value)
-  return []
-})
+const points = computed(() =>
+  inspector.value === 'points' ||
+  (inspector.value === 'bytes' && malformedOffset.value === undefined)
+    ? inspect(props.modelValue)
+    : [],
+)
 const byteGroups = computed(() => {
   if (inspector.value !== 'bytes') return []
   let offset = 0
-  return visible.value.map(({ scalar }) => {
+  return points.value.map(({ scalar }) => {
     const bytes = encoder.encode(scalar)
     const group = {
       offset: offset.toString(16).toUpperCase().padStart(4, '0'),
@@ -120,18 +111,6 @@ const byteGroups = computed(() => {
     return group
   })
 })
-
-function updatePageSize() {
-  const first = page.value * pageSize.value
-  pageSize.value = narrow.matches ? 16 : 48
-  page.value = Math.floor(first / pageSize.value)
-}
-onMounted(() => narrow.addEventListener('change', updatePageSize))
-onUnmounted(() => narrow.removeEventListener('change', updatePageSize))
-watch(
-  () => props.modelValue,
-  () => (page.value = Math.min(page.value, pages.value - 1)),
-)
 
 function selectPoint(span: Span) {
   focusAt(span, false)
@@ -165,9 +144,6 @@ function copy(value: string) {
 
 function restoreView(view: ArgumentView) {
   inspector.value = view.expanded === true ? (view.bytes ? 'bytes' : 'points') : undefined
-  page.value = Number.isSafeInteger(view.page)
-    ? Math.max(0, Math.min(view.page, pages.value - 1))
-    : 0
 }
 
 defineExpose({
@@ -175,9 +151,8 @@ defineExpose({
   focusAt,
   captureSelection,
   context: () => ({ ...selection.value }),
-  saveView: (): ArgumentView => ({
+  saveView: () => ({
     expanded: inspector.value !== undefined,
-    page: page.value,
     bytes: inspector.value === 'bytes' || undefined,
   }),
   restoreView,
@@ -269,45 +244,22 @@ defineExpose({
         Unpaired surrogate at UTF-16 offset {{ malformedOffset }}.
       </p>
       <template v-else>
-        <div v-if="inspector === 'points' && pages > 1" class="toolbar pagination">
-          <button
-            type="button"
-            class="icon-button"
-            aria-label="Previous"
-            title="Previous page"
-            :disabled="page === 0"
-            @click="page--"
-          >
-            <ChevronLeft aria-hidden="true" />
-          </button>
-          <span class="meta" role="status">Page {{ page + 1 }} of {{ pages }}</span>
-          <button
-            type="button"
-            class="icon-button"
-            aria-label="Next"
-            title="Next page"
-            :disabled="page + 1 === pages"
-            @click="page++"
-          >
-            <ChevronRight aria-hidden="true" />
-          </button>
-        </div>
         <div
-          v-if="visible.length"
+          v-if="points.length"
           class="point-grid"
           :class="{ 'argument-byte-grid': inspector === 'bytes' }"
           role="group"
           :aria-label="label + (inspector === 'bytes' ? ' UTF-8 bytes' : ' code points')"
         >
           <button
-            v-for="(point, index) in visible"
+            v-for="(point, index) in points"
             :key="point.start"
             type="button"
             class="point"
             :aria-label="
               byteGroups[index]
                 ? `Byte offset 0x${byteGroups[index].offset}, ${byteGroups[index].hex}, ${point.notation}`
-                : `${page * pageSize + index + 1}. ${point.notation}, ${point.glyph}`
+                : `${index + 1}. ${point.notation}, ${point.glyph}`
             "
             :title="byteGroups[index] ? `Byte offset 0x${byteGroups[index].offset}` : undefined"
             :aria-pressed="point.start >= selection.start && point.end <= selection.end"
@@ -320,7 +272,7 @@ defineExpose({
             <span
               v-if="
                 caretOffset === point.start ||
-                (index === visible.length - 1 && caretOffset === point.end)
+                (index === points.length - 1 && caretOffset === point.end)
               "
               class="point-caret"
               :class="{ 'at-end': caretOffset === point.end }"
@@ -429,9 +381,6 @@ defineExpose({
 }
 .point-actions {
   margin-top: 6px;
-}
-.pagination {
-  margin-bottom: 6px;
 }
 .point-context {
   margin-top: 4px;
@@ -646,7 +595,7 @@ defineExpose({
     padding: var(--compact-tight) var(--compact-gap);
     background: transparent;
   }
-  .composer-argument :is(.pagination, .point-actions, .point-context) {
+  .composer-argument :is(.point-actions, .point-context) {
     margin: 0;
   }
   .composer-argument .point {

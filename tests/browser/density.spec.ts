@@ -81,14 +81,21 @@ for (const [width, height] of [
         await expect(quick).toBeHidden()
         await expect(button('Earlier reads')).toBeInViewport({ ratio: 1 })
         await button('Code points').tap()
-        await expect(status).toBeInViewport()
-        const previous = inspector.getByRole('button', { name: 'Previous' })
-        expect((await previous.boundingBox())!.height).toBeGreaterThanOrEqual(32)
-        const lastPage = await status.innerText()
-        await previous.tap()
-        await expect(status).not.toHaveText(lastPage)
-        await inspector.getByRole('button', { name: 'Next' }).tap()
-        await expect(status).toHaveText(lastPage)
+        await expect(status).toHaveCount(0)
+        const points = inspector
+          .getByRole('group', { name: 'Header recipient code points' })
+          .getByRole('button')
+        await expect(points).toHaveCount(140)
+        await expect(points.first()).toBeInViewport({ ratio: 1 })
+        const last = points.last()
+        await last.tap()
+        await expect(last).toHaveAttribute('aria-pressed', 'true')
+        expect(
+          await header.evaluate((field: HTMLTextAreaElement) => [
+            field.selectionStart,
+            field.selectionEnd,
+          ]),
+        ).toEqual([167, 168])
       } else expect((await quick.boundingBox())!.height).toBeLessThan(45)
 
       await header.press('Enter')

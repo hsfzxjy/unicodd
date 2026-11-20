@@ -66,8 +66,10 @@ for (const [width, height] of [
       await button('UTF-8 bytes').click()
       const inspector = page.getByRole('region', { name: 'Header recipient Unicode inspector' })
       const status = inspector.getByText(/^Page \d+ of \d+$/)
-      await expect(status).toBeInViewport()
-      await expect(inspector.getByRole('button', { name: /^Byte offset/ }).first()).toBeInViewport({
+      const byteGroups = inspector.getByRole('button', { name: /^Byte offset/ })
+      await expect(status).toBeHidden()
+      await expect(byteGroups).toHaveCount(140)
+      await expect(byteGroups.first()).toBeInViewport({
         ratio: phone ? 1 : 0.1,
       })
       await expect(button('Run')).toBeInViewport({ ratio: 1 })
@@ -78,8 +80,9 @@ for (const [width, height] of [
       if (phone) {
         await expect(quick).toBeHidden()
         await expect(button('Earlier reads')).toBeInViewport({ ratio: 1 })
+        await button('Code points').tap()
+        await expect(status).toBeInViewport()
         const previous = inspector.getByRole('button', { name: 'Previous' })
-        expect((await previous.boundingBox())!.height).toBeGreaterThanOrEqual(44)
         const lastPage = await status.innerText()
         await previous.tap()
         await expect(status).not.toHaveText(lastPage)

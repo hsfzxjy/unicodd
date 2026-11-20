@@ -217,12 +217,29 @@ test('inspects UTF-8 byte groups and selects their source scalar', async ({ page
     '36',
     '39',
   ])
-  await alias.fill('🧪'.repeat(17))
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await alias.fill('🧪'.repeat(49))
   await selection(alias, 0, 0)
-  await page.getByRole('button', { name: 'Next', exact: true }).click()
-  await expect(grid.getByRole('button')).toHaveAccessibleName(
-    'Byte offset 0x0040, F0 9F A7 AA, U+1F9EA',
-  )
+  const groups = grid.getByRole('button')
+  const next = page.getByRole('button', { name: 'Next', exact: true })
+  await expect(groups).toHaveCount(49)
+  await expect(next).toBeHidden()
+  await page.screenshot({ path: info.outputPath('utf8-long-desktop.png') })
+
+  await page.setViewportSize({ width: 390, height: 435 })
+  await expect(groups).toHaveCount(49)
+  await expect(next).toBeHidden()
+  const last = groups.last()
+  await expect(last).toHaveAccessibleName('Byte offset 0x00C0, F0 9F A7 AA, U+1F9EA')
+  await last.click()
+  await expect(last).toHaveAttribute('aria-pressed', 'true')
+  expect(
+    await alias.evaluate((field: HTMLTextAreaElement) => [
+      field.selectionStart,
+      field.selectionEnd,
+    ]),
+  ).toEqual([96, 98])
+  await page.screenshot({ path: info.outputPath('utf8-long-compact.png') })
 
   await alias.evaluate((field: HTMLTextAreaElement) => {
     field.value = 'a\ud800'

@@ -58,7 +58,7 @@ const {
   mirror,
   drawnCaret,
   revealSelection(raw, offset) {
-    if (!inspector.value) return
+    if (inspector.value !== 'points') return
     const index = pointIndex(raw, offset)
     page.value = Math.min(pages.value - 1, Math.floor(index / pageSize.value))
   },
@@ -100,15 +100,16 @@ const malformedOffset = computed(() => unpairedSurrogate(props.modelValue))
 const utf8Length = computed(() =>
   malformedOffset.value === undefined ? encoder.encode(props.modelValue).length : undefined,
 )
-const visible = computed(() =>
-  inspector.value
-    ? inspectRange(props.modelValue, page.value * pageSize.value, pageSize.value)
-    : [],
-)
+const visible = computed(() => {
+  if (inspector.value === 'bytes' && malformedOffset.value === undefined)
+    return inspect(props.modelValue)
+  if (inspector.value === 'points')
+    return inspectRange(props.modelValue, page.value * pageSize.value, pageSize.value)
+  return []
+})
 const byteGroups = computed(() => {
-  if (inspector.value !== 'bytes' || malformedOffset.value !== undefined || !visible.value.length)
-    return []
-  let offset = encoder.encode(props.modelValue.slice(0, visible.value[0].start)).length
+  if (inspector.value !== 'bytes') return []
+  let offset = 0
   return visible.value.map(({ scalar }) => {
     const bytes = encoder.encode(scalar)
     const group = {
@@ -268,7 +269,7 @@ defineExpose({
         Unpaired surrogate at UTF-16 offset {{ malformedOffset }}.
       </p>
       <template v-else>
-        <div v-if="pages > 1" class="toolbar pagination">
+        <div v-if="inspector === 'points' && pages > 1" class="toolbar pagination">
           <button
             type="button"
             class="icon-button"

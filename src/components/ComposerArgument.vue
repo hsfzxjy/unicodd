@@ -144,6 +144,10 @@ defineExpose({
   align-items: start;
   column-gap: 8px;
 }
+.composer-argument > label,
+.composer-argument textarea::placeholder {
+  font-family: var(--sans);
+}
 .composer-argument > label {
   align-self: center;
   color: var(--muted);

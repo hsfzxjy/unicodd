@@ -836,6 +836,9 @@ for (const [width, height] of [
       await commandControl(page, 'login')
       const alias = field(page, 'Account alias')
       await expect(alias).toHaveAttribute('placeholder', 'Account alias')
+      expect(
+        await alias.evaluate((element) => getComputedStyle(element, '::placeholder').fontFamily),
+      ).toMatch(systemFont)
       await expect(alias).toHaveCSS('font-size', '13px')
       const inspectorType = page.getByRole('combobox', { name: 'Account alias inspector type' })
       await expect(inspectorType).toHaveCSS('font-family', systemFont)

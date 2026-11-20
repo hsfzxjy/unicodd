@@ -54,10 +54,11 @@ for (const [width, height] of [
       expect(await header.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeGreaterThan(0)
       expect(await header.evaluate((el) => el.scrollTop)).toBeGreaterThan(0)
       await expect(page.getByLabel('Total units').filter({ visible: true })).toHaveText('140')
+      const label = page.getByText('Header recipient', { exact: true })
+      await expect(label).toHaveCSS('font-family', /^system-ui\b/u)
       if (phone) {
         const field = (await header.boundingBox())!
-        const label = (await page.getByText('Header recipient', { exact: true }).boundingBox())!
-        expect(field.y).toBeGreaterThan(label.y)
+        expect(field.y).toBeGreaterThan((await label.boundingBox())!.y)
         expect(field.width).toBeGreaterThan(width - 40)
       }
 

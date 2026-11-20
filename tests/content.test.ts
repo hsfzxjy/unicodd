@@ -286,6 +286,15 @@ it('validates multi-field bindings and distinct commands', async () => {
   const [, dead, index] = await production.manifest()
   const route = JSON.parse((await readProduction(dead.scenario)).toString())
   const fields = route.hosts[0].operation.fields
+  fields[0].inspectors = ['utf-32']
+  await expect(override(dead.scenario, route).scenario(dead)).rejects.toThrow(
+    /Unknown argument inspector/,
+  )
+  fields[0].inspectors = ['utf-8', 'utf-8']
+  await expect(override(dead.scenario, route).scenario(dead)).rejects.toThrow(
+    /Duplicate value "utf-8"/,
+  )
+  fields[0].inspectors = ['utf-8', 'code-points']
   fields[1].input = fields[0].input
   await expect(override(dead.scenario, route).scenario(dead)).rejects.toThrow(
     /Duplicate value "header"/,
@@ -296,6 +305,10 @@ it('validates multi-field bindings and distinct commands', async () => {
     /Fixed fields cannot have a draft/,
   )
   delete fields[1].initial
+  await expect(override(dead.scenario, route).scenario(dead)).rejects.toThrow(
+    /Fixed fields cannot have inspectors/,
+  )
+  delete fields[1].inspectors
   await expect(override(dead.scenario, route).scenario(dead)).rejects.toThrow(
     /command argument count/,
   )

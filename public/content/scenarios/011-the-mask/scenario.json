@@ -179,6 +179,7 @@
           "fields": [
             {
               "input": "json",
+              "inspectors": ["utf-8", "utf-16", "wtf-8"],
               "label": "JSON or sample",
               "initial": "paired",
               "kind": "json"

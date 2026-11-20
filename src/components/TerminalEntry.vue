@@ -5,7 +5,7 @@ import TerminalListing from './TerminalListing.vue'
 import TerminalProgress from './TerminalProgress.vue'
 import TerminalReport from './TerminalReport.vue'
 import TerminalResource from './TerminalResource.vue'
-import { commandDefinition, commandRegistry, type CommandName } from '../lib/commands'
+import { commandDefinition, commandEcho, commandRegistry, type CommandName } from '../lib/commands'
 import type { Action, Session } from '../lib/runtime'
 import type { Entry } from '../lib/workspace'
 
@@ -62,7 +62,9 @@ function echoText(value: string) {
           >{{ entry.connected ? '@' : '' }}{{ entry.prompt }} ›</span
         >
         <bdi>{{
-          echoText(entry.localScope ? entry.echo.replace(/^\s*local\s+/u, '') : entry.echo)
+          echoText(
+            commandEcho(entry.localScope ? entry.echo.replace(/^\s*local\s+/u, '') : entry.echo),
+          )
         }}</bdi>
       </p>
       <div class="entry-actions">

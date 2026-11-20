@@ -2,7 +2,14 @@ import type { Action, ConsoleAction } from './runtime.ts'
 import { recoveryArity, type RecoveryCommand } from './recovery.ts'
 import { dossierArity, type DossierCommand } from './dossier.ts'
 import { puzzleArity, type OperationBinding, type OperationCommand } from './scenario.ts'
-import { decodeUnicodeEscapes, readUnicodeEscape, scalarSpan, type Span } from './unicode.ts'
+import type { ArgumentInspector } from './argument-inspectors.ts'
+import {
+  decodeUnicodeEscapes,
+  projectCommandText,
+  readCommandEscape,
+  scalarSpan,
+  type Span,
+} from './unicode.ts'
 
 export type ArgumentKind =
   'text' | 'path' | 'host' | 'message' | 'scenario' | 'scalar' | 'payload' | 'json'
@@ -12,6 +19,7 @@ export interface CommandArgument {
   kind: ArgumentKind
   required: boolean
   initial: string
+  inspectors?: readonly ArgumentInspector[]
 }
 const argument = (name: string, kind: ArgumentKind, required = true): CommandArgument => ({
   name,
@@ -258,7 +266,7 @@ const baseCommands = [
     name: 'inspect',
     usage: 'inspect <character>',
     description: 'Show Unicode details for a scalar or code point.',
-    arguments: [argument('character', 'scalar')],
+    arguments: [{ ...argument('character', 'scalar'), inspectors: ['code-points'] }],
   },
   { name: 'clear', usage: 'clear', description: 'Clear terminal scrollback.', arguments: [] },
 ] as const
@@ -294,6 +302,7 @@ export function composerArguments(
           initial: field.initial,
           required: true,
           kind: field.kind ?? 'payload',
+          inspectors: field.inspectors,
         }))
     : [...definition.arguments]
 }
@@ -303,36 +312,62 @@ export function spaceCommand(source: string, composing = false): CommandName | u
   return match ? commandDefinition(match[1])?.name : undefined
 }
 
-function tokenize(source: string, draft = false) {
+function decodedWord(word = '') {
+  if (!word.includes('\\')) return word
+  const decoded = decodeUnicodeEscapes(word)
+  return 'text' in decoded ? decoded.text : word
+}
+
+function tokenize(source: string) {
   const args: string[] = []
   let token = ''
   let quote = ''
   let started = false
+  let definition: ReturnType<typeof commandDefinition>
+  let rendered = ''
   for (let index = 0; index < source.length; index++) {
     const char = source[index]
     const next = source[index + 1]
-    const json = commandDefinition(args[0])?.arguments[args.length - 1]?.kind === 'json'
-    const escape = char === '\\' && !json ? readUnicodeEscape(source, index) : undefined
+    const json = definition?.arguments[args.length - 1]?.kind === 'json'
+    const escape = char === '\\' && !json ? readCommandEscape(source, index) : undefined
     if (escape) {
-      if ('error' in escape && !draft) return { args, quote, error: escape.error }
-      token += draft ? source.slice(index, escape.end) : 'text' in escape ? escape.text : ''
+      const raw = source.slice(index, escape.end)
+      token += raw
+      rendered += escape.text ?? raw
       started = true
       index = escape.end - 1
-    } else if (
-      char === '\\' &&
-      (next === '\\' || next === (quote || '"') || (!quote && next === "'"))
-    ) {
-      token += draft && !json && next === '\\' ? '\\u00005C' : next
+      continue
+    }
+    // Uppercase U is outside the JSON escape grammar. The double-quoted shell form
+    // uses these two spellings to carry line breaks through the native one-line prompt.
+    const lineBreak = json && quote === '"' && char === '\\' && readJsonLineBreak(source, index)
+    if (lineBreak) {
+      token += lineBreak
+      rendered += lineBreak
+      index += 7
+      continue
+    }
+    const escapedQuote = next === (quote || '"') || (!quote && next === "'")
+    const escapedJsonBackslash = json && quote !== "'" && next === '\\'
+    if (char === '\\' && (escapedQuote || escapedJsonBackslash)) {
+      token += next
+      rendered += next
       started = true
       index++
-    } else if (quote) {
+      continue
+    }
+    rendered += char
+    if (quote) {
       if (char === quote) quote = ''
       else token += char
     } else if (char === '"' || char === "'") {
       quote = char
       started = true
     } else if (/[ \t\r\n]/u.test(char)) {
-      if (started) args.push(token)
+      if (started) {
+        args.push(token)
+        if (args.length === 1) definition = commandDefinition(decodedWord(token))
+      }
       token = ''
       started = false
     } else {
@@ -341,15 +376,19 @@ function tokenize(source: string, draft = false) {
     }
   }
   if (started) args.push(token)
-  return { args, quote, started }
+  return { args, quote, started, rendered }
+}
+
+export function commandEcho(source: string) {
+  return tokenize(source).rendered
 }
 
 export function commandDraft(source: string) {
-  const parsed = tokenize(source, true)
-  const [command, subcommand] = parsed.args
+  const parsed = tokenize(source)
+  const [command, subcommand] = parsed.args.slice(0, 2).map(decodedWord)
   const scoped = command === 'local'
   const definition = commandDefinition(scoped ? `local ${subcommand}` : command)
-  if (!definition || parsed.quote || parsed.error) return
+  if (!definition || parsed.quote) return
   return { name: definition.name, values: parsed.args.slice(scoped ? 2 : 1) }
 }
 
@@ -360,7 +399,7 @@ export function commandDraftSelection(source: string, selection: Span) {
   if (!draft?.values.length) return
   const commandWords = draft.name.startsWith('local ') ? 2 : 1
   const position = (offset: number) => {
-    const prefix = tokenize(source.slice(0, offset), true)
+    const prefix = tokenize(source.slice(0, offset))
     const index = Math.min(
       draft.values.length - 1,
       Math.max(0, prefix.args.length - commandWords - Number(prefix.started)),
@@ -379,11 +418,10 @@ export function commandDraftSelection(source: string, selection: Span) {
 }
 
 export function parseCommand(source: string): Action | undefined {
-  const { args, quote, error } = tokenize(source)
-  if (error) return { type: 'invalid', message: error }
+  const { args, quote } = tokenize(source)
   if (quote) return { type: 'invalid', message: 'Close the quoted argument.' }
   if (!args.length) return
-  const [command, subcommand] = args
+  const [command, subcommand] = args.slice(0, 2).map(decodedWord)
   const scoped = command === 'local'
   const definition = commandDefinition(scoped ? `local ${subcommand}` : command)
   if (!definition && scoped)
@@ -399,7 +437,7 @@ export function parseCommand(source: string): Action | undefined {
   if (count < minimum || count > definition.arguments.length)
     return { type: 'invalid', message: `Usage: ${definition.usage}` }
 
-  return commandAction(definition.name, values)
+  return decodedAction(definition.name, values, definition.arguments, false)
 }
 
 export function composerAction(
@@ -408,12 +446,30 @@ export function composerAction(
   operations: readonly OperationBinding[],
 ): Action {
   const fields = composerArguments(name, operations)
+  return decodedAction(
+    name,
+    fields.map((field, index) => values[index] ?? field.initial),
+    fields,
+    true,
+  )
+}
+
+function decodedAction(
+  name: CommandName,
+  values: string[],
+  fields: readonly CommandArgument[],
+  structured: boolean,
+): Action {
   const decoded: string[] = []
-  for (const [index, field] of fields.entries()) {
-    const value = values[index] ?? field.initial
+  for (const [index, value] of values.entries()) {
+    const field = fields[index]
     const result = field.kind === 'json' ? { text: value } : decodeUnicodeEscapes(value)
-    if ('error' in result) return { type: 'invalid', message: field.label + ' · ' + result.error }
-    if (result.text !== '' || field.required) decoded.push(result.text)
+    if ('error' in result)
+      return {
+        type: 'invalid',
+        message: structured ? field.label + ' · ' + result.error : result.error,
+      }
+    if (!structured || result.text !== '' || field.required) decoded.push(result.text)
   }
   return commandAction(name, decoded)
 }
@@ -475,9 +531,10 @@ export function matchSuggestions(source: string, candidates: string[]): string[]
   if (!fileQuery) return candidates.filter((item) => item.startsWith(query) && item !== query)
 
   const [, verb, input] = fileQuery
-  const { args, quote: openQuote, error } = tokenize(input)
-  if (error) return []
-  const prefix = args[0] ?? ''
+  const { args, quote: openQuote } = tokenize(input)
+  const prefixResult = decodeUnicodeEscapes(args[0] ?? '')
+  if ('error' in prefixResult) return []
+  const prefix = prefixResult.text
   if (args.length > 1 || (prefix && !openQuote && /[ \t]$/u.test(input))) return []
 
   return candidates.flatMap((item) => {
@@ -499,6 +556,50 @@ function quote(argument: string): string {
   // those scalars as explicit escapes, including when editing a command name.
   const escaped = argument.replace(/[\\"]/gu, '\\$&').replace(/[\p{Cc}]/gu, scalarEscape)
   return /[\s"'\\]/u.test(argument) || !argument ? '"' + escaped + '"' : escaped
+}
+
+function quoteDraft(source: string) {
+  let escaped = ''
+  for (let index = 0; index < source.length; index++) {
+    const char = source[index]
+    const existing = char === '\\' ? readCommandEscape(source, index) : undefined
+    if (existing) {
+      escaped += source.slice(index, existing.end)
+      index = existing.end - 1
+    } else if (char === '\\' || char === '"') escaped += '\\' + char
+    else escaped += /\p{Cc}/u.test(char) ? scalarEscape(char) : char
+  }
+  const hasWhitespace = /\s/u.test(projectCommandText(source).text)
+  return !source || hasWhitespace || source.includes("'") ? '"' + escaped + '"' : escaped
+}
+
+const jsonLineBreaks = { '\r': '\\U00000D', '\n': '\\U00000A' } as const
+
+function readJsonLineBreak(source: string, offset: number) {
+  if (source.startsWith(jsonLineBreaks['\r'], offset)) return '\r'
+  if (source.startsWith(jsonLineBreaks['\n'], offset)) return '\n'
+}
+
+function quoteJson(value: string) {
+  const escaped = value
+    .replace(/[\\"]/gu, '\\$&')
+    .replace(/[\r\n]/gu, (char) => jsonLineBreaks[char as keyof typeof jsonLineBreaks])
+  return '"' + escaped + '"'
+}
+
+export function composerCommand(
+  name: CommandName,
+  values: string[],
+  fields: readonly CommandArgument[],
+) {
+  return [
+    name,
+    ...fields.flatMap((field, index) => {
+      const value = values[index] ?? field.initial
+      if (!field.required && !value) return []
+      return [field.kind === 'json' ? quoteJson(value) : quoteDraft(value)]
+    }),
+  ].join(' ')
 }
 function scalarEscape(scalar: string) {
   return '\\u' + scalar.codePointAt(0)!.toString(16).toUpperCase().padStart(6, '0')
@@ -525,10 +626,7 @@ export function actionCommand(action: Action, includeScope = true): string | und
     case 'reconstruct':
       return [action.type, ...(action.payloads?.map(quote) ?? [])].join(' ')
     case 'json-check':
-      return [
-        action.type,
-        ...(action.payloads?.map((value) => '"' + value.replace(/[\\"]/gu, '\\$&') + '"') ?? []),
-      ].join(' ')
+      return [action.type, ...(action.payloads?.map(quoteJson) ?? [])].join(' ')
     case 'reconcile':
       return action.payload === undefined ? action.type : `${action.type} ${quote(action.payload)}`
     case 'scenario':

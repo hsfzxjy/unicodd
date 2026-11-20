@@ -16,6 +16,7 @@ export function useArgumentEditor(
     control,
     mirror,
     drawnCaret,
+    height,
     update,
     activate,
     composition,
@@ -23,6 +24,7 @@ export function useArgumentEditor(
     control: Ref<HTMLTextAreaElement | undefined>
     mirror: Ref<HTMLDivElement | undefined>
     drawnCaret: Ref<HTMLSpanElement | undefined>
+    height: Ref<number | undefined>
     update: (text: string) => void
     activate: () => void
     composition: (active: boolean) => void
@@ -51,6 +53,10 @@ export function useArgumentEditor(
   function resize() {
     const field = control.value
     if (!field) return
+    if (height.value !== undefined) {
+      field.style.height = height.value + 'px'
+      return
+    }
     if (props.inline) {
       field.style.height = ''
       return
@@ -114,6 +120,7 @@ export function useArgumentEditor(
     resizeObserver.disconnect()
   })
   watch(() => props.modelValue, syncControl)
+  watch(height, resize)
 
   function readSelection(raw = props.modelValue) {
     const field = control.value

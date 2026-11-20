@@ -163,7 +163,6 @@ async function beginIndex(page: Page, act: Activate) {
   await expect(transcript(page)).toContainText('Protected canonical identifier')
   await act(page.getByRole('button', { name: /Code points/ }))
   await act(page.getByRole('button', { name: '2. U+0069, i' }))
-  await act(page.getByRole('button', { name: /Code points/ }))
   await act(link(page, 'Inspect U+0069, i'))
   const latin = transcript(page).getByRole('region', { name: 'Unicode U+0069', exact: true })
   await expect(latin).toContainText('LATIN SMALL LETTER I')

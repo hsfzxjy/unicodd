@@ -133,6 +133,7 @@
         "label": "Account alias",
         "puzzle": "puzzle.json",
         "input": "alias",
+        "inspectors": ["code-points", "utf-16", "utf-8"],
         "access": {
           "roles": ["guest"]
         },

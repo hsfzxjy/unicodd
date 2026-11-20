@@ -4,6 +4,7 @@ import { createRuntime, type Action, type Output, type RuntimeSnapshot } from '.
 import type { Scenario } from './scenario.ts'
 import { decodeUnicodeEscapes, type Span } from './unicode.ts'
 import type { Engine } from '../types.ts'
+import type { ArgumentInspector } from './argument-inspectors.ts'
 
 export interface Draft {
   name?: CommandName
@@ -19,6 +20,7 @@ export interface ArgumentView {
   expanded: boolean
   page: number
   bytes?: boolean
+  inspector?: ArgumentInspector
 }
 
 export interface ComposerSave {

@@ -139,6 +139,7 @@
             },
             {
               "input": "label",
+              "inspectors": ["code-points"],
               "label": "Channel label",
               "initial": "IRIS",
               "kind": "payload"
@@ -162,6 +163,7 @@
             },
             {
               "input": "channel",
+              "inspectors": ["code-points"],
               "label": "Channel label",
               "initial": "IRIS",
               "kind": "payload"

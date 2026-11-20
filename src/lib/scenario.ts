@@ -2,6 +2,7 @@ import type { Program } from '../types.ts'
 import type { ArchiveStage, RecoveryCommand, RecoveryDataset } from './recovery.ts'
 import type { DossierCommand, DossierStage } from './dossier.ts'
 import type { Action } from './runtime.ts'
+import type { ArgumentInspector } from './argument-inspectors.ts'
 
 export interface Identity {
   user: string
@@ -22,6 +23,7 @@ export interface PuzzleField {
   initial: string
   fixed?: string
   kind?: 'text' | 'payload' | 'json'
+  inspectors?: ArgumentInspector[]
 }
 
 export type ProgressEffect =

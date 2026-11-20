@@ -1,4 +1,5 @@
 import type { Engine, EngineError, Program } from '../types.ts'
+import { argumentInspectorIds } from './argument-inspectors.ts'
 import { commandRegistry } from './commands.ts'
 import {
   dossierArity,
@@ -47,6 +48,17 @@ const timedCommands = commandRegistry.map(({ name }) => name).filter((name) => n
 
 function invalid(file: string, field: string, message: string): never {
   throw new Error(`${file}${field ? ` · ${field}` : ''} — ${message}`)
+}
+
+function inspectors(field: Field) {
+  const seen = new Set<string>()
+  return field.optional((list) =>
+    list.list((item) => {
+      const id = item.ref(argumentInspectorIds, 'argument inspector')
+      item.unique(seen, id)
+      return id
+    }),
+  )
 }
 
 class Field {
@@ -459,11 +471,12 @@ export function createContentLoader(
         )
         const seen = new Set<string>()
         const fields = get('fields').list((item) => {
-          const field = item.object('input', 'label', 'initial', 'kind')
+          const field = item.object('input', 'label', 'initial', 'kind', 'inspectors')
           return {
             input: field('input').unique(seen),
             label: field('label').text(),
             initial: field('initial').text(true),
+            inspectors: inspectors(field('inspectors')),
             kind:
               field('kind').optional((kind) =>
                 kind.ref(['text', 'payload', 'json'] as const, 'argument kind'),
@@ -530,6 +543,7 @@ export function createContentLoader(
           'puzzle',
           'input',
           'initial',
+          'inspectors',
           'access',
           'success',
           'failure',
@@ -547,7 +561,7 @@ export function createContentLoader(
         const seen = new Set<string>()
         const fields = get('fields').optional((list) =>
           list.list((field) => {
-            const get = field.object('input', 'label', 'initial', 'fixed')
+            const get = field.object('input', 'label', 'initial', 'fixed', 'inspectors')
             const input = get('input').unique(
               seen,
               get('input').ref(program.inputs, 'puzzle input'),
@@ -555,15 +569,21 @@ export function createContentLoader(
             const fixed = get('fixed').optional((item) => item.text())
             if (fixed !== undefined && get('initial').value !== undefined)
               get('initial').fail('Fixed fields cannot have a draft.')
+            if (fixed !== undefined && get('inspectors').value !== undefined)
+              get('inspectors').fail('Fixed fields cannot have inspectors.')
             return {
               input,
               label: get('label').text(),
               fixed,
               initial: get('initial').optional((item) => item.text(true)) ?? '',
+              inspectors: inspectors(get('inspectors')),
             }
           }),
         )
-        if (fields && (get('input').value !== undefined || get('initial').value !== undefined))
+        if (
+          fields &&
+          ['input', 'initial', 'inspectors'].some((key) => get(key).value !== undefined)
+        )
           field.fail('Use fields or the single-input shorthand.')
         const bound = fields ?? [
           {
@@ -571,6 +591,7 @@ export function createContentLoader(
             label,
             initial,
             fixed: undefined,
+            inspectors: inspectors(get('inspectors')),
           },
         ]
         if (

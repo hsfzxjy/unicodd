@@ -53,7 +53,7 @@ for (const [width, height] of [
       await header.press('Control+End')
       expect(await header.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeGreaterThan(0)
       expect(await header.evaluate((el) => el.scrollTop)).toBeGreaterThan(0)
-      await expect(page.locator('.argument-lengths:visible')).toContainText('140 code points')
+      await expect(page.getByLabel('Total units').filter({ visible: true })).toHaveText('140')
       if (phone) {
         const field = (await header.boundingBox())!
         const label = (await page.getByText('Header recipient', { exact: true }).boundingBox())!
@@ -65,7 +65,8 @@ for (const [width, height] of [
       await expect(page.getByRole('region', { name: 'Goal', exact: true })).toContainText(
         'Recover and read',
       )
-      await button('UTF-8 bytes').click()
+      const kind = page.getByRole('combobox', { name: 'Header recipient inspector type' })
+      await kind.selectOption('utf-8')
       const inspector = page.getByRole('region', { name: 'Header recipient Unicode inspector' })
       const status = inspector.getByText(/^Page \d+ of \d+$/)
       const byteGroups = inspector.getByRole('button', { name: /^Byte offset/ })
@@ -82,7 +83,7 @@ for (const [width, height] of [
       if (phone) {
         await expect(quick).toBeHidden()
         await expect(button('Earlier reads')).toBeInViewport({ ratio: 1 })
-        await button('Code points').tap()
+        await kind.selectOption('code-points')
         await expect(status).toHaveCount(0)
         const points = inspector
           .getByRole('group', { name: 'Header recipient code points' })

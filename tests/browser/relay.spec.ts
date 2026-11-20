@@ -530,10 +530,10 @@ test('completes relative paths and marks local and remote command echoes', async
   await page.screenshot({ path: info.outputPath('mobile-relative-completion.png') })
 })
 
-test('interprets six-digit Unicode escapes in commands and the alias editor', async ({ page }) => {
+test('interprets Unicode escapes in commands and the alias editor', async ({ page }) => {
   const escapedAlias = String.raw`\u01D40CAINT`
   await openRelay(page)
-  await run(page, String.raw`inspect \u01F9EA`)
+  await run(page, String.raw`inspect \U1F9EA`)
   await expect(inspection(page, 'U+1F9EA')).toBeVisible()
   await run(page, 'connect relay-07')
   await run(page, String.raw`cat \u000052EADME`)
@@ -547,6 +547,7 @@ test('interprets six-digit Unicode escapes in commands and the alias editor', as
   const submit = page.getByRole('button', { name: 'Run', exact: true })
   await draft.fill(String.raw`\u01F9EA`)
   await draft.selectText()
+  await page.getByRole('button', { name: 'Code points', exact: true }).click()
   await page
     .getByRole('form', { name: 'Command composer' })
     .getByRole('button', { name: 'Inspect', exact: true })

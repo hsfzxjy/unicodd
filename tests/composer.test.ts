@@ -3,9 +3,11 @@ import {
   actionCommand,
   commandDraft,
   commandDraftSelection,
+  commandEcho,
   commandRegistry,
   composerAction,
   composerArguments,
+  composerCommand,
   parseCommand,
   spaceCommand,
 } from '../src/lib/commands'
@@ -109,22 +111,50 @@ describe('authoritative command metadata', () => {
     expect(actionCommand(action)).not.toMatch(/[\r\n\t\0]/u)
     expect(parseCommand(actionCommand(action)!)).toEqual(action)
   })
+  it('round-trips raw command escapes across editing, execution and echo', () => {
+    const draft = [String.raw`x\UAEz \"q\" \\u0041`, String.raw`\uD83E\uDDEAE`]
+    const fields = composerArguments('route', [])
+    const source = composerCommand('route', draft, fields)
+    expect(source).toBe(String.raw`route "x\UAEz \"q\" \\u0041" \uD83E\uDDEAE`)
+    // A seventh hex digit begins the next literal character.
+    const second = String.raw`\u00D83E\u00DDEAE`
+    expect(commandDraft(source)?.values).toEqual(draft)
+    expect(parseCommand(source)).toMatchObject({ type: 'invalid' })
+    const complete = composerCommand('route', [draft[0], second], fields)
+    expect(parseCommand(complete)).toEqual({
+      type: 'route',
+      payloads: ['x®z "q" \\u0041', '🧪E'],
+    })
+    expect(commandEcho(complete)).toBe('route "x®z "q" \\u0041" 🧪E')
+
+    const json = '{\r\n' + String.raw`"text":"\uD800","slash":"\\","upper":"\u00AE"` + '\n}'
+    const jsonSource = composerCommand('json-check', [json], composerArguments('json-check', []))
+    expect(commandDraft(jsonSource)?.values).toEqual([json])
+    expect(parseCommand(jsonSource)).toEqual({ type: 'json-check', payloads: [json] })
+    expect(parseCommand(`json-check '${json}'`)).toEqual({ type: 'json-check', payloads: [json] })
+    expect(jsonSource).not.toMatch(/[\r\n]/u)
+    expect(commandEcho(jsonSource)).toBe(`json-check "${json}"`)
+    expect(commandEcho(jsonSource)).toContain('\r\n')
+  })
   it('derives all editable fields from validated bindings and excludes fixed context', async () => {
     for (const entry of await production.manifest()) {
       const scenario = await production.scenario(entry)
-      for (const host of scenario.hosts)
-        for (const binding of host.operations) {
-          const fields = composerArguments(binding.command, host.operations)
-          expect(fields.map((field) => [field.name, field.label, field.initial])).toEqual(
+      for (const host of scenario.hosts) {
+        const operations = [...host.operations, ...(host.recovery ?? [])]
+        for (const binding of operations) {
+          const fields = composerArguments(binding.command, operations)
+          expect(
+            fields.map((field) => [field.name, field.label, field.initial, field.inspectors]),
+          ).toEqual(
             binding.fields
               .filter((field) => field.fixed === undefined)
-              .map((field) => [field.input, field.label, field.initial]),
+              .map((field) => [field.input, field.label, field.initial, field.inspectors]),
           )
           expect(fields.length).toBe(
             commandRegistry.find((command) => command.name === binding.command)!.arguments.length,
           )
-          expect(fields.every((field) => field.kind === 'payload')).toBe(true)
         }
+      }
     }
     expect(decodeUnicodeEscapes(String.raw`\u01F9EA`)).toEqual({ text: '🧪' })
   })

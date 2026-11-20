@@ -20,7 +20,7 @@ test('inspects a selected scalar and reuses earlier results at the active select
   const details = (notation: string) => log.getByRole('region', { name: 'Unicode ' + notation })
   const command = page.getByRole('textbox', { name: 'Terminal command' })
   await input.fill('e\u0301🧪\u200b')
-  await expect(page.getByText('4 code points', { exact: true })).toBeVisible()
+  await expect(page.getByLabel('Total units')).toHaveText('4')
   await editor.getByRole('button', { name: 'Code points', exact: true }).click()
   await expect(editor.getByRole('button', { name: /U\+0301/ })).toBeVisible()
   await expect(editor.getByRole('button', { name: /U\+200B, ZWSP/ })).toBeVisible()

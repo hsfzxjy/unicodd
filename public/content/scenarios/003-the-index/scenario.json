@@ -167,6 +167,7 @@
           "submitLabel": "Submit query",
           "puzzle": "puzzle.json",
           "input": "candidate",
+          "inspectors": ["code-points"],
           "initial": "Mira",
           "access": {
             "roles": ["auditor"]
@@ -216,6 +217,7 @@
             },
             {
               "input": "name_a",
+              "inspectors": ["code-points", "utf-8"],
               "label": "Original name A"
             },
             {
@@ -225,6 +227,7 @@
             },
             {
               "input": "name_b",
+              "inspectors": ["code-points", "utf-8"],
               "label": "Original name B"
             }
           ],

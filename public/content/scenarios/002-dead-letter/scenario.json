@@ -193,11 +193,13 @@
         "fields": [
           {
             "input": "header",
+            "inspectors": ["code-points", "utf-8"],
             "label": "Header recipient",
             "initial": "Mira"
           },
           {
             "input": "envelope",
+            "inspectors": ["utf-8", "code-points"],
             "label": "Envelope recipient",
             "initial": "Mira"
           }

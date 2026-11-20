@@ -155,6 +155,7 @@
             },
             {
               "input": "path",
+              "inspectors": ["utf-8", "utf-16", "code-points"],
               "label": "Path",
               "initial": "NUL.txt",
               "kind": "payload"

@@ -14,8 +14,8 @@ import {
 import ComposerArgument from './ComposerArgument.vue'
 import ComposerMenu from './ComposerMenu.vue'
 import {
-  actionCommand,
   composerAction,
+  composerCommand,
   commandDefinition,
   commandDraft,
   commandDraftSelection,
@@ -47,7 +47,6 @@ const root = ref<HTMLElement>()
 const input = ref<HTMLInputElement>()
 const tag = ref<HTMLButtonElement>()
 const commandPicker = ref<HTMLButtonElement>()
-const runButton = ref<HTMLButtonElement>()
 const promptTools = ref<HTMLElement>()
 let compositionCommit: string | undefined
 const text = ref('')
@@ -239,10 +238,8 @@ async function selectCommand(name: CommandName, supplied?: string[]) {
 async function unwrap() {
   if (composing.value || props.busy) return
   cache()
-  // Decode only for serialization. The command-scoped draft keeps its original spelling.
-  const action = structuredAction()
   const name = selected.value ?? ''
-  const raw = action?.type !== 'invalid' && action ? (actionCommand(action) ?? name) : name
+  const raw = selected.value ? composerCommand(selected.value, values.value, fields.value) : name
   reset()
   text.value = raw
   await nextTick()
@@ -293,7 +290,7 @@ async function submit() {
   const context = props.context
   const focusedField =
     document.activeElement?.tagName === 'TEXTAREA' || document.activeElement === input.value
-  const echo = selected.value ? actionCommand(action) : raw
+  const echo = selected.value ? composerCommand(selected.value, values.value, fields.value) : raw
   let historyDraft = saved
   if (
     !selected.value &&
@@ -391,10 +388,11 @@ function argumentKey(event: KeyboardEvent, index: number) {
       void complete(matches.value[0])
       return
     }
-    event.preventDefault()
-    if (event.shiftKey && index === 0) tag.value?.focus()
-    else if (!event.shiftKey && index + 1 === fields.value.length) runButton.value?.focus()
-    else void focusField(index + (event.shiftKey ? -1 : 1))
+    if (event.shiftKey) {
+      event.preventDefault()
+      if (index === 0) tag.value?.focus()
+      else void focusField(index - 1)
+    }
   } else if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
     event.preventDefault()
     recall(event.key === 'ArrowUp' ? -1 : 1)
@@ -408,10 +406,7 @@ function tagKey(event: KeyboardEvent) {
   } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
     event.preventDefault()
     void toggleMenu()
-  } else if (
-    (event.key === 'Tab' && !event.shiftKey && fields.value.length) ||
-    event.key === 'Enter'
-  ) {
+  } else if (event.key === 'Enter') {
     event.preventDefault()
     if (fields.value.length) void focusField(0)
     else void submit()
@@ -593,7 +588,6 @@ defineExpose({
         </button>
         <div ref="promptTools" class="prompt-tools"></div>
         <button
-          ref="runButton"
           type="submit"
           class="run-command"
           aria-label="Run"
@@ -614,10 +608,12 @@ defineExpose({
           :key="selected + '/' + field.name"
           :ref="(instance) => setEditor(index, instance)"
           :label="field.label"
+          :size-key="selected + '/' + field.name"
           :inline="fields.length === 1"
           :model-value="values[index] ?? ''"
           :active="activeIndex === index"
-          :unicode="field.kind === 'payload' || field.kind === 'scalar' || field.kind === 'json'"
+          :inspectors="field.inspectors ?? []"
+          :literal="field.kind === 'json'"
           :last="index === fields.length - 1"
           :disabled="busy || pending"
           @update:model-value="updateValue(index, $event)"
@@ -850,6 +846,15 @@ defineExpose({
 }
 .short-viewport.session-expanded .composer-arguments {
   max-height: min(142px, calc(var(--app-height, 100dvh) * 0.26));
+}
+.composer-arguments:has(.resized-editor) {
+  max-height: min(420px, calc(var(--app-height, 100dvh) * 0.54));
+}
+.short-viewport .composer-arguments:has(.resized-editor) {
+  max-height: calc(var(--app-height, 100dvh) * 0.42);
+}
+.short-viewport.session-expanded .composer-arguments:has(.resized-editor) {
+  max-height: calc(var(--app-height, 100dvh) * 0.35);
 }
 @media (max-width: 600px) {
   .prompt.single-argument {

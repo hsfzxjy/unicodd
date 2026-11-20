@@ -139,6 +139,7 @@
             },
             {
               "input": "url",
+              "inspectors": ["code-points", "utf-8"],
               "label": "Destination URL",
               "initial": "",
               "kind": "payload"
@@ -168,12 +169,14 @@
             },
             {
               "input": "first",
+              "inspectors": ["code-points", "utf-8"],
               "label": "GW-1842 URL",
               "initial": "",
               "kind": "payload"
             },
             {
               "input": "second",
+              "inspectors": ["code-points", "utf-8"],
               "label": "GW-2917 URL",
               "initial": "",
               "kind": "payload"

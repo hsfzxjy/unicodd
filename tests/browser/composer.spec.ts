@@ -68,6 +68,7 @@ test('tags every command, expands required input, leaves unknown text alone and 
   await free(page).fill('cat')
   await free(page).press('Enter')
   await expect(field(page, 'path')).toBeFocused()
+  await expect(page.locator('.argument-inspector')).toHaveCount(0)
   await field(page, 'path').fill('/README')
   await field(page, 'path').press('Enter')
   await expect(log(page).getByRole('region', { name: 'File /README' })).toBeVisible()
@@ -84,12 +85,11 @@ test('shows exact draft lengths and keeps the insertion point visible in the Uni
   await relay(page)
   await commandControl(page, 'login')
   const alias = field(page, 'Account alias')
-  const stats = page.locator('.argument-lengths')
+  const total = page.getByLabel('Total units')
+  const kind = page.getByRole('combobox', { name: 'Account alias inspector type' })
   const caret = page.locator('.argument-caret')
   await alias.fill('a🧪é\u200b')
-  await expect(stats).toContainText('5 code points')
-  await expect(stats).toContainText('UTF-8 11 B')
-  await expect(stats).toContainText('UTF-16 6 units')
+  await expect(total).toHaveText('5')
   await selection(alias, 3, 3)
   await expect(caret).toHaveCount(0)
   await page.getByRole('button', { name: 'Code points', exact: true }).click()
@@ -105,8 +105,12 @@ test('shows exact draft lengths and keeps the insertion point visible in the Uni
   await alias.focus()
   await expect(caret).toHaveCount(0)
   await alias.fill('\\u01D40CAINT')
-  await expect(stats).toContainText('UTF-8 12 B')
-  await expect(stats).toContainText('UTF-16 12 units')
+  await expect(total).toHaveText('5')
+  await kind.selectOption('utf-8')
+  await expect(total).toHaveText('8')
+  await kind.selectOption('utf-16')
+  await expect(total).toHaveText('6')
+  await kind.selectOption('code-points')
   await alias.fill('مرحبا')
   await selection(alias, 5, 5)
   await inspector.getByRole('button', { name: /^1\. U\+0645/ }).focus()
@@ -179,10 +183,10 @@ test('inspects UTF-8 byte groups and selects their source scalar', async ({ page
   await relay(page)
   await commandControl(page, 'login')
   const alias = field(page, 'Account alias')
-  const bytes = page.getByRole('button', { name: 'UTF-8 bytes', exact: true })
-  const grid = page.getByRole('group', { name: 'Account alias UTF-8 bytes' })
+  const kind = page.getByRole('combobox', { name: 'Account alias inspector type' })
+  const grid = page.getByRole('group', { name: 'Account alias UTF-8' })
   await alias.fill('a🧪é\u200b')
-  await bytes.click()
+  await kind.selectOption('utf-8')
   await expect(grid.locator('button > bdi')).toHaveText(['a', '🧪', 'e', '◌́', 'ZWSP'])
   await expect(grid.locator('.argument-byte-values')).toHaveText([
     '61',
@@ -209,14 +213,7 @@ test('inspects UTF-8 byte groups and selects their source scalar', async ({ page
   await page.screenshot({ path: info.outputPath('utf8-bytes-compact.png') })
 
   await alias.fill(String.raw`\u0069`)
-  await expect(grid.locator('.argument-byte-values')).toHaveText([
-    '5C',
-    '75',
-    '30',
-    '30',
-    '36',
-    '39',
-  ])
+  await expect(grid.locator('.argument-byte-values')).toHaveText(['69'])
   await page.setViewportSize({ width: 1280, height: 720 })
   await alias.fill('🧪'.repeat(49))
   await selection(alias, 0, 0)
@@ -247,8 +244,138 @@ test('inspects UTF-8 byte groups and selects their source scalar', async ({ page
   })
   await expect(page.getByText('Unpaired surrogate at UTF-16 offset 1.')).toBeVisible()
   await expect(grid).toHaveCount(0)
-  await page.getByRole('button', { name: 'Code points', exact: true }).click()
+  await kind.selectOption('code-points')
   await expect(page.getByRole('button', { name: /U\+D800, Surrogate/ })).toBeVisible()
+})
+
+test('inspects escaped units, keeps the toolbar in place and reuses the raw echo', async ({
+  page,
+}, info) => {
+  await page.route('**/001-the-relay/scenario.json', async (route) => {
+    const scenario = await (await route.fetch()).json()
+    const host = scenario.hosts.find((host: { login?: unknown }) => host.login)
+    host.login.inspectors.push('wtf-8')
+    await route.fulfill({ json: scenario })
+  })
+  await relay(page)
+  await commandControl(page, 'login')
+  const alias = field(page, 'Account alias')
+  const kind = page.getByRole('combobox', { name: 'Account alias inspector type' })
+  const inspector = page.getByRole('region', { name: 'Account alias Unicode inspector' })
+  const actions = inspector.getByRole('group', { name: 'Inspector actions' })
+  await expect(actions).toBeHidden()
+  const source = String.raw`a\U1F9EA!\ud800.`
+  await alias.fill(source)
+  await kind.selectOption('utf-16')
+  await selection(alias, 4, 4)
+  await expect(page.getByLabel('Caret position')).toHaveText('3')
+  await expect(page.getByLabel('Total units')).toHaveText('6')
+  await expect(inspector.getByRole('button', { name: /D83E DDEA/ })).toBeVisible()
+  await selection(alias, 3, 5)
+  await expect(page.getByLabel('Selected unit range')).toHaveText('1-3')
+  await expect(inspector.getByRole('button', { name: /D83E DDEA/ })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await kind.selectOption('wtf-8')
+  await expect(inspector.getByRole('button', { name: /ED A0 80, U\+D800/ })).toBeVisible()
+  await expect(page.getByLabel('Selected unit range')).toHaveText('1-5')
+  await expect(page.getByLabel('Total units')).toHaveText('10')
+  await page.screenshot({ path: info.outputPath('wtf-8-desktop.png') })
+  await actions.getByRole('button', { name: 'Delete' }).click()
+  await expect(alias).toHaveValue(String.raw`a!\ud800.`)
+  await alias.fill('🧪'.repeat(450))
+  await page.setViewportSize({ width: 390, height: 435 })
+  const toolbarTop = (await actions.boundingBox())!.y
+  await inspector.locator('.point-scroll').evaluate((element) => {
+    element.scrollTop = element.scrollHeight
+  })
+  await expect(inspector.getByRole('button', { name: /^Byte offset/ }).last()).toBeInViewport()
+  expect((await actions.boundingBox())!.y).toBe(toolbarTop)
+  await page.screenshot({ path: info.outputPath('wtf-8-mobile.png') })
+
+  const draft = String.raw`\UAE! a"b`
+  await alias.fill(draft)
+  await alias.press('Escape')
+  const plain = String.raw`login "\UAE! a\"b"`
+  await expect(free(page)).toHaveValue(plain)
+  await free(page).press('Enter')
+  const entry = log(page).locator('.terminal-entry').last()
+  await expect(entry.locator('.command-line bdi')).toHaveText('login "®! a"b"')
+  await expect(alias).toHaveValue(String.raw`\UAE! a\"b`)
+  await page.reload()
+  await expect(entry.locator('.command-line bdi')).toHaveText('login "®! a"b"')
+  await entry.getByRole('button', { name: 'Edit this command' }).click()
+  await expect(alias).toHaveValue(String.raw`\UAE! a\"b`)
+})
+
+test('resizes an argument upward and restores its height across commands and reload', async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await relay(page)
+  await commandControl(page, 'login')
+  const alias = field(page, 'Account alias')
+  const handle = page.getByRole('button', { name: 'Resize Account alias' })
+  const inspector = page.getByRole('button', { name: 'Code points', exact: true })
+  const before = (await alias.boundingBox())!
+  const below = (await inspector.boundingBox())!.y
+  const grip = (await handle.boundingBox())!
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2 - 90, { steps: 6 })
+  await page.mouse.up()
+  const after = (await alias.boundingBox())!
+  expect(after.height).toBe(before.height + 90)
+  expect(after.y).toBe(before.y - 90)
+  expect((await inspector.boundingBox())!.y).toBe(below)
+  expect(await alias.evaluate((element) => element.scrollHeight === element.clientHeight)).toBe(
+    true,
+  )
+  await select(page, 'cat')
+  expect((await field(page, 'path').boundingBox())!.height).toBe(before.height)
+  await select(page, 'login')
+  expect((await alias.boundingBox())!.height).toBe(after.height)
+  await page.reload()
+  await expect(alias).toBeVisible()
+  expect((await alias.boundingBox())!.height).toBe(after.height)
+  await handle.press('ArrowDown')
+  expect((await alias.boundingBox())!.height).toBe(after.height - 12)
+  await page.screenshot({ path: info.outputPath('resized-argument-desktop.png') })
+
+  await page.setViewportSize({ width: 390, height: 435 })
+  await expect(run(page)).toBeInViewport({ ratio: 1 })
+  expect((await alias.boundingBox())!.height).toBe(after.height - 12)
+  await page.screenshot({ path: info.outputPath('resized-argument-mobile.png') })
+
+  const touch = await page.context().newCDPSession(page)
+  await touch.send('Emulation.setTouchEmulationEnabled', { enabled: true })
+  const mobileGrip = (await handle.boundingBox())!
+  const x = mobileGrip.x + mobileGrip.width / 2
+  const y = mobileGrip.y + mobileGrip.height / 2
+  await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] })
+  await touch.send('Input.dispatchTouchEvent', {
+    type: 'touchMove',
+    touchPoints: [{ x, y: y + 36 }],
+  })
+  await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+  expect((await alias.boundingBox())!.height).toBe(after.height - 48)
+  await touch.send('Emulation.setTouchEmulationEnabled', { enabled: false })
+
+  await page.setViewportSize({ width: 900, height: 430 })
+  await typed(page, 'login 𝐌AINT')
+  await typed(page, 'cat /queue/8c2f.msg')
+  await page.getByRole('combobox', { name: 'Case' }).selectOption('002-dead-letter')
+  await commandControl(page, 'route')
+  const header = field(page, 'Header recipient')
+  const envelope = field(page, 'Envelope recipient')
+  const headerHeight = (await header.boundingBox())!.height
+  const siblingY = (await envelope.boundingBox())!.y
+  const headerGrip = page.getByRole('button', { name: 'Resize Header recipient' })
+  for (let step = 0; step < 5; step++) await headerGrip.press('ArrowUp')
+  expect((await header.boundingBox())!.height).toBe(headerHeight + 60)
+  expect((await envelope.boundingBox())!.y).toBe(siblingY)
+  await expect(run(page)).toBeInViewport({ ratio: 1 })
 })
 
 test('collapses individual results and reuses the full command as an editable draft', async ({
@@ -398,9 +525,13 @@ test('switches commands without execution, navigates the menu and restores scope
   await alias.press('Shift+Tab')
   await expect(tag(page)).toBeFocused()
   await tag(page).press('Tab')
+  await expect(run(page)).toBeFocused()
+  await page.keyboard.press('Tab')
   await expect(alias).toBeFocused()
   await alias.press('Tab')
-  await expect(run(page)).toBeFocused()
+  await expect(page.getByRole('button', { name: 'Resize Account alias' })).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(page.getByRole('button', { name: 'Code points', exact: true })).toBeFocused()
   await alias.fill('')
   await alias.press('Backspace')
   await expect(free(page)).toBeFocused()
@@ -530,6 +661,7 @@ test('maps the one-line caret into a failed Unicode argument and disables edits 
       element.selectionEnd,
     ]),
   ).toEqual([1, 3])
+  await page.getByRole('button', { name: 'Code points', exact: true }).click()
   await page.getByRole('form').getByRole('button', { name: 'Inspect', exact: true }).click()
   const details = log(page).getByRole('region', { name: 'Unicode U+1F9EA' })
   await expect(details).toBeVisible()
@@ -563,7 +695,7 @@ test('advances and reverses through both route fields and preserves both reconst
   await expect(envelope).toBeFocused()
   await envelope.press('Shift+Tab')
   await expect(header).toBeFocused()
-  await header.press('Tab')
+  await header.press('Enter')
   await expect(envelope).toBeFocused()
   await envelope.fill('Ｍira')
   await selection(envelope, 0, 1)
@@ -701,11 +833,14 @@ for (const [width, height] of [
       await alias.fill('a🧪é​'.repeat(100))
       expect((await alias.boundingBox())!.height).toBe(width === 768 ? 44 : 36)
       await selection(alias, 0, 1)
+      const pointsToggle = page.getByRole('button', { name: 'Code points', exact: true })
+      await pointsToggle.click()
       await page
         .getByRole('form', { name: 'Command composer' })
         .getByRole('button', { name: 'Inspect', exact: true })
         .click()
       await expect(log(page).getByRole('region', { name: 'Unicode U+0061' })).toBeVisible()
+      await pointsToggle.click()
       await capture('04-long-inspection')
       await alias.press('Enter')
       await expect(alias).toHaveValue('a🧪é​'.repeat(100))
@@ -715,7 +850,7 @@ for (const [width, height] of [
         await expect(alias).toBeInViewport()
         await capture('06-keyboard-height')
       }
-      await page.getByRole('button', { name: 'Code points', exact: true }).click()
+      await pointsToggle.click()
       const inspector = page.getByRole('region', { name: 'Account alias Unicode inspector' })
       const points = inspector
         .getByRole('group', { name: 'Account alias code points' })

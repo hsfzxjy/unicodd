@@ -161,12 +161,14 @@
             },
             {
               "input": "left",
+              "inspectors": ["code-points"],
               "label": "Left title",
               "initial": "Aterstallning",
               "kind": "payload"
             },
             {
               "input": "right",
+              "inspectors": ["code-points"],
               "label": "Right title",
               "initial": "Återställning",
               "kind": "payload"

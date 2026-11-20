@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { encodeArgument, inspectArgument, inspectorSelection } from '../src/lib/argument-inspectors'
 import {
   applyNativeEdit,
   decodeUnicodeEscapes,
@@ -21,8 +22,45 @@ describe('Unicode editing representations', () => {
       text: String.raw`\u000041 \u000042`,
     })
     expect(decodeUnicodeEscapes(String.raw`\u1234`)).toEqual({ text: '\u1234' })
+    expect(decodeUnicodeEscapes(String.raw`\UAE!\u0z\"\\\u000041F`)).toEqual({
+      text: '®!\0z"\\AF',
+    })
     expect(decodeUnicodeEscapes(String.raw`\u00D800`)).toHaveProperty('error')
     expect(decodeUnicodeEscapes(String.raw`\u110000`)).toHaveProperty('error')
+  })
+
+  it('maps decoded units onto complete escape spellings and handles malformed UTF-16', () => {
+    const source = String.raw`a\U1F9EA!\ud800.\uD83E\uDDEA`
+    const projection = inspectArgument(source, false)
+    expect(projection.points.map(({ start, end, notation }) => [start, end, notation])).toEqual([
+      [0, 1, 'U+0061'],
+      [1, 8, 'U+1F9EA'],
+      [8, 9, 'U+0021'],
+      [9, 15, 'U+D800'],
+      [15, 16, 'U+002E'],
+      [16, 28, 'U+1F9EA'],
+    ])
+    const caret = { start: 3, end: 3 }
+    const wtf = encodeArgument('wtf-8', projection)
+    expect(wtf.groups.map(({ text }) => text)).toEqual([
+      '61',
+      'F0 9F A7 AA',
+      '21',
+      'ED A0 80',
+      '2E',
+      'F0 9F A7 AA',
+    ])
+    expect(wtf.total).toBe(14)
+    expect(inspectorSelection(wtf, caret).caretIndex).toBe(5)
+    expect(encodeArgument('utf-8', projection).error).toContain('offset 4')
+    const utf16 = encodeArgument('utf-16', projection)
+    expect(utf16.groups[1].text).toBe('D83E DDEA')
+    expect(inspectorSelection(utf16, { start: 2, end: 4 }).selected).toMatchObject({
+      start: 1,
+      end: 8,
+      units: { start: 1, end: 3 },
+    })
+    expect(inspectArgument(source, true).points).toHaveLength(source.length)
   })
 
   it('distinguishes UTF-16 offsets, supplementary scalars, marks, and invisible controls', () => {

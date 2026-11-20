@@ -71,38 +71,52 @@ export function notation(value: number): string {
   return 'U+' + value.toString(16).toUpperCase().padStart(4, '0')
 }
 
-export function readUnicodeEscape(
-  source: string,
-  offset: number,
-): { text: string; end: number } | { error: string; end: number } | undefined {
-  if (!source.startsWith('\\u', offset)) return
-  const end = offset + 8
-  const digits = source.slice(offset + 2, end)
-  if (!/^[0-9a-fA-F]{1,6}$/u.test(digits)) return
-  const value = Number.parseInt(digits, 16)
-  if (value > 0x10ffff || (value >= 0xd800 && value <= 0xdfff))
-    return { error: 'Not a Unicode scalar: ' + source.slice(offset, end), end }
-  return { text: String.fromCodePoint(value), end }
+const commandEscape = /\\(?:([uU][0-9a-fA-F]{1,6})|[\\"])/gu
+const escapeAtOffset = new RegExp(commandEscape.source, 'uy')
+
+function escapeText(raw: string, code: string | undefined) {
+  if (!code) return raw[1]
+  const value = Number.parseInt(code.slice(1), 16)
+  return value <= 0x10ffff ? String.fromCodePoint(value) : undefined
+}
+
+export function readCommandEscape(source: string, offset: number) {
+  escapeAtOffset.lastIndex = offset
+  const match = escapeAtOffset.exec(source)
+  if (match) return { text: escapeText(match[0], match[1]), end: escapeAtOffset.lastIndex }
+}
+
+export function projectCommandText(source: string) {
+  const escapes: { start: number; end: number; decoded: number; width: number }[] = []
+  let text = ''
+  let cursor = 0
+  let error: string | undefined
+  for (const match of source.matchAll(commandEscape)) {
+    const [raw, code] = match
+    const decoded = escapeText(raw, code)
+    text += source.slice(cursor, match.index)
+    cursor = match.index + raw.length
+    if (decoded === undefined) error ??= 'Not a Unicode scalar: ' + raw
+    else
+      escapes.push({ start: match.index, end: cursor, decoded: text.length, width: decoded.length })
+    text += decoded ?? raw
+  }
+  return { text: text + source.slice(cursor), escapes, error }
 }
 
 export function decodeUnicodeEscapes(source: string): { text: string } | { error: string } {
-  let result = ''
-  let cursor = 0
-  for (const match of source.matchAll(/\\+/gu)) {
-    const slashes = match[0].length
-    const start = match.index
-    const escape = readUnicodeEscape(source, start + slashes - 1)
-    if (!escape) continue
-    result += source.slice(cursor, start) + '\\'.repeat(Math.floor(slashes / 2))
-    if (slashes % 2 === 0) {
-      result += source.slice(start + slashes, escape.end)
-    } else {
-      if ('error' in escape) return { error: escape.error }
-      result += escape.text
-    }
-    cursor = escape.end
+  const { text, escapes, error } = projectCommandText(source)
+  if (error) return { error }
+  for (const { start, end, decoded } of escapes) {
+    const unit = text.charCodeAt(decoded)
+    if (
+      unit >= 0xd800 &&
+      unit <= 0xdfff &&
+      !splitsSurrogatePair(text, unit < 0xdc00 ? decoded + 1 : decoded)
+    )
+      return { error: 'Not a Unicode scalar: ' + source.slice(start, end) }
   }
-  return { text: result + source.slice(cursor) }
+  return { text }
 }
 
 export function unpairedSurrogate(text: string): number | undefined {
@@ -156,15 +170,20 @@ export function pointIndex(text: string, offset: number): number {
   return index
 }
 
-export function scalarSpan(text: string, { start, end }: Span): Span {
-  const splitsPair = (index: number) =>
+function splitsSurrogatePair(text: string, index: number) {
+  return (
     text.charCodeAt(index - 1) >= 0xd800 &&
     text.charCodeAt(index - 1) <= 0xdbff &&
     text.charCodeAt(index) >= 0xdc00 &&
     text.charCodeAt(index) <= 0xdfff
+  )
+}
 
-  if (start === end && splitsPair(start)) return { start: start + 1, end: end + 1 }
-  return { start: start - Number(splitsPair(start)), end: end + Number(splitsPair(end)) }
+export function scalarSpan(text: string, { start, end }: Span): Span {
+  const splitsStart = Number(splitsSurrogatePair(text, start))
+  const splitsEnd = Number(splitsSurrogatePair(text, end))
+  if (start === end) return { start: start + splitsStart, end: end + splitsEnd }
+  return { start: start - splitsStart, end: end + splitsEnd }
 }
 
 // A textarea exposes CR and CRLF as LF. Track the corresponding raw offsets

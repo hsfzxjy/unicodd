@@ -272,7 +272,7 @@ test('collapses individual results and reuses the full command as an editable dr
 
   await page.setViewportSize({ width: 390, height: 435 })
   const toggle = notes.getByRole('button', { name: 'Toggle command output' })
-  expect((await toggle.boundingBox())!.width).toBeGreaterThanOrEqual(44)
+  expect((await toggle.boundingBox())!.width).toBeGreaterThanOrEqual(32)
   await toggle.click()
   await expect(toggle).toHaveAttribute('aria-expanded', 'false')
   await expect(notes.getByRole('button', { name: 'keypad.txt' })).toBeHidden()

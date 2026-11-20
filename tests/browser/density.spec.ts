@@ -83,6 +83,7 @@ for (const [width, height] of [
         await button('Code points').tap()
         await expect(status).toBeInViewport()
         const previous = inspector.getByRole('button', { name: 'Previous' })
+        expect((await previous.boundingBox())!.height).toBeGreaterThanOrEqual(32)
         const lastPage = await status.innerText()
         await previous.tap()
         await expect(status).not.toHaveText(lastPage)

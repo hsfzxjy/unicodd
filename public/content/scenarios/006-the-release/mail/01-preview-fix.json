@@ -4,9 +4,9 @@
       "id": "preview-fix",
       "from": "Eli / MONONYM",
       "to": "MONONYM operations",
-      "subject": "Audit preview is fixed",
+      "subject": "Preview patch for surrogate pairs",
       "date": "2026-08-26",
-      "body": "I replaced the UTF-16 substring routine in the candidate build. The preview no longer cuts a surrogate pair in half.\n\nI ran the emoji sample. It looks fine in the window I used. Can we release this now?"
+      "body": "I replaced the UTF-16 substring routine in the candidate. The emoji sample no longer splits a surrogate pair. I’d like a second check on the other samples before we use it for release."
     }
   ]
 }

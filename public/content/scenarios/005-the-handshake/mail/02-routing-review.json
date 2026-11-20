@@ -6,7 +6,7 @@
       "to": "MONONYM operations",
       "subject": "RE: Regional casing",
       "date": "2026-08-26",
-      "body": "Please run the collision suite before changing production routing. A locale where two strings differ tells us something about those two strings.\n\nThe consent evidence is independent. Our index needs to preserve that independence on the next batch, too."
+      "body": "Run the full collision suite before any production change. The trial gave us separate lookups for one pair. The broker has to keep approvals independent across the whole batch."
     }
   ]
 }

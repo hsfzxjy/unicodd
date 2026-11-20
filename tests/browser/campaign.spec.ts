@@ -159,7 +159,7 @@ async function beginIndex(page: Page, act: Activate) {
   await expect(transcript(page)).toContainText('First different byte offset: 1')
   await act(link(page, 'mail/'))
   await act(link(page, '02-source-records'))
-  await expect(transcript(page)).toContainText('Which ID does a shared entry return')
+  await expect(transcript(page)).toContainText('Which owner ID will Support get')
   await act(link(page, '8c2f.summary'))
   await commandControl(page, 'reconcile', act)
   await act(page.getByRole('button', { name: 'Run', exact: true }))
@@ -340,7 +340,18 @@ test('completes and replays the recovery and archive arcs across reloads', async
   await expect(link(page, 'The Release')).toBeVisible()
   await page.reload()
   await run(page, 'local scenario 006-the-release')
+  await run(page, 'cat /tools/recovery.txt')
+  await expect(transcript(page)).toContainText('The UTF-8 budget covers the whole line.')
   await run(page, 'prepare registration preserve')
+  await run(page, 'verify')
+  await expect(transcript(page).locator('.terminal-entry').last()).toContainText(
+    'No passing audit preview for the current plan.',
+  )
+  await run(page, 'commit')
+  await expect(transcript(page).locator('.terminal-entry').last()).toContainText(
+    'No passing audit preview for the current plan.',
+  )
+  await expect(goalButton(page, 'In progress')).toBeVisible()
   await run(page, 'preview grapheme 4 isolate escape')
   await run(page, 'verify')
   await run(page, 'commit')

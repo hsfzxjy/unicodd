@@ -1,7 +1,7 @@
 {
   "version": 1,
   "title": "The Release",
-  "introduction": "Both owners approved the split. Mara paused release after an audit preview put an account number beside the wrong label.",
+  "introduction": "Both owners approved the split. Release is paused for an audit readback.",
   "outputTiming": {
     "verify": [
       {
@@ -355,7 +355,7 @@
             {
               "check": "preview-required",
               "stage": "preview",
-              "message": "Run an audit preview for the current mapping."
+              "message": "No passing audit preview for the current plan."
             },
             {
               "check": "rollback",
@@ -428,7 +428,7 @@
             },
             {
               "check": "preview-required",
-              "message": "Run the audit preview for this plan.",
+              "message": "No passing audit preview for the current plan.",
               "stage": "plan"
             },
             {

@@ -6,7 +6,7 @@
       "to": "MONONYM operations",
       "subject": "Wrong account number on printout",
       "date": "2026-08-27",
-      "body": "The database export says 0002917. The audit preview puts that number beside the status note, where I expected a different number.\n\nI copied the original field. The number is correct there. I would prefer to find out which of these I can trust before I call the two owners."
+      "body": "The export has 0002917 in the case field. On the printout the number sits beside the status note. I copied the original field and checked the export again.\n\nBefore I call the owners, I need to be able to point to the right number on that sheet."
     }
   ]
 }

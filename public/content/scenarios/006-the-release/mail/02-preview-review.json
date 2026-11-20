@@ -4,9 +4,9 @@
       "id": "preview-review",
       "from": "Rowan / MONONYM",
       "to": "MONONYM operations",
-      "subject": "RE: Audit preview is fixed",
+      "subject": "RE: Preview patch for surrogate pairs",
       "date": "2026-08-27",
-      "body": "The surrogate-pair cases are fine. The decomposed accent samples aren't. We are still cutting inside user-visible characters.\n\nAlso, please stop calling the character count a byte limit. The print spool reserves bytes."
+      "body": "The surrogate-pair case passes. The decomposed sample still loses its accent. We also need the byte count for the complete UTF-8 line. That’s the limit the print spool enforces."
     }
   ]
 }

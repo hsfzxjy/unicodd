@@ -1,8 +1,15 @@
 Recovery controls
 
-prepare accepts identity key registration / skeleton / name / fold, and original-name policy preserve / nfc. Keep the plan scoped to both independently verified owners.
+prepare stages an identity mapping for the two independently verified owners.
+  Identity key     registration / skeleton / name / fold
+  Original names   preserve / nfc
 
-preview accepts a limit in utf16 / scalar / grapheme units, a count (1–64), bidi policy raw / isolate / isolate-first, and formatting policy raw / escape / reject.
-The review line must preserve at least four complete clusters per sample and fit its encoded byte budget. Test both requirements. Its dynamic field and fixed labels must retain separate visual positions. Keep suspicious formatting visible to the reviewer.
+preview renders an audit line for each sample.
+  Limit units      utf16 / scalar / grapheme
+  Field limit      1–64
+  Bidi policy      raw / isolate / isolate-first
+  Controls         raw / escape / reject
+
+Keep at least four complete clusters per sample. The UTF-8 budget covers the whole line. Keep the dynamic field and fixed labels in separate visual positions and make suspicious formatting visible.
 
 verify checks the current mapping, owner evidence, preview and rollback readiness without applying changes. Changing the plan or preview invalidates the previous dry run. commit applies the verified split once.

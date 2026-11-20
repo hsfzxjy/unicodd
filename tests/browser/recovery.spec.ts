@@ -106,7 +106,9 @@ for (const [width, height] of [
       await commandControl(page, 'local campaign', act, true)
       await act(link(page, 'The Backlog'))
       await act(link(page, 'I reopened both cases'))
-      await expect(last(page)).toContainText('The database says there are two')
+      await expect(last(page)).toContainText(
+        'The queue team confirmed both rows are still there. The review queue shows one.',
+      )
       await commandControl(page, 'collate', act)
       await submit()
       await expect(last(page)).toContainText('equal')
@@ -145,7 +147,7 @@ for (const [width, height] of [
       ).toBeVisible()
       await act(link(page, 'The Handshake'))
       await act(link(page, 'Both cases are open'))
-      await expect(last(page)).toContainText('two independent owner confirmations')
+      await expect(last(page)).toContainText('The owners sent their confirmations separately.')
 
       await commandControl(page, 'lookup', act)
       await submit()
@@ -184,7 +186,9 @@ for (const [width, height] of [
       ).toBeVisible()
       await act(link(page, 'The Release'))
       await act(link(page, 'Before you run the split'))
-      await expect(last(page)).toContainText('account number appear beside the wrong label')
+      await expect(last(page)).toContainText(
+        'The audit preview put an account number beside the wrong label.',
+      )
 
       await commandControl(page, 'ls', act, true)
       await act(link(page, 'mail/'))

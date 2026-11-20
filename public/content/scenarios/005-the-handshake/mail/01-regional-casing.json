@@ -6,7 +6,7 @@
       "to": "MONONYM operations",
       "subject": "Regional casing",
       "date": "2026-08-26",
-      "body": "The Turkish test shard returns separate results for IRIS and iris. This is the first time the broker has handed me both receipts.\n\nI'm tempted to enable that profile globally. The original display labels would still be on disk."
+      "body": "The Turkish test shard returned both receipts, one for IRIS and one for iris. So far that’s only the pair Support asked me to recover.\n\nCould we use the same profile for all channels? I’d leave the original labels on disk."
     }
   ]
 }

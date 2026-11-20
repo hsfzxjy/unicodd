@@ -282,7 +282,7 @@
     }
   ],
   "objective": {
-    "text": "Verify both original registrations so Support can keep the owners’ cases separate.",
+    "text": "Verify both original registrations, then read the export for Support.",
     "read": "originals",
     "message": "Both original registrations are verified. The two records give Support evidence to keep the cases separate.",
     "completionBand": true,

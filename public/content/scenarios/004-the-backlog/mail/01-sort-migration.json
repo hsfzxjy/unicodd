@@ -6,7 +6,7 @@
       "to": "MONONYM operations",
       "subject": "Sort migration",
       "date": "2026-08-24",
-      "body": "We moved the regional support queues to shared search. The old Swedish UI had its own ordering rules. The replacement uses a default profile.\n\nNobody complained about the alphabet. Support complained about missing cases. I assumed those were unrelated."
+      "body": "The old Swedish client had its own sort rules. When we moved the regional queues to shared search, we used the default profile.\n\nI treated Support’s missing-case reports as a separate issue. They came in after the move."
     }
   ]
 }

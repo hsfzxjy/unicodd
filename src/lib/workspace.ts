@@ -103,6 +103,8 @@ export interface Journal {
   commands: CommandRecord[]
 }
 
+export type TerminalPanel = 'goal' | 'session' | 'progress'
+
 export interface LevelSave {
   version: 1
   revision: string
@@ -111,6 +113,7 @@ export interface LevelSave {
   journal?: Journal
   terminal?: TerminalView
   sessionExpanded: boolean
+  sessionPanel?: TerminalPanel
 }
 
 export interface Entry {

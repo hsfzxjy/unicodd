@@ -56,11 +56,11 @@ test('keeps the Release briefing visible in a short viewport', async ({ page }) 
   await expect(
     log(page).getByText('Both owners approved the split.', { exact: false }),
   ).toBeInViewport({ ratio: 1 })
-  const checks = page.getByRole('button', { name: 'Host status', exact: true })
+  const checks = page.getByRole('button', { name: /^Progress:/ })
   await expect(checks).toBeInViewport()
   await checks.click()
-  const session = page.getByRole('complementary', { name: 'Session context' })
-  await expect(session).toContainText('A dry run checks the plan, approvals and preview')
+  const progress = page.getByRole('region', { name: 'Progress', exact: true })
+  await expect(progress).toContainText('A dry run checks the plan, approvals and preview')
   await checks.click()
   await commandControl(page, 'ls', undefined, true)
   await expect(link(page, 'mail/')).toBeInViewport()
@@ -267,11 +267,12 @@ for (const [width, height] of [
       await expect(last(page)).toContainText('Please tell Support both cases can close.')
       await capture('04-ending')
       await page.reload()
-      await act(page.getByRole('button', { name: /^Session:/ }))
-      await expect(page.getByRole('complementary', { name: 'Session context' })).toContainText(
+      const goal = page.getByRole('button', { name: 'Goal: Complete', exact: true })
+      await act(goal)
+      await expect(page.getByRole('region', { name: 'Goal', exact: true })).toContainText(
         'Complete',
       )
-      await act(page.getByRole('button', { name: /^Session:/ }))
+      await act(goal)
       await act(page.getByRole('button', { name: /^Open local inbox/ }))
       await expect(last(page)).toContainText('it-worked · Mira / Registration 0002917 · Read')
       await expect(last(page).getByRole('button', { name: 'Thank you', exact: true })).toHaveCount(

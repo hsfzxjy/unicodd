@@ -95,7 +95,6 @@ defineExpose({
 <template>
   <section ref="frame" class="terminal-frame" aria-label="Terminal">
     <slot name="title" v-bind="{ following, unseenProgress, openTitleList, showLatest }" />
-    <div class="terminal-session"><slot name="session-details" /></div>
     <p class="milestone-announcement" role="status" dir="auto">{{ collapsedAnnouncement }}</p>
     <div
       ref="scroll"
@@ -217,20 +216,11 @@ defineExpose({
   border: 1px solid var(--line);
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: max-content minmax(0, max-content) minmax(60px, 1fr) auto;
+  grid-template-rows: max-content minmax(60px, 1fr) auto;
   background: var(--inset);
 }
-.terminal-session {
-  min-height: 0;
-  max-height: min(calc(var(--app-height, 100dvh) * 0.34), 250px);
-  overflow: auto;
-  overscroll-behavior: contain;
-}
 .short-viewport .terminal-frame {
-  grid-template-rows: max-content minmax(0, max-content) minmax(72px, 1fr) auto;
-}
-.short-viewport .terminal-session {
-  max-height: min(calc(var(--app-height, 100dvh) * 0.17), 86px);
+  grid-template-rows: max-content minmax(72px, 1fr) auto;
 }
 .transcript {
   overflow: auto;
@@ -346,9 +336,6 @@ defineExpose({
 }
 
 @media (max-width: 600px) {
-  .application:not(.short-viewport) .terminal-session {
-    max-height: min(calc(var(--app-height, 100dvh) * 0.22), 186px);
-  }
   .shortcuts {
     overscroll-behavior-inline: contain;
   }

@@ -32,7 +32,6 @@ for (const [width, height] of [
       await page.getByRole('combobox', { name: 'Case' }).selectOption('002-dead-letter')
       const goal = button('Goal: In progress')
       if (phone) {
-        await expect(goal).toContainText('Recover and read')
         const picker = button('Commands')
         await free.fill('draft 🧪')
         await free.press('Home')
@@ -63,6 +62,9 @@ for (const [width, height] of [
       }
 
       await goal.click()
+      await expect(page.getByRole('region', { name: 'Goal', exact: true })).toContainText(
+        'Recover and read',
+      )
       await button('UTF-8 bytes').click()
       const inspector = page.getByRole('region', { name: 'Header recipient Unicode inspector' })
       const status = inspector.getByText(/^Page \d+ of \d+$/)

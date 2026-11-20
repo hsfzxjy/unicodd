@@ -4,8 +4,11 @@ import { commandControl } from './command-controls'
 const transcript = (page: Page) => page.getByRole('log', { name: 'Terminal transcript' })
 const link = (page: Page, name: string | RegExp) =>
   transcript(page).getByRole('button', { name, exact: true }).last()
-const panel = (page: Page) =>
-  page.getByRole('complementary', { name: 'Session context', includeHidden: true })
+const panel = (page: Page, name: 'Goal' | 'Session' | 'Progress') =>
+  page.getByRole('region', { name, exact: true })
+const session = (page: Page) => page.getByRole('button', { name: /^Session:/ })
+const goalButton = (page: Page, status: string) =>
+  page.getByRole('button', { name: 'Goal: ' + status, exact: true })
 
 async function openCampaign(page: Page, path = '/') {
   await page.goto(path)
@@ -79,26 +82,27 @@ test('recovers Dead Letter by graphical actions from the development entry', asy
   )
   await page.setViewportSize({ width: 390, height: 420 })
   await openCampaign(page, '/?scenario=002-dead-letter')
-  await expect(panel(page)).toContainText('guest')
-  const notice = page.getByRole('button', { name: 'Host: Notice 2917: Delivery paused' })
+  await expect(session(page)).toHaveAccessibleName(/guest/)
+  const notice = page.getByRole('button', { name: /^Progress:/ })
   await expect(notice.locator('.status-mark')).toBeInViewport()
   await notice.click()
-  await expect(panel(page).getByText('Delivery paused', { exact: true })).toBeInViewport()
+  const progress = panel(page, 'Progress')
+  await expect(progress.getByText('Delivery paused', { exact: true })).toBeInViewport()
   await expect(
-    panel(page).getByText('A paused notice stays in the delivery queue.', { exact: false }),
+    progress.getByText('A paused notice stays in the delivery queue.', { exact: false }),
   ).toBeInViewport()
   const goal = page.getByRole('button', { name: 'Goal: In progress' })
   await goal.click()
   await expect(
-    panel(page).getByText('Recover and read Mira’s missing delivery notice', { exact: false }),
+    panel(page, 'Goal').getByText('Recover and read Mira’s missing delivery notice', {
+      exact: false,
+    }),
   ).toBeInViewport({ ratio: 1 })
   await goal.click()
   await page.setViewportSize({ width: 1280, height: 800 })
   await recoverNotice(page, (target) => target.click())
-  await expect(
-    page.getByRole('button', { name: 'Host: Notice 2917: Released for delivery' }),
-  ).toBeInViewport()
-  await expect(panel(page)).toContainText('Complete')
+  await expect(notice).toHaveAttribute('title', /Notice 2917: Released for delivery/)
+  await expect(goalButton(page, 'Complete')).toBeVisible()
 })
 
 async function openIndexGraphically(page: Page, act: Activate) {
@@ -191,7 +195,7 @@ for (const [width, height] of [
         await openIndexGraphically(page, act)
       else await openCampaign(page, '/?scenario=003-the-index')
       await act(page.getByRole('button', { name: /^Session:/ }))
-      await expect(panel(page)).toContainText('auditor')
+      await expect(panel(page, 'Session')).toContainText('auditor')
       await capture('01-auditor')
       await act(page.getByRole('button', { name: /^Session:/ }))
       const candidateLink = await beginIndex(page, act)
@@ -282,9 +286,9 @@ test('completes and replays the recovery and archive arcs across reloads', async
   await run(page, 'local mail missing-notice')
   await expect(transcript(page)).toContainText('The relay handed it to postbox-03')
   await page.reload()
-  await expect(panel(page)).toContainText('Complete')
+  await expect(goalButton(page, 'Complete')).toBeVisible()
   await run(page, 'local scenario 002-dead-letter')
-  await expect(panel(page)).toContainText('postbox-03')
+  await expect(session(page)).toHaveAccessibleName(/@postbox-03/)
   await run(page, 'route Mira Mira')
   await expect(transcript(page)).toContainText('under delivery hold')
   await run(page, 'route stranger Mira')
@@ -293,10 +297,10 @@ test('completes and replays the recovery and archive arcs across reloads', async
   await run(page, 'cat /delivered/2917.msg')
   await expect(transcript(page)).toContainText('I think we have the same account')
   await page.reload()
-  await expect(panel(page)).toContainText('postbox-03')
-  await expect(panel(page)).toContainText('Complete')
+  await expect(session(page)).toHaveAccessibleName(/@postbox-03/)
+  await expect(goalButton(page, 'Complete')).toBeVisible()
   await run(page, 'local scenario 003-the-index')
-  await expect(panel(page)).toContainText('index-09')
+  await expect(session(page)).toHaveAccessibleName(/@index-09/)
   await run(page, 'reconcile outsider')
   await expect(transcript(page)).toContainText('No matching collision record')
   await run(page, 'reconcile \u039cira')
@@ -316,9 +320,9 @@ test('completes and replays the recovery and archive arcs across reloads', async
   await run(page, 'replay en-US primary composite 2 start')
   const scenario = page.getByRole('combobox', { name: 'Case' })
   await scenario.selectOption('003-the-index')
-  await expect(panel(page)).toContainText('index-09')
+  await expect(session(page)).toHaveAccessibleName(/@index-09/)
   await scenario.selectOption('004-the-backlog')
-  await expect(panel(page)).toContainText('appeals-04')
+  await expect(session(page)).toHaveAccessibleName(/@appeals-04/)
   await page.reload()
   await run(page, 'recover AP-1842 AP-2917')
   await run(page, 'cat /outbox/review-handoff.txt')
@@ -348,7 +352,7 @@ test('completes and replays the recovery and archive arcs across reloads', async
   await run(page, 'local mail it-worked')
   await expect(transcript(page)).toContainText('Only mine.')
   await run(page, 'local scenario 007-the-other-side')
-  await expect(panel(page)).toContainText('gateway-12')
+  await expect(session(page)).toHaveAccessibleName(/@gateway-12/)
   await run(
     page,
     'dispatch nontransitional https://strasse.trace.test/archive/GW-1842 https://straße.trace.test/archive/GW-2917/Cafe\u0301',
@@ -371,10 +375,10 @@ test('completes and replays the recovery and archive arcs across reloads', async
   await page.reload()
   await expect(page.getByRole('button', { name: 'Goal: Complete', exact: true })).toBeVisible()
   await run(page, 'local scenario 001-the-relay')
-  await expect(panel(page)).toContainText('maintenance')
+  await expect(session(page)).toHaveAccessibleName(/maintenance/)
   await page.getByRole('button', { name: /^Session:/ }).click()
   await page.getByRole('button', { name: 'Restart session' }).click()
-  await expect(panel(page)).toContainText('Completed earlier')
+  await expect(goalButton(page, 'Completed earlier')).toBeVisible()
   await run(page, 'connect relay-07')
   await run(page, 'login \u{1D40C}AINT')
   await run(page, 'cat /queue/8c2f.msg')
@@ -393,7 +397,7 @@ test('completes and replays the recovery and archive arcs across reloads', async
   page.once('dialog', (dialog) => dialog.accept())
   await link(page, 'Reset campaign…').click()
   await expect(page.getByRole('heading', { name: 'The Relay' })).toBeVisible()
-  await expect(panel(page)).toContainText('In progress')
+  await expect(goalButton(page, 'In progress')).toBeVisible()
   await run(page, 'mail')
   const inbox = transcript(page).locator('.terminal-list').last()
   await expect(inbox.getByRole('button', { name: 'We have the records' })).toHaveCount(0)
@@ -453,7 +457,7 @@ test('starts a tall briefing at its first line and follows the first command', a
   await expect(link(page, 'exports/')).toBeInViewport()
   await page.getByRole('button', { name: 'Goal: In progress' }).click()
   await expect(
-    panel(page).getByText('Verify both original registrations', { exact: false }),
+    panel(page, 'Goal').getByText('Verify both original registrations', { exact: false }),
   ).toBeInViewport({ ratio: 1 })
 })
 
@@ -462,7 +466,7 @@ test('ignores debug mode and direct scenario entry on the built site', async ({ 
   await openCampaign(page, '/?debug=1&scenario=006-the-release')
   await expect(page.getByRole('combobox', { name: 'Debug level' })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'The Relay' })).toBeVisible()
-  await expect(panel(page)).toContainText('Local console')
+  await expect(session(page)).toHaveAccessibleName(/Local console/)
   await run(page, 'local scenario 006-the-release')
   await expect(transcript(page)).toContainText('Unknown destination: 006-the-release')
 })

@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { Check, CircleDashed } from '@lucide/vue'
 import type { createRuntime, Session } from '../lib/runtime'
+import type { TerminalPanel } from '../lib/workspace'
 
 defineProps<{
-  sessionExpanded: boolean
+  openPanel?: TerminalPanel
   session: Session
   hostStatus?: ReturnType<typeof createRuntime>['hostStatus']
   permissionLabel: string
@@ -14,68 +15,35 @@ defineProps<{
   busy: boolean
 }>()
 const emit = defineEmits<{ restart: [] }>()
-const sessionPanel = ref<HTMLElement>()
-
-function reveal(section: string, shortViewport: boolean) {
-  const panel = sessionPanel.value
-  const scroll = panel?.parentElement
-  if (!panel || !scroll) return
-  const target =
-    section === 'campaign' ||
-    section.startsWith('host-') ||
-    (section === 'session' && shortViewport)
-      ? panel.querySelector<HTMLElement>(`[data-status-key="${section}"]`)
-      : null
-  scroll.scrollTop = target
-    ? target.getBoundingClientRect().top - panel.getBoundingClientRect().top - 6
-    : 0
-}
-
-defineExpose({ reveal })
 </script>
 
 <template>
-  <aside
-    v-show="sessionExpanded"
-    id="session-details"
-    ref="sessionPanel"
-    class="session-layer"
-    aria-label="Session context"
+  <section
+    v-show="openPanel === 'goal'"
+    id="goal-details"
+    class="title-panel"
+    aria-labelledby="goal-heading"
+    tabindex="0"
   >
-    <div class="objective">
-      <div class="objective-heading">
-        <h2>Goal</h2>
-        <span :class="{ 'objective-done': caseComplete }">{{ goalStatus }}</span>
-      </div>
-      <p dir="auto">{{ objective }}</p>
-      <p v-if="caseComplete && !session.completed" class="muted">
-        This case still counts as complete. You can replay its goal in this session.
-      </p>
-      <p v-if="campaignFinished" class="objective-done" data-status-key="campaign">
-        All available scenarios complete
-      </p>
+    <div class="panel-heading">
+      <h2 id="goal-heading">Goal</h2>
+      <span class="panel-status" :class="{ reached: caseComplete }">{{ goalStatus }}</span>
     </div>
-    <div class="session-identity" data-status-key="session">
-      <dl class="session-details">
-        <div>
-          <dt>Location</dt>
-          <dd>
-            <bdi>{{ session.host?.id ?? 'Local console' }}</bdi>
-          </dd>
-        </div>
-        <div>
-          <dt>Signed in as</dt>
-          <dd>
-            <bdi>{{ session.identity.user }}</bdi>
-          </dd>
-        </div>
-        <div v-if="session.identity.user !== permissionLabel">
-          <dt>Permissions</dt>
-          <dd>
-            <bdi>{{ permissionLabel }}</bdi>
-          </dd>
-        </div>
-      </dl>
+    <p class="objective" dir="auto">{{ objective }}</p>
+    <p v-if="caseComplete && !session.completed" class="panel-note">
+      This case still counts as complete. You can replay its goal in this session.
+    </p>
+  </section>
+
+  <section
+    v-show="openPanel === 'session'"
+    id="session-details"
+    class="title-panel"
+    aria-labelledby="session-heading"
+    tabindex="0"
+  >
+    <div class="panel-heading">
+      <h2 id="session-heading">Session</h2>
       <button
         type="button"
         class="restart-session"
@@ -86,153 +54,177 @@ defineExpose({ reveal })
         Restart session
       </button>
     </div>
-    <dl
-      v-if="hostStatus?.length"
-      class="session-details host-details"
-      data-status-key="host-summary"
-    >
-      <div
-        v-for="({ label, value, description }, index) in hostStatus"
-        :key="index"
-        :data-status-key="'host-' + index"
-        :class="{ 'status-explained': description }"
-      >
+    <dl class="session-details">
+      <div>
+        <dt>Location</dt>
+        <dd>
+          <bdi>{{ session.host?.id ?? 'Local console' }}</bdi>
+        </dd>
+      </div>
+      <div>
+        <dt>Signed in as</dt>
+        <dd>
+          <bdi>{{ session.identity.user }}</bdi>
+        </dd>
+      </div>
+      <div>
+        <dt>Permissions</dt>
+        <dd>
+          <bdi>{{ permissionLabel }}</bdi>
+        </dd>
+      </div>
+    </dl>
+  </section>
+
+  <section
+    v-show="openPanel === 'progress'"
+    id="progress-details"
+    class="title-panel"
+    aria-labelledby="progress-heading"
+    tabindex="0"
+  >
+    <div class="panel-heading">
+      <h2 id="progress-heading">Progress</h2>
+    </div>
+    <p v-if="campaignFinished" class="reached campaign-complete">
+      All available scenarios complete
+    </p>
+    <dl v-if="hostStatus?.length" class="progress-details">
+      <div v-for="({ label, value, description, reached }, index) in hostStatus" :key="index">
         <dt>
           <bdi>{{ label }}</bdi>
         </dt>
         <dd>
-          <bdi>{{ value }}</bdi>
-          <span v-if="description" class="host-status-description" dir="auto">{{
-            description
-          }}</span>
+          <div class="check-result" :class="{ reached }">
+            <Check v-if="reached" aria-hidden="true" />
+            <CircleDashed v-else-if="reached === false" aria-hidden="true" />
+            <bdi>{{ value }}</bdi>
+          </div>
+          <p v-if="description" class="panel-note" dir="auto">{{ description }}</p>
         </dd>
       </div>
     </dl>
-  </aside>
+    <p v-else-if="!campaignFinished" class="panel-note">
+      {{
+        session.host
+          ? 'No progress checks for this host.'
+          : 'Connect to a host to see its progress.'
+      }}
+    </p>
+  </section>
 </template>
 
 <style scoped>
-.session-layer {
-  display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
-  align-items: start;
-  column-gap: var(--space-3);
+.title-panel {
+  width: calc(100% - 2 * var(--space-2));
+  max-height: min(calc(var(--app-height, 100dvh) * 0.34), 250px);
+  margin-inline: auto var(--space-2);
   padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--control);
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--control);
+  border-block-start-color: var(--accent);
   background: #1b2931;
-  font: 13px/1.4 var(--sans);
+  box-shadow: 0 3px 0 var(--bg);
   overflow-wrap: anywhere;
+  font: 14px/1.4 var(--sans);
 }
-.session-identity {
+.title-panel:focus-visible {
+  outline-offset: -3px;
+}
+.panel-heading {
   display: flex;
-  gap: var(--space-2);
   align-items: center;
   justify-content: space-between;
-  border-inline-start: 1px solid var(--control);
-  padding-inline-start: var(--space-3);
+  gap: var(--space-2);
+  margin-block-end: var(--space-1);
+}
+.panel-heading h2,
+.panel-status,
+.title-panel dt {
+  font: 12px/1.3 var(--mono);
+}
+.panel-heading h2 {
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.panel-status,
+.title-panel dt,
+.panel-note {
+  color: var(--muted);
+}
+.panel-note {
+  font-size: 13px;
+}
+.objective + .panel-note {
+  margin-block-start: var(--space-1);
+}
+.title-panel .reached {
+  color: var(--accent);
+}
+.campaign-complete,
+.check-result {
+  font-weight: 600;
+}
+.session-details,
+.progress-details {
+  margin: 0;
+}
+.title-panel dd {
+  margin: 0;
 }
 .session-details {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-1) var(--space-3);
-  margin: 0;
-}
-.session-details dt {
-  color: var(--muted);
-  font-size: 11px;
+  gap: var(--space-2) var(--space-3);
 }
 .session-details dd {
-  margin: 0;
-  font-weight: 550;
+  font: 13px/1.4 var(--mono);
+}
+.progress-details > div + div,
+.campaign-complete + .progress-details {
+  margin-block-start: var(--space-2);
+  padding-block-start: var(--space-2);
+  border-block-start: 1px solid var(--line);
+}
+.check-result {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+}
+.check-result .lucide {
+  --icon-size: 13px;
+  align-self: center;
 }
 .restart-session {
   flex: none;
   min-height: var(--control-height);
-  padding-inline: var(--space-2);
-  border-color: transparent;
+  padding: 0 var(--space-2);
   background: transparent;
-  color: var(--muted);
+  color: var(--text);
   font-size: 12px;
 }
-.host-details {
-  grid-column: 1 / -1;
-  margin-top: var(--space-2);
-  padding-top: var(--space-2);
-  border-top: 1px solid var(--control);
-  column-gap: var(--space-3);
+@media (max-width: 600px) {
+  .title-panel {
+    width: calc(100% - 2 * var(--space-1));
+    margin-inline-end: var(--space-1);
+    padding-inline: var(--space-2);
+    max-height: min(calc(var(--app-height, 100dvh) * 0.28), 186px);
+  }
 }
-.host-details .status-explained {
-  flex-basis: 100%;
-}
-.host-status-description {
-  display: block;
-  color: var(--muted);
-  font-weight: 400;
-}
-.objective-heading {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-}
-.objective-heading h2 {
-  font-size: 13px;
-}
-.objective-heading span {
-  color: var(--muted);
-  font-size: 12px;
-}
-.objective p + p {
-  margin-top: var(--space-1);
-}
-.objective .objective-done {
-  color: var(--accent);
-}
-@media (max-width: 830px) {
-  .session-layer {
-    grid-template-columns: minmax(0, 1fr);
-    row-gap: var(--compact-gap);
-    padding: var(--compact-gap) var(--space-2);
-    line-height: 1.35;
-  }
-  .objective-heading,
-  .objective-heading h2,
-  .objective > p:first-of-type {
-    display: inline;
-  }
-  .objective-heading :is(h2, span) {
-    margin-inline-end: var(--compact-gap);
-  }
-  .objective-heading span::after {
-    content: ' ·';
-  }
-  .session-identity {
-    border-inline-start: 0;
-    border-top: 1px solid var(--line);
-    padding-inline-start: 0;
-    gap: var(--compact-gap);
-  }
-  .session-details {
-    gap: var(--compact-tight) var(--space-2);
-  }
-  .session-details :is(dt, dd) {
-    display: inline;
-    line-height: var(--compact-leading);
-  }
-  .session-details dd {
-    margin-inline-start: var(--compact-gap);
-  }
-  .restart-session {
-    min-height: var(--compact-control);
-    padding-block: var(--compact-inset);
-  }
-  .host-details {
-    margin: 0;
-    padding-block-start: var(--compact-inset);
-  }
+.short-viewport .title-panel {
+  max-height: min(calc(var(--app-height, 100dvh) * 0.24), 108px);
+  padding-block: var(--space-1);
 }
 @media (min-width: 831px) {
-  .short-viewport .session-layer {
-    padding-block: var(--space-1);
+  .title-panel {
+    position: absolute;
+    z-index: 2;
+    inset-block-start: 100%;
+    inset-inline-end: var(--space-2);
+    width: 480px;
+    margin: 0;
+    box-shadow: 0 4px 12px rgb(0 0 0 / 45%);
   }
 }
 </style>

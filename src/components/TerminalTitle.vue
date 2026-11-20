@@ -2,25 +2,23 @@
 import {
   ArrowDownToLine,
   Check,
-  ChevronDown,
-  CircleDashed,
   Flag,
+  History,
   ListChecks,
   Mail,
   Monitor,
-  RotateCcw,
   Server,
   Target,
   Terminal as TerminalIcon,
 } from '@lucide/vue'
-import { computed, ref, shallowRef, watch, type Component } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import type { ScenarioEntry } from '../lib/content'
 import type { createRuntime, Session } from '../lib/runtime'
+import type { TerminalPanel } from '../lib/workspace'
 
 const props = defineProps<{
   scenarioId: string
   scenarioTitle: string
-  objective: string
   destinations: ScenarioEntry[]
   debugSelector?: { label: string; optionSuffix: string }
   session: Session
@@ -30,8 +28,7 @@ const props = defineProps<{
   caseComplete: boolean
   campaignFinished: boolean
   transcriptLive: boolean
-  sessionExpanded: boolean
-  sessionSection: string
+  openPanel?: TerminalPanel
   busy: boolean
   newHosts: number
   unreadMail?: number
@@ -40,101 +37,81 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{
   scenario: [string]
-  session: [string]
+  panel: [TerminalPanel]
   list: ['hosts' | 'mail']
   latest: [MouseEvent]
 }>()
 
-interface StatusControl {
-  key: string
-  name: string
-  label?: string
-  detail: string
-  icon: Component
-  reached: boolean
-}
-const hostChecks = computed<StatusControl[]>(() =>
-  (props.hostStatus ?? []).flatMap(({ label, value, reached }, index) =>
-    reached === undefined
-      ? []
-      : [
-          {
-            key: 'host-' + index,
-            name: `Host: ${label}: ${value}`,
-            label,
-            detail: `${label}: ${value}`,
-            icon: reached ? Check : CircleDashed,
-            reached,
-          },
-        ],
-  ),
+const checks = computed(() =>
+  (props.hostStatus ?? []).filter(({ reached }) => reached !== undefined),
 )
-const titleStatus = computed<StatusControl[]>(() => {
-  const active = props.session
-  const role = props.permissionLabel
-  const location = active.host ? '@' + active.host.id : 'Local console'
+const reachedChecks = computed(() => checks.value.filter(({ reached }) => reached).length)
+const progress = computed(() =>
+  props.campaignFinished
+    ? 'All available scenarios complete'
+    : checks.value.length
+      ? `${reachedChecks.value} of ${checks.value.length} checks complete`
+      : props.session.host
+        ? 'Host status'
+        : 'No host connected',
+)
+const titleStatus = computed(() => {
+  const { host, identity, completed } = props.session
+  const location = host ? '@' + host.id : 'Local console'
   return [
-    {
-      key: 'session',
-      name: `Session: ${location} ${role}`,
-      detail: `${active.host ? 'Connected to ' + active.host.id : 'Local console'}. Signed in as ${active.identity.user}. Permissions: ${role}.`,
-      icon: active.host ? TerminalIcon : Monitor,
-      reached: Boolean(active.host && active.identity.role !== active.host.guest.role),
-    },
     {
       key: 'goal',
       name: 'Goal: ' + props.goalStatus,
       detail: 'Goal: ' + props.goalStatus,
-      icon: active.completed ? Check : props.caseComplete ? RotateCcw : Target,
+      icon: completed ? Check : props.caseComplete ? History : Target,
       reached: props.caseComplete,
     },
-    ...hostChecks.value,
-  ]
+    {
+      key: 'session',
+      name: `Session: ${location} ${props.permissionLabel}`,
+      detail: `${host ? 'Connected to ' + host.id : 'Local console'}. Signed in as ${identity.user}. Permissions: ${props.permissionLabel}.`,
+      icon: host ? TerminalIcon : Monitor,
+      reached: Boolean(host && identity.role !== host.guest.role),
+    },
+    {
+      key: 'progress',
+      name: 'Progress: ' + progress.value,
+      detail: [
+        'Progress: ' + progress.value,
+        ...(props.hostStatus ?? []).map(({ label, value }) => `${label}: ${value}`),
+      ].join('\n'),
+      icon: props.campaignFinished ? Flag : ListChecks,
+      reached:
+        props.campaignFinished ||
+        (checks.value.length > 0 && reachedChecks.value === checks.value.length),
+    },
+  ] as const
 })
-const hostCheckCount = computed(
-  () => `${hostChecks.value.filter(({ reached }) => reached).length}/${hostChecks.value.length}`,
-)
-const hostCheckDetails = computed(() => hostChecks.value.map(({ detail }) => detail).join('\n'))
-const changedStatus = shallowRef(new Set<string>())
+const changedStatus = shallowRef(new Set<TerminalPanel>())
 const statusAnnouncement = ref('')
-watch(
-  [titleStatus, () => props.campaignFinished],
-  ([current, finished], [previous, wasFinished]) => {
-    if (!props.transcriptLive) {
-      changedStatus.value = new Set()
-      statusAnnouncement.value = ''
-      return
-    }
-    const changed = current.filter(
-      (item) => previous.find(({ key }) => key === item.key)?.detail !== item.detail,
-    )
-    const campaignCompleted = finished && !wasFinished
-    if (changed.length || campaignCompleted) {
-      changedStatus.value = new Set([
-        ...changed.map(({ key }) => key),
-        ...(campaignCompleted ? ['campaign'] : []),
-      ])
-      statusAnnouncement.value = [
-        ...changed.map(({ detail }) => detail),
-        ...(campaignCompleted ? ['All available scenarios complete'] : []),
-      ].join(' ')
-    }
-  },
-)
+watch(titleStatus, (current, previous) => {
+  if (!props.transcriptLive) {
+    changedStatus.value = new Set()
+    statusAnnouncement.value = ''
+    return
+  }
+  const changed = current.filter((item, index) => previous[index]?.detail !== item.detail)
+  if (changed.length) {
+    changedStatus.value = new Set(changed.map(({ key }) => key))
+    statusAnnouncement.value = changed.map(({ detail }) => detail).join(' ')
+  }
+})
 </script>
 
 <template>
   <div class="frame-title">
     <span class="wordmark">unicodd</span>
-    <h1 v-if="destinations.length === 1 && !debugSelector" class="terminal-scenario">
-      <button
-        type="button"
-        aria-controls="session-details"
-        :aria-expanded="sessionExpanded"
-        @click="emit('session', 'session')"
-      >
-        <bdi>{{ scenarioTitle }}</bdi>
-      </button>
+    <h1
+      v-if="destinations.length === 1 && !debugSelector"
+      class="terminal-scenario"
+      :title="scenarioTitle"
+    >
+      <bdi>{{ scenarioTitle }}</bdi>
     </h1>
     <select
       v-else
@@ -148,88 +125,31 @@ watch(
         {{ entry.label + (debugSelector?.optionSuffix ?? '') }}
       </option>
     </select>
-    <div
-      class="session-context-bar"
-      :class="{ 'grouped-host-status': hostChecks.length > 1 }"
-      role="group"
-      aria-label="Session status"
-    >
+    <div class="title-actions">
       <button
         v-for="item in titleStatus"
         :key="item.key"
         type="button"
+        class="icon-button title-status"
         :class="{
-          'session-location': item.key === 'session',
-          'host-status-item': item.key.startsWith('host-'),
-          'goal-status': item.key === 'goal',
           'status-reached': item.reached,
           'status-changing': changedStatus.has(item.key),
-          'status-selected': sessionExpanded && sessionSection === item.key,
         }"
         :aria-label="item.name"
-        :aria-description="item.key === 'goal' ? objective : undefined"
-        :title="item.key === 'goal' ? `${item.detail}\n${objective}` : item.detail"
-        aria-controls="session-details"
-        :aria-expanded="sessionExpanded"
-        @click="emit('session', item.key)"
+        :title="item.detail"
+        :aria-controls="item.key + '-details'"
+        :aria-expanded="openPanel === item.key"
+        :data-panel="item.key"
+        @click="emit('panel', item.key)"
       >
         <component :is="item.icon" :key="item.detail" class="status-mark" aria-hidden="true" />
-        <span v-if="item.key === 'session'" class="context-label">
-          <bdi>{{ session.host ? '@' + session.host.id : 'Local console' }}</bdi
-          >{{ ' ' }}
-          <bdi class="context-value">{{ permissionLabel }}</bdi>
-        </span>
-        <span v-else-if="item.key === 'goal'" class="context-label">
-          <span class="goal-label">Goal</span>{{ ' ' }}
-          <span v-if="caseComplete" class="context-value">{{ goalStatus }}</span>
-          <template v-else>
-            <span class="goal-stage context-value">{{ goalStatus }}</span>
-            <bdi class="goal-preview" dir="auto">{{ objective }}</bdi>
-          </template>
-        </span>
-        <bdi v-else-if="item.label" class="check-label">{{ item.label }}</bdi>
-        <span v-if="item.label" class="check-short-label">Host</span>
-        <ChevronDown
-          v-if="item.key === 'session' || item.key === 'goal'"
-          class="disclosure-icon"
+        <span
+          v-if="item.key === 'progress' && checks.length && !campaignFinished"
+          class="check-meter"
           aria-hidden="true"
-        />
-      </button>
-      <button
-        v-if="hostChecks.length > 1"
-        type="button"
-        class="host-status-summary"
-        :class="{
-          'status-selected': sessionExpanded && sessionSection.startsWith('host-'),
-          'status-changing': hostChecks.some(({ key }) => changedStatus.has(key)),
-        }"
-        aria-label="Host status"
-        :title="hostCheckDetails"
-        aria-controls="session-details"
-        :aria-expanded="sessionExpanded"
-        @click="emit('session', 'host-summary')"
-      >
-        <ListChecks :key="hostCheckDetails" class="status-mark" aria-hidden="true" />
-        <span class="status-count" aria-hidden="true">{{ hostCheckCount }}</span>
-      </button>
-    </div>
-    <p class="milestone-announcement" role="status" dir="auto">{{ statusAnnouncement }}</p>
-    <div class="title-actions">
-      <button
-        v-if="campaignFinished"
-        type="button"
-        class="icon-button campaign-status"
-        :class="{
-          'status-changing': changedStatus.has('campaign'),
-          'status-selected': sessionExpanded && sessionSection === 'campaign',
-        }"
-        aria-label="All available scenarios complete"
-        title="All available scenarios complete"
-        aria-controls="session-details"
-        :aria-expanded="sessionExpanded"
-        @click="emit('session', 'campaign')"
-      >
-        <Flag class="status-mark" aria-hidden="true" />
+        >
+          <span :style="{ inlineSize: `${(100 * reachedChecks) / checks.length}%` }"></span>
+        </span>
       </button>
       <button
         type="button"
@@ -271,6 +191,7 @@ watch(
         <ArrowDownToLine v-else aria-hidden="true" />
       </button>
     </div>
+    <p class="milestone-announcement" role="status" dir="auto">{{ statusAnnouncement }}</p>
   </div>
 </template>
 
@@ -279,7 +200,6 @@ watch(
   font: 700 17px var(--mono);
   white-space: nowrap;
 }
-
 .terminal-scenario {
   min-width: 0;
   max-width: 28ch;
@@ -288,19 +208,10 @@ watch(
 }
 h1.terminal-scenario {
   overflow: hidden;
+  padding-inline-start: var(--space-2);
   border-inline-start: 1px solid var(--line);
-}
-.frame-title h1.terminal-scenario button {
-  display: block;
-  max-width: 100%;
-  overflow: hidden;
-  color: inherit;
-  font: inherit;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.frame-title h1.terminal-scenario button[aria-expanded='true'] {
-  color: var(--accent);
 }
 .frame-title select {
   border-color: var(--line);
@@ -332,15 +243,34 @@ h1.terminal-scenario {
   color: var(--muted);
 }
 .frame-title .latest-progress,
-.frame-title .campaign-status,
-.frame-title .has-notification {
+.frame-title .has-notification,
+.title-actions .status-reached,
+.title-actions [aria-expanded='true'] {
   color: var(--accent);
 }
 .frame-title .latest-progress {
   background: #22382f;
 }
+.title-status,
 .title-notification {
   position: relative;
+}
+.frame-title .title-status[aria-expanded='true'] {
+  background: var(--raised);
+  border-color: var(--control);
+  border-block-end-color: var(--accent);
+}
+.check-meter {
+  position: absolute;
+  inset-inline: 8px;
+  inset-block-end: 3px;
+  block-size: 2px;
+  background: var(--control);
+}
+.check-meter span {
+  display: block;
+  block-size: 100%;
+  background: var(--accent);
 }
 .notification-count {
   position: absolute;
@@ -354,71 +284,13 @@ h1.terminal-scenario {
   font: 700 10px/12px var(--mono);
   text-align: center;
 }
-.session-context-bar {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  padding-inline-start: var(--space-1);
-  border-inline-start: 1px solid var(--line);
-}
-.frame-title .session-context-bar button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-1);
-  min-width: var(--control-height);
-  padding: 3px 6px;
-  font: 600 12px/1.25 var(--sans);
-}
-.frame-title .session-context-bar .session-location {
-  min-width: 0;
-  flex: 0 1 auto;
-}
-.context-label {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  min-width: 0;
-  text-align: start;
-}
-.context-label bdi,
-.check-label {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.context-value,
-.status-mark {
-  color: var(--muted);
-}
-.status-reached .context-value,
-.status-reached .status-mark,
-.campaign-status .status-mark,
-.host-status-summary.status-changing {
-  color: var(--accent);
-}
-.frame-title button.status-selected {
-  background: var(--raised);
-  border-color: var(--control);
-}
-.status-selected .disclosure-icon {
-  rotate: 180deg;
-}
-.frame-title .session-context-bar .host-status-summary,
-.check-short-label {
-  display: none;
-}
-.status-count {
-  font-variant-numeric: tabular-nums;
-}
 .status-changing .status-mark {
-  animation: session-status-change 1000ms ease-out;
+  animation: title-status-change 1000ms ease-out;
 }
-@keyframes session-status-change {
+@keyframes title-status-change {
   from {
-    background: var(--accent);
-    color: var(--accent-ink);
+    color: var(--accent);
+    filter: drop-shadow(0 0 3px var(--accent));
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -426,51 +298,15 @@ h1.terminal-scenario {
     animation: none;
   }
 }
-.context-label .goal-preview {
-  display: none;
-}
-
-@media (max-width: 1080px) {
-  .frame-title .grouped-host-status .host-status-item {
-    display: none;
-  }
-  .frame-title .grouped-host-status .host-status-summary {
-    display: inline-flex;
-  }
-}
 @media (max-width: 700px) {
   .frame-title {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    gap: 0 var(--space-1);
-  }
-  .terminal-scenario {
-    justify-self: start;
-    max-width: 100%;
-  }
-  .title-actions {
-    margin-inline-start: 0;
-  }
-  .session-context-bar {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    border-inline-start: 0;
-    border-top: 1px solid var(--line);
-    padding-inline-start: 0;
-  }
-  .context-label {
-    display: grid;
-    gap: 0;
+    gap: var(--space-1);
   }
 }
 @media (max-width: 600px), (pointer: coarse) {
   .frame-title button,
   .frame-title select {
     min-block-size: var(--touch-height);
-  }
-  .frame-title .session-context-bar button {
-    min-inline-size: var(--touch-height);
-    min-height: 40px;
   }
   .notification-count {
     inset-block-start: 6px;
@@ -491,71 +327,6 @@ h1.terminal-scenario {
 @media (max-width: 360px) {
   .frame-title {
     padding-inline: var(--space-1);
-  }
-  .frame-title .session-location .status-mark {
-    display: none;
-  }
-}
-@media (max-width: 830px) {
-  .frame-title .session-context-bar {
-    flex: 1;
-  }
-  .frame-title .session-context-bar button {
-    min-height: var(--compact-control);
-    padding-block: var(--compact-tight);
-    line-height: var(--compact-leading);
-  }
-  .frame-title .session-context-bar .session-location {
-    flex: 0 0 auto;
-  }
-  .session-location .context-label {
-    display: grid;
-    gap: 0;
-  }
-  .frame-title .session-location .context-value {
-    font-size: var(--compact-meta);
-  }
-  .frame-title .goal-status {
-    min-width: 0;
-  }
-  .goal-status:has(.goal-preview) :is(.goal-label, .goal-stage) {
-    display: none;
-  }
-  .context-label .goal-preview {
-    display: -webkit-box;
-    max-inline-size: 34ch;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    white-space: normal;
-    overflow-wrap: anywhere;
-  }
-  .goal-status:has(.goal-preview) .status-mark {
-    display: none;
-  }
-  .frame-title .host-status-item .check-label {
-    display: none;
-  }
-  .frame-title .host-status-item .check-short-label {
-    display: inline;
-  }
-}
-
-@media (max-width: 700px) {
-  .frame-title .session-context-bar .session-location {
-    flex: 0 1 auto;
-    max-width: 42%;
-    justify-content: flex-start;
-  }
-  .frame-title .session-context-bar .goal-status {
-    flex: 1;
-    justify-content: flex-start;
-    border-inline-start-color: var(--line);
-  }
-  .session-location .disclosure-icon {
-    display: none;
-  }
-  .context-label .goal-preview {
-    max-inline-size: none;
   }
 }
 </style>

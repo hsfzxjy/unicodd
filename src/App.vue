@@ -20,6 +20,7 @@ import {
   type ComposerSave,
   type Entry,
   type JournalFrame,
+  type TerminalPanel,
 } from './lib/workspace'
 import type { Engine } from './types'
 
@@ -52,8 +53,7 @@ const catalogLoading = ref(true)
 const loadingError = ref('')
 const attempt = ref(0)
 const busy = ref(false)
-const sessionExpanded = ref(false)
-const sessionSection = ref('session')
+const openPanel = ref<TerminalPanel>()
 const application = ref<HTMLElement>()
 const shortViewport = useVisibleViewport(application)
 const terminal = ref<InstanceType<typeof Terminal>>()
@@ -97,7 +97,8 @@ function saveLevel(submitted = false) {
       ),
     },
     terminal: terminal.value?.saveView(),
-    sessionExpanded: sessionExpanded.value,
+    sessionExpanded: openPanel.value !== undefined,
+    sessionPanel: openPanel.value,
   })
 }
 
@@ -151,20 +152,20 @@ const permissionLabel = computed(() => session.value?.identity.role.replaceAll('
 const goalStatus = computed(() =>
   session.value?.completed ? 'Complete' : caseComplete.value ? 'Completed earlier' : 'In progress',
 )
-const sessionPanel = ref<InstanceType<typeof TerminalSession>>()
-
-function toggleSession(section: string) {
-  sessionExpanded.value =
-    !sessionExpanded.value || (section !== 'session' && section !== sessionSection.value)
-  sessionSection.value = section
+function togglePanel(panel: TerminalPanel) {
+  openPanel.value = openPanel.value === panel ? undefined : panel
   scheduleSave()
-  if (sessionExpanded.value) {
-    requestAnimationFrame(() => {
-      if (!sessionExpanded.value || section !== sessionSection.value) return
-      sessionPanel.value?.reveal(section, shortViewport.value)
-    })
-  }
 }
+
+function closePanelWithEscape(event: KeyboardEvent) {
+  const panel = openPanel.value
+  if (!panel || event.defaultPrevented || event.isComposing || event.keyCode === 229) return
+  event.preventDefault()
+  togglePanel(panel)
+  const header = event.currentTarget as HTMLElement
+  header.querySelector<HTMLButtonElement>(`[data-panel="${panel}"]`)?.focus()
+}
+
 const newHosts = computed(() => (session.value ? (runtime?.newHosts ?? 0) : 0))
 const unreadMail = computed(() => {
   const active = session.value
@@ -213,8 +214,13 @@ watch([scenarioId, attempt], async ([id]) => {
   const active = createRuntime(loaded, props.engine, campaign, saved?.runtime)
   runtime = active
   initialComposer.value = saved?.composer
-  sessionExpanded.value = saved?.sessionExpanded === true
-  sessionSection.value = 'session'
+  const savedPanel = saved?.sessionPanel
+  openPanel.value =
+    saved?.sessionExpanded === true
+      ? savedPanel === 'goal' || savedPanel === 'progress'
+        ? savedPanel
+        : 'session'
+      : undefined
   scenario.value = loaded
   session.value = active.state
   contextVersion.value++
@@ -374,7 +380,7 @@ async function dispatch(action: Action, command?: string) {
     contextVersion.value++
   scheduleSave()
   if (response.compose) {
-    sessionExpanded.value = false
+    openPanel.value = undefined
     await nextTick()
     if (runtime === active) await terminal.value?.selectCommand(response.compose)
   }
@@ -405,7 +411,7 @@ async function dispatch(action: Action, command?: string) {
   <div
     ref="application"
     class="application"
-    :class="{ 'session-expanded': sessionExpanded, 'short-viewport': shortViewport }"
+    :class="{ 'session-expanded': openPanel, 'short-viewport': shortViewport }"
   >
     <main v-if="scenario && session" :key="scenario.id + '/' + attempt" class="workspace">
       <Terminal
@@ -426,46 +432,43 @@ async function dispatch(action: Action, command?: string) {
         @change="scheduleSave"
       >
         <template #title="{ following, unseenProgress, openTitleList, showLatest }">
-          <TerminalTitle
-            :scenario-id="scenarioId"
-            :scenario-title="scenario.title"
-            :objective="scenario.objective.text"
-            :destinations="destinations"
-            :debug-selector="debugSelector"
-            :session="session"
-            :host-status="hostStatus"
-            :permission-label="permissionLabel"
-            :goal-status="goalStatus"
-            :case-complete="caseComplete"
-            :campaign-finished="campaignFinished"
-            :transcript-live="transcriptLive"
-            :session-expanded="sessionExpanded"
-            :session-section="sessionSection"
-            :busy="busy"
-            :new-hosts="newHosts"
-            :unread-mail="unreadMail"
-            :following="following"
-            :unseen-progress="unseenProgress"
-            @scenario="dispatch({ type: 'scenario', id: $event, scope: 'local' })"
-            @session="toggleSession"
-            @list="openTitleList"
-            @latest="showLatest"
-          />
-        </template>
-        <template #session-details>
-          <TerminalSession
-            ref="sessionPanel"
-            :session-expanded="sessionExpanded"
-            :session="session"
-            :host-status="hostStatus"
-            :permission-label="permissionLabel"
-            :objective="scenario.objective.text"
-            :goal-status="goalStatus"
-            :case-complete="caseComplete"
-            :campaign-finished="campaignFinished"
-            :busy="busy"
-            @restart="dispatch({ type: 'reset' })"
-          />
+          <header class="terminal-header" @keydown.esc="closePanelWithEscape">
+            <TerminalTitle
+              :scenario-id="scenarioId"
+              :scenario-title="scenario.title"
+              :destinations="destinations"
+              :debug-selector="debugSelector"
+              :session="session"
+              :host-status="hostStatus"
+              :permission-label="permissionLabel"
+              :goal-status="goalStatus"
+              :case-complete="caseComplete"
+              :campaign-finished="campaignFinished"
+              :transcript-live="transcriptLive"
+              :open-panel="openPanel"
+              :busy="busy"
+              :new-hosts="newHosts"
+              :unread-mail="unreadMail"
+              :following="following"
+              :unseen-progress="unseenProgress"
+              @scenario="dispatch({ type: 'scenario', id: $event, scope: 'local' })"
+              @panel="togglePanel"
+              @list="openTitleList"
+              @latest="showLatest"
+            />
+            <TerminalSession
+              :open-panel="openPanel"
+              :session="session"
+              :host-status="hostStatus"
+              :permission-label="permissionLabel"
+              :objective="scenario.objective.text"
+              :goal-status="goalStatus"
+              :case-complete="caseComplete"
+              :campaign-finished="campaignFinished"
+              :busy="busy"
+              @restart="dispatch({ type: 'reset' })"
+            />
+          </header>
         </template>
       </Terminal>
     </main>
@@ -491,6 +494,9 @@ async function dispatch(action: Action, command?: string) {
   padding: var(--space-2) var(--space-3);
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+}
+.terminal-header {
+  position: relative;
 }
 .startup {
   padding: 16px;

@@ -12,6 +12,7 @@ import {
   watchPostEffect,
 } from 'vue'
 import ComposerArgument from './ComposerArgument.vue'
+import ComposerMenu from './ComposerMenu.vue'
 import {
   actionCommand,
   composerAction,
@@ -19,7 +20,6 @@ import {
   commandDraft,
   commandDraftSelection,
   commandInsertion,
-  commandRegistry,
   composerArguments,
   matchSuggestions,
   parseCommand,
@@ -50,7 +50,6 @@ const commandPicker = ref<HTMLButtonElement>()
 const runButton = ref<HTMLButtonElement>()
 const promptTools = ref<HTMLElement>()
 let compositionCommit: string | undefined
-const menu = ref<HTMLElement>()
 const text = ref('')
 const selected = ref<CommandName>()
 const values = ref<string[]>([])
@@ -60,7 +59,6 @@ const pending = ref(false)
 const focused = ref(false)
 const showSuggestions = ref(true)
 const menuOpen = ref(false)
-const menuIndex = ref(0)
 const editors = shallowReactive(new Map<number, InstanceType<typeof ComposerArgument>>())
 const drafts = new Map<CommandName, Draft>()
 const history: Draft[] = []
@@ -85,18 +83,6 @@ const canReplace = computed(() => {
 })
 const canInsertCommand = computed(() => !selected.value && !composing.value)
 const canReuse = computed(() => !props.busy && !composing.value && !pending.value)
-const available = computed(() => {
-  const names = new Set(props.suggestions)
-  const operations = new Set<string>(props.operations.map(({ command }) => command))
-  const local = selected.value?.startsWith('local ')
-  const priority = (name: CommandName) => {
-    if (local && name.startsWith('local ')) return 2
-    return operations.has(name) ? 1 : 0
-  }
-  return commandRegistry
-    .filter((command) => names.has(command.name))
-    .sort((a, b) => priority(b.name) - priority(a.name))
-})
 const matches = computed(() => {
   if (!focused.value || composing.value || !showSuggestions.value || menuOpen.value) return []
   if (!selected.value) return matchSuggestions(text.value, props.suggestions).slice(0, 5)
@@ -169,21 +155,7 @@ watchPostEffect(() => {
   snapshot()
   if (!pending.value) emit('change')
 })
-const menuResize = new ResizeObserver(fitMenu)
-
-function fitMenu() {
-  const composer = root.value
-  if (!menu.value || !composer) return
-  const viewportTop = window.visualViewport?.offsetTop ?? 0
-  const available = composer.getBoundingClientRect().top - viewportTop - 8
-  menu.value.style.setProperty('--menu-space', `${Math.max(0, available)}px`)
-}
-
 onMounted(() => {
-  if (root.value) menuResize.observe(root.value)
-  menuResize.observe(document.documentElement)
-  window.visualViewport?.addEventListener('resize', fitMenu)
-  window.visualViewport?.addEventListener('scroll', fitMenu)
   const saved = props.initial
   if (!saved) return
   if (Array.isArray(saved.drafts)) {
@@ -453,51 +425,26 @@ async function complete(value: string) {
     await focusField(activeIndex.value, { start: length, end: length })
   } else await selectCommand(draft.name, draft.values.length ? draft.values : undefined)
 }
-async function toggleMenu() {
-  if (composing.value || props.busy) return
-  menuOpen.value = !menuOpen.value
-  menuIndex.value = Math.max(
-    0,
-    available.value.findIndex((command) => command.name === selected.value),
-  )
-  if (menuOpen.value) {
-    await nextTick()
-    fitMenu()
-    menu.value?.querySelectorAll<HTMLButtonElement>('button')[menuIndex.value]?.focus()
-  }
+function toggleMenu() {
+  if (!composing.value && !props.busy) menuOpen.value = !menuOpen.value
 }
-function menuKey(event: KeyboardEvent) {
-  if (blocked(event)) return
-  if (event.key === 'Escape') {
-    event.preventDefault()
-    event.stopPropagation()
-    menuOpen.value = false
-    const trigger = tag.value ?? commandPicker.value
-    trigger?.focus({ preventScroll: true })
-    return
-  }
-  const count = available.value.length + Number(Boolean(selected.value))
-  if (!count) return
-  if (['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) {
-    event.preventDefault()
-    menuIndex.value =
-      event.key === 'Home'
-        ? 0
-        : event.key === 'End'
-          ? count - 1
-          : (menuIndex.value + (event.key === 'ArrowDown' ? 1 : -1) + count) % count
-    menu.value?.querySelectorAll<HTMLButtonElement>('button')[menuIndex.value]?.focus()
-  }
+
+function escapeMenu() {
+  menuOpen.value = false
+  const trigger = tag.value ?? commandPicker.value
+  trigger?.focus({ preventScroll: true })
 }
+
+function leaveMenu(event: FocusEvent) {
+  if (!root.value?.contains(event.relatedTarget as Node)) menuOpen.value = false
+}
+
 function outside(event: PointerEvent) {
   if (!root.value?.contains(event.target as Node)) menuOpen.value = false
 }
 window.addEventListener('pointerdown', outside)
 onBeforeUnmount(() => {
   window.removeEventListener('pointerdown', outside)
-  window.visualViewport?.removeEventListener('resize', fitMenu)
-  window.visualViewport?.removeEventListener('scroll', fitMenu)
-  menuResize.disconnect()
 })
 function applyText(mode: 'insert' | 'replace', value: string) {
   if (!canInsert.value) return
@@ -676,42 +623,19 @@ defineExpose({
         />
       </div>
     </form>
-    <div
+    <ComposerMenu
       v-if="menuOpen"
       :id="id + '-menu'"
-      ref="menu"
-      class="command-menu"
-      role="menu"
-      aria-label="Commands"
-      @keydown="menuKey"
-      @focusout="
-        (event) => {
-          if (!root?.contains(event.relatedTarget as Node)) menuOpen = false
-        }
-      "
-    >
-      <button
-        v-for="(command, index) in available"
-        :key="command.name"
-        type="button"
-        role="menuitemradio"
-        :aria-checked="selected === command.name"
-        :tabindex="index === menuIndex ? 0 : -1"
-        @click="selectCommand(command.name)"
-      >
-        <span>{{ command.usage }}</span
-        ><span class="meta">{{ command.description }}</span>
-      </button>
-      <button
-        v-if="selected"
-        type="button"
-        role="menuitem"
-        :tabindex="menuIndex === available.length ? 0 : -1"
-        @click="unwrap"
-      >
-        Edit command name…
-      </button>
-    </div>
+      :anchor="root"
+      :selected="selected"
+      :suggestions="suggestions"
+      :operations="operations"
+      :composing="composing"
+      @select="selectCommand"
+      @unwrap="unwrap"
+      @escape="escapeMenu"
+      @focusout="leaveMenu"
+    />
     <div
       v-if="matches.length"
       class="suggestions toolbar"
@@ -726,3 +650,270 @@ defineExpose({
     </div>
   </div>
 </template>
+
+<style scoped>
+.prompt .command-picker {
+  display: none;
+}
+.suggestions button {
+  min-height: 26px;
+  padding: 2px 6px;
+  font-size: 12px;
+}
+.prompt {
+  display: block;
+  padding-inline-start: 7px;
+  border-inline-start: 2px solid var(--control);
+  background: var(--inset);
+  font-family: var(--mono);
+}
+.prompt:focus-within {
+  border-inline-start-color: var(--accent);
+  background: #192a28;
+}
+.prompt label {
+  cursor: text;
+}
+.prompt-host {
+  max-width: 22%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.prompt input {
+  flex: 1;
+  min-width: 0;
+  padding-inline: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  caret-color: var(--accent);
+}
+.prompt input:focus {
+  outline: none;
+}
+/* Reads and its file shortcut teleport into the prompt on compact layouts. */
+.prompt button,
+.prompt-tools :deep(> button) {
+  border-color: transparent;
+  background: transparent;
+  font-size: 12px;
+}
+.prompt button:disabled,
+.prompt-tools :deep(> button:disabled) {
+  color: var(--muted);
+}
+.prompt button.run-command {
+  border-color: transparent;
+  background: var(--raised);
+  color: var(--accent);
+  font-weight: 700;
+}
+.prompt button.run-command:disabled {
+  background: transparent;
+  color: var(--muted);
+}
+.prompt button.run-command:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.suggestions {
+  position: absolute;
+  z-index: 1;
+  inset: auto auto calc(100% + 1px) 8px;
+  width: max-content;
+  max-width: calc(100% - 16px);
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--control);
+  background: var(--surface);
+  font-family: var(--mono);
+}
+.suggestions button {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px), (pointer: coarse) {
+  .suggestions button {
+    min-height: 34px;
+  }
+}
+@media (max-width: 600px) {
+  .prompt-host {
+    max-width: 30%;
+    font-size: 12px;
+  }
+  .prompt input {
+    font-size: 16px;
+  }
+}
+.command-composer {
+  position: relative;
+  min-width: 0;
+}
+.prompt-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.prompt-line .prompt-host {
+  flex: none;
+}
+.prompt .command-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--control-height);
+  padding: 2px 6px;
+  border: 1px solid var(--control);
+  border-radius: 2px;
+  font: inherit;
+  line-height: 1.3;
+}
+.prompt .run-command {
+  margin-inline-start: auto;
+  flex: none;
+}
+.prompt-tools:empty {
+  display: none;
+}
+.composer-arguments {
+  max-height: min(calc(var(--app-height, 100dvh) * 0.32), 240px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding-inline-end: 4px;
+}
+@media (max-width: 600px), (pointer: coarse) {
+  .prompt .command-tag,
+  .prompt .run-command {
+    min-height: var(--touch-height);
+  }
+}
+
+.composer-fixed {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 16px;
+  padding-block: 2px;
+}
+
+.composer-fixed > span {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.prompt.single-argument {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) max-content minmax(24px, 1fr) max-content;
+  align-items: center;
+  column-gap: 6px;
+}
+.single-argument .prompt-line,
+.single-argument .composer-arguments {
+  display: contents;
+}
+.single-argument .prompt-host {
+  grid-column: 1;
+  grid-row: 1;
+  max-width: min(22vw, 14ch);
+}
+.single-argument .command-tag {
+  grid-column: 2;
+  grid-row: 1;
+}
+.single-argument .run-command {
+  grid-column: 4;
+  grid-row: 1;
+}
+.single-argument .prompt-tools {
+  grid-column: 5;
+  grid-row: 1;
+}
+.single-argument .composer-fixed {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+.short-viewport .composer-arguments {
+  max-height: min(150px, calc(var(--app-height, 100dvh) * 0.32));
+}
+.short-viewport.session-expanded .composer-arguments {
+  max-height: min(142px, calc(var(--app-height, 100dvh) * 0.26));
+}
+@media (max-width: 600px) {
+  .prompt.single-argument {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .single-argument .prompt-line {
+    display: flex;
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 830px) {
+  .prompt .command-picker {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: var(--compact-tight);
+    padding-inline: var(--compact-gap);
+    color: var(--muted);
+    font: 600 var(--compact-meta) / var(--compact-leading) var(--sans);
+  }
+  .prompt .command-picker[aria-expanded='true'] {
+    color: var(--accent);
+    background: var(--raised);
+  }
+  .prompt .command-picker[aria-expanded='true'] .disclosure-icon {
+    rotate: 180deg;
+  }
+  .prompt:focus-within {
+    background: var(--inset);
+  }
+  .prompt-line {
+    gap: var(--compact-gap);
+  }
+  .prompt-line .prompt-host {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+  .prompt-line :is(input, button),
+  .prompt-tools :deep(> button),
+  .prompt :is(.command-tag, .run-command) {
+    min-height: 36px;
+    padding-block: var(--compact-inset);
+  }
+  .prompt .run-command,
+  .prompt-tools :deep(> button) {
+    min-inline-size: var(--touch-height);
+  }
+  .prompt-tools {
+    display: flex;
+    gap: var(--compact-tight);
+  }
+  .prompt-tools :deep(> button) {
+    padding-inline: var(--compact-gap);
+    color: var(--muted);
+    font: 600 var(--compact-meta) / var(--compact-leading) var(--sans);
+  }
+  .prompt-tools :deep(> button .lucide) {
+    display: none;
+  }
+  .prompt-tools :deep(> button[aria-expanded='true']) {
+    color: var(--accent);
+    background: var(--raised);
+  }
+}
+
+@media (max-width: 600px) {
+  .composer-arguments {
+    display: grid;
+    gap: var(--compact-gap);
+    scrollbar-width: thin;
+    padding-inline-end: var(--space-1);
+  }
+  .composer-fixed {
+    font-size: var(--compact-meta);
+    line-height: var(--compact-leading);
+  }
+}
+</style>

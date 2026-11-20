@@ -2,7 +2,7 @@
 import TerminalFile from './TerminalFile.vue'
 import TerminalMail from './TerminalMail.vue'
 import type { Action } from '../lib/runtime'
-import type { ReadOutput } from './terminalReads'
+import type { ReadOutput } from '../composables/useTerminalReads'
 
 defineProps<{ output: ReadOutput; busy: boolean }>()
 const emit = defineEmits<{ action: [Action] }>()

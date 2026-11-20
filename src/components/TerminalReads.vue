@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ArrowUp, BookOpen } from '@lucide/vue'
 import { nextTick, onMounted, onUnmounted, ref, useId } from 'vue'
-import type { EarlierRead } from './terminalReads'
+import type { EarlierRead } from '../composables/useTerminalReads'
 
 defineProps<{
   reads: EarlierRead[]
@@ -177,12 +177,16 @@ defineExpose({ close })
   min-height: 36px;
   padding: 5px 7px;
   border: 0;
+  background: transparent;
   text-align: start;
   overflow-wrap: anywhere;
   font: 13px/1.35 var(--mono);
 }
 .reads-menu .read-choice:focus-visible {
   outline-offset: -2px;
+}
+.reads-menu .read-choice:hover {
+  background: var(--raised);
 }
 .read-source,
 .reads-empty {
@@ -195,8 +199,8 @@ defineExpose({ close })
   padding: 5px 7px;
 }
 .result-milestone {
+  --shortcut-border: var(--accent);
   color: var(--accent);
-  border-color: var(--accent);
 }
 @media (max-width: 600px), (pointer: coarse) {
   .reads-menu .read-choice {

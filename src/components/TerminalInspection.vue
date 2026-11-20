@@ -207,3 +207,220 @@ const normalization = computed(() => {
     </details>
   </section>
 </template>
+
+<style scoped>
+details[open] > summary .disclosure-icon {
+  rotate: 90deg;
+}
+.inspection-metadata {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 12px;
+  margin: 4px 0;
+}
+.inspection-confusables {
+  margin-top: 5px;
+}
+.inspection-confusables summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--accent);
+  cursor: pointer;
+  min-height: var(--control-height);
+  list-style: none;
+}
+.inspection-confusables summary::-webkit-details-marker {
+  display: none;
+}
+.inspection-confusables .inspection-sequence {
+  margin-block: 3px;
+}
+.inspection-summary,
+.inspection-actions,
+.inspection-sequence,
+.inspection-form dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+}
+.inspection {
+  min-width: 0;
+  margin-top: 3px;
+}
+.inspection:focus-visible {
+  outline-offset: 3px;
+}
+.inspection-summary {
+  column-gap: 12px;
+}
+.inspection-actions {
+  column-gap: var(--space-1);
+}
+.inspection-category {
+  color: var(--muted);
+  font-size: 12px;
+}
+.inspection .inspection-point {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  margin-inline-start: 0;
+  text-decoration: none;
+}
+.inspection-point bdi {
+  overflow-wrap: anywhere;
+}
+.inspection-point code {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.inspection button:not(.terminal-link, .icon-button) {
+  min-height: var(--control-height);
+  padding: 2px 8px;
+  font: 12px var(--sans);
+}
+.inspection-normalization {
+  margin: 4px 0 0;
+}
+.inspection-form {
+  display: grid;
+  grid-template-columns: 5ch minmax(0, 1fr);
+}
+.inspection-form dt {
+  display: flex;
+  align-items: center;
+  min-height: var(--control-height);
+  align-self: start;
+  color: var(--muted);
+}
+.inspection-form-equivalent,
+.inspection .compact-category,
+.inspection-metadata:not(:has(bdi, span:not(.compact-category))) {
+  display: none;
+}
+.inspection-form dd {
+  align-items: flex-start;
+  flex-wrap: nowrap;
+  margin: 0;
+}
+.inspection-form dd > button {
+  flex: none;
+  white-space: nowrap;
+}
+.inspection-sequence {
+  min-width: 0;
+}
+@media (max-width: 600px), (pointer: coarse) {
+  .inspection-confusables summary,
+  .inspection button:not(.terminal-link, .icon-button) {
+    min-block-size: var(--touch-height);
+  }
+}
+.inspection-encoding {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  margin: 4px 0;
+}
+@media (max-width: 830px) {
+  .inspection {
+    display: grid;
+    gap: var(--compact-tight);
+    margin: 0;
+  }
+  .inspection :is(.inspection-category, .inspection-metadata, .inspection-encoding) {
+    font-size: var(--compact-meta);
+  }
+  .inspection :is(.inspection-metadata, .inspection-encoding) {
+    margin: 0;
+    line-height: var(--compact-leading);
+  }
+  .inspection-summary > .inspection-category {
+    display: none;
+  }
+  .inspection .compact-category {
+    display: inline;
+  }
+  .inspection .inspection-metadata {
+    display: block;
+  }
+  .inspection-metadata > :not(:first-child)::before {
+    content: ' · ';
+  }
+  .inspection .inspection-point,
+  .inspection button:not(.terminal-link, .icon-button),
+  .inspection-confusables summary {
+    min-height: var(--control-height);
+    padding-block: var(--compact-tight);
+  }
+  .inspection .inspection-point {
+    gap: var(--compact-gap);
+  }
+  .inspection button:not(.terminal-link, .icon-button) {
+    padding-inline: var(--compact-section);
+  }
+  .inspection-actions {
+    gap: var(--compact-tight);
+  }
+  .inspection-point bdi {
+    font-size: 15px;
+  }
+  .inspection-form-repeat {
+    display: none;
+  }
+  .inspection-form dt {
+    display: grid;
+    align-content: center;
+    min-height: var(--control-height);
+    font-size: var(--compact-meta);
+    line-height: 1.15;
+  }
+  .inspection-form-equivalent {
+    display: block;
+  }
+  .inspection-normalization {
+    margin: var(--compact-tight) 0 0;
+  }
+  .inspection-form {
+    grid-template-columns: 4ch minmax(0, 1fr);
+    column-gap: var(--compact-gap);
+    border-top: 1px solid var(--line);
+  }
+  .inspection-form:has(.inspection-form-equivalent:nth-child(4)) {
+    grid-template-columns: 8ch minmax(0, 1fr);
+  }
+  .inspection-form dt:has(.inspection-form-equivalent:nth-child(4)) {
+    grid-template-columns: 1fr 1fr;
+  }
+  .inspection-form dd {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--compact-gap);
+  }
+  .inspection-form .inspection-point {
+    padding-inline: var(--compact-tight);
+    gap: var(--compact-tight);
+    font-size: 12px;
+  }
+  .inspection-form dd > button {
+    grid-column: 2;
+  }
+  .inspection-confusables {
+    margin: 0;
+  }
+  .inspection-confusables .inspection-sequence {
+    margin-block: 0 var(--compact-tight);
+  }
+}
+
+@media (max-width: 600px) {
+  .inspection-summary,
+  .inspection-sequence,
+  .inspection-form dd {
+    gap: var(--compact-tight) var(--compact-gap);
+  }
+}
+</style>

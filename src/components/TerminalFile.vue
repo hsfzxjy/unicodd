@@ -44,6 +44,7 @@ const lines = computed(() =>
       <bdi>{{ path }}</bdi>
     </p>
     <pre
+      class="resource-text"
       v-if="inspectNotation"
       data-resource-text
       dir="auto"
@@ -55,9 +56,12 @@ const lines = computed(() =>
       :aria-label="'Inspect ' + token.text"
       @click="emit('action', { type: 'inspect', character: token.text })"
     >{{ token.text }}</button><template v-else>{{ token.text }}</template></template></pre>
-    <pre v-else-if="!inspectLines.length" data-resource-text dir="auto">{{ text }}</pre>
+    <pre v-else-if="!inspectLines.length" class="resource-text" data-resource-text dir="auto">{{
+      text
+    }}</pre>
     <template v-else>
       <p
+        class="resource-text"
         v-for="(line, index) in lines"
         :key="index"
         :class="{ 'character-bank': line.points }"
@@ -83,3 +87,47 @@ const lines = computed(() =>
     </template>
   </section>
 </template>
+
+<style scoped>
+.terminal-file pre {
+  max-width: 86ch;
+}
+.terminal-file[data-format='log'] pre {
+  max-width: 106ch;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.terminal-file[data-format='evidence'] {
+  padding-inline-start: 8px;
+  border-inline-start: 1px solid #6b859a;
+}
+.terminal-file[data-format] .file-path {
+  color: var(--evidence);
+}
+.terminal-file .character-bank {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  max-width: 100%;
+}
+.terminal-file .character-bank + p:not(.character-bank) {
+  margin-top: 10px;
+}
+.scalar-link {
+  min-width: 30px;
+  margin: 0;
+  text-decoration: none;
+  border-bottom-color: var(--control);
+  font-size: 16px;
+}
+.terminal-file .notation-link {
+  min-height: 0;
+  padding: 0 2px;
+  vertical-align: baseline;
+}
+@media (max-width: 600px), (pointer: coarse) {
+  .terminal-file .notation-link {
+    min-block-size: var(--touch-height);
+  }
+}
+</style>

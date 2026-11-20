@@ -72,11 +72,8 @@ function listingIcon(action: Action) {
         </button>
         <span v-if="link.detail || link.status" :id="listId + '-' + index" class="listing-detail">
           <bdi v-if="link.detail">{{ link.detail }}</bdi>
-          <template v-if="link.status">
-            {{ link.detail ? ' · ' : '' }}
-            <span class="listing-status">{{ link.status }}</span>
-          </template>
         </span>
+        <span class="listing-status">{{ link.status }}</span>
       </li>
     </ul>
   </div>
@@ -84,14 +81,13 @@ function listingIcon(action: Action) {
 
 <style scoped>
 .terminal-list {
-  max-inline-size: 90ch;
   margin-top: 3px;
 }
 .listing-link {
   display: inline-flex;
   align-items: center;
   justify-self: start;
-  gap: var(--space-1);
+  gap: var(--space-2);
   min-width: 0;
   margin-inline-start: 0;
   color: var(--text);
@@ -121,6 +117,9 @@ function listingIcon(action: Action) {
   font-size: var(--transcript-meta-size, 12px);
 }
 .listing-status {
+  display: block;
+  padding-right: var(--space-2);
+  font-size: var(--transcript-meta-size, 12px);
   font-family: var(--sans);
   white-space: nowrap;
 }

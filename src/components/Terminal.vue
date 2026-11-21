@@ -5,15 +5,17 @@ import CommandComposer from './CommandComposer.vue'
 import TerminalEntry from './TerminalEntry.vue'
 import TerminalReads from './TerminalReads.vue'
 import TerminalResource from './TerminalResource.vue'
+import type { TerminalEntryView } from '../composables/terminal-presentation'
 import { useTerminalTranscript } from '../composables/useTerminalTranscript'
 import type { CommandName } from '../lib/commands'
-import type { Action, Link, Response, Session } from '../lib/runtime'
+import type { Action, Link, Output, Response, Session } from '../lib/runtime'
 import type { OperationBinding } from '../lib/scenario'
 import { notation } from '../lib/unicode'
-import type { ComposerSave, Entry } from '../lib/workspace'
+import type { ComposerSave } from '../lib/workspace'
 
 const props = defineProps<{
-  transcript: Entry[]
+  transcript: TerminalEntryView[]
+  openingRequest?: string
   live: boolean
   prompt: string
   connected: boolean
@@ -38,6 +40,27 @@ const readsControls = ref<InstanceType<typeof TerminalReads>>()
 const compactLayout = window.matchMedia('(max-width: 830px)')
 const compact = ref(compactLayout.matches)
 const updateCompact = () => (compact.value = compactLayout.matches)
+const opening = computed(() => {
+  const [welcome, read] = props.transcript
+  if (!props.openingRequest || welcome?.id !== 0 || read?.waiting || read?.prompt !== 'local')
+    return
+  const [letter] = read.output
+  if (
+    letter?.kind !== 'mail' ||
+    letter.path !== undefined ||
+    letter.messages.length !== 1 ||
+    letter.messages[0].id !== props.openingRequest
+  )
+    return
+  const directories = welcome.output.filter(
+    (row): row is Extract<Output, { kind: 'listing' }> =>
+      row.kind === 'listing' && row.links.some(({ action }) => action.type === 'connect'),
+  )
+  const [directory] = directories
+  const [link] = directory?.links ?? []
+  if (directories.length === 1 && directory.links.length === 1 && link.tracking?.kind === 'host')
+    return { directory, read: read.id }
+})
 const {
   awayFromEnd,
   offscreenProgress,
@@ -252,6 +275,8 @@ defineExpose({
         v-for="entry in transcript"
         :key="entry.id"
         :entry="entry"
+        :opening-directory="entry.id === opening?.read ? opening?.directory : undefined"
+        :omit-row="entry.id === 0 ? opening?.directory : undefined"
         :output-id="outputPrefix + entry.id"
         :collapsed="collapsed.has(entry.id)"
         :activity="activity"
@@ -367,11 +392,11 @@ defineExpose({
 <style scoped>
 .terminal-frame {
   inline-size: 100%;
-  max-inline-size: 1200px;
+  max-inline-size: var(--terminal-width);
   justify-self: center;
   min-width: 0;
   min-height: 0;
-  border: 1px solid var(--line);
+  border: var(--terminal-rule);
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: max-content minmax(60px, 1fr) auto;

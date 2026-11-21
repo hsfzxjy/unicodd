@@ -7,12 +7,14 @@ import TerminalListing from './TerminalListing.vue'
 import TerminalProgress from './TerminalProgress.vue'
 import TerminalReport from './TerminalReport.vue'
 import TerminalResource from './TerminalResource.vue'
+import type { TerminalEntryView } from '../composables/terminal-presentation'
 import { commandDefinition, commandEcho, commandRegistry, type CommandName } from '../lib/commands'
-import type { Action, ProgressTransition, Session } from '../lib/runtime'
-import type { Entry } from '../lib/workspace'
+import type { Action, Output, ProgressTransition, Session } from '../lib/runtime'
 
 const props = defineProps<{
-  entry: Entry
+  entry: TerminalEntryView
+  openingDirectory?: Extract<Output, { kind: 'listing' }>
+  omitRow?: Output
   outputId: string
   collapsed: boolean
   activity: Pick<Session, 'visitedHosts' | 'deliveredMail' | 'readMail' | 'readResources'>
@@ -115,10 +117,19 @@ function echoText(value: string) {
       :id="outputId"
       class="entry-body"
     >
-      <div v-if="entry.output.length" class="entry-output">
+      <div
+        v-if="entry.output.length"
+        class="entry-output"
+        :class="{ 'opening-read': openingDirectory }"
+      >
+        <p v-if="entry.arrival" class="arrival">
+          <bdi class="arrival-host">@{{ entry.arrival.host }}</bdi> ·
+          <bdi>{{ entry.arrival.role }}</bdi>
+        </p>
         <template v-for="(row, index) in entry.output" :key="index">
+          <template v-if="row === omitRow"></template>
           <TerminalListing
-            v-if="row.kind === 'listing'"
+            v-else-if="row.kind === 'listing'"
             :row="row"
             :activity="activity"
             :prompt="prompt"
@@ -220,6 +231,16 @@ function echoText(value: string) {
             {{ row.text }}
           </p>
         </template>
+        <TerminalListing
+          v-if="openingDirectory"
+          class="opening-directory"
+          :row="openingDirectory"
+          :activity="activity"
+          :prompt="prompt"
+          :connected="connected"
+          :busy="busy"
+          @action="emit('action', $event)"
+        />
       </div>
       <p
         v-if="entry.waiting"
@@ -308,6 +329,30 @@ function echoText(value: string) {
 }
 .has-command .entry-body:has(> .entry-output:only-child > .terminal-mail:only-child) {
   background: transparent;
+}
+.has-command .entry-body:has(> .opening-read) {
+  background: transparent;
+}
+.opening-read {
+  --mail-inset: var(--reading-inset);
+}
+.opening-read :deep(.terminal-mail) {
+  border-block-start: var(--terminal-rule);
+}
+.opening-directory {
+  max-inline-size: 42rem;
+  margin-block-start: var(--space-1);
+  padding-inline: var(--reading-inset);
+}
+.arrival {
+  margin-block-end: var(--space-1);
+  color: var(--muted);
+  font: 12px/1.35 var(--sans);
+}
+.arrival-host {
+  color: var(--text);
+  font-family: var(--mono);
+  font-weight: 650;
 }
 .terminal-line {
   white-space: pre-wrap;

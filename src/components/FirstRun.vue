@@ -5,25 +5,30 @@ const emit = defineEmits<{ readRequest: [] }>()
 </script>
 
 <template>
-  <section class="access-console" aria-labelledby="access-title">
-    <h1 id="access-title">MONONYM access console</h1>
-    <p dir="auto">Guest access to MONONYM account and messaging services.</p>
-    <button type="button" class="read-request" @click="emit('readRequest')">
-      Read Mira’s request
-    </button>
-    <p class="guidance" dir="auto">
-      You can open files and messages from the transcript. If you prefer to type, use the prompt.
-    </p>
-    <ConsoleControls />
-  </section>
+  <div class="access-frame">
+    <section class="access-console" aria-labelledby="access-title">
+      <h1 id="access-title">MONONYM access console</h1>
+      <p dir="auto">Guest access to MONONYM account and messaging services.</p>
+      <button type="button" class="read-request" @click="emit('readRequest')">
+        Read Mira’s request
+      </button>
+      <p class="guidance" dir="auto">
+        You can open files and messages from the transcript. If you prefer to type, use the prompt.
+      </p>
+      <ConsoleControls />
+    </section>
+  </div>
 </template>
 
 <style scoped>
+.access-frame {
+  max-inline-size: var(--terminal-width);
+  margin-inline: auto;
+}
 .access-console {
   max-inline-size: 40rem;
-  margin-inline: auto;
-  padding: 16px;
-  border: 1px solid var(--line);
+  padding: 16px var(--reading-inset);
+  border: var(--terminal-rule);
   border-block-start: 2px solid var(--accent);
   background: var(--surface);
   overflow-wrap: anywhere;
@@ -56,9 +61,6 @@ const emit = defineEmits<{ readRequest: [] }>()
   background: var(--raised);
 }
 @media (max-width: 600px) {
-  .access-console {
-    padding: var(--space-3);
-  }
   .access-console h1 {
     font-size: 20px;
   }

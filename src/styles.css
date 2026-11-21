@@ -25,6 +25,9 @@
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
+  --terminal-width: 1200px;
+  --terminal-rule: 1px solid var(--line);
+  --reading-inset: var(--space-3);
   --icon-size: 16px;
   --icon-stroke: 1.75;
   --control-height: 32px;

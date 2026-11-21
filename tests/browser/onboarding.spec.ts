@@ -27,7 +27,8 @@ for (const [width, height] of [
   [320, 360],
   [390, 430],
   [390, 844],
-  [1440, 900],
+  [768, 1024],
+  [1280, 800],
 ]) {
   test.describe(`Opening at ${width} × ${height}`, () => {
     const mobile = width < 600
@@ -92,6 +93,13 @@ for (const [width, height] of [
       await expect(request(page)).toBeFocused()
       await expect(request(page)).toHaveCount(1)
       await expect(request(page)).toContainText('Could you see if the original’s there?')
+      const host = log(page).getByRole('button', { name: 'relay-07', exact: true })
+      await expect(host).toHaveCount(1)
+      await expect(
+        request(page).locator('..').getByRole('button', { name: 'relay-07' }),
+      ).toBeVisible()
+      await expect(request(page).getByRole('heading')).toBeInViewport({ ratio: 1 })
+      if (height >= 800) await expect(host).toBeInViewport({ ratio: 1 })
       await expect(
         log(page).locator('.command-line').filter({ hasText: 'mail favor' }),
       ).toHaveCount(1)
@@ -105,16 +113,20 @@ for (const [width, height] of [
       await expect(relay(page)).toBeVisible()
       await expect(access(page)).toHaveCount(0)
       await expect(request(page)).toHaveCount(1)
+      await expect(host).toHaveCount(1)
+      await expect(
+        request(page).locator('..').getByRole('button', { name: 'relay-07' }),
+      ).toBeVisible()
       await expect(button(page, 'Open local inbox')).toBeVisible()
       if (width === 320) {
-        await expect(
-          log(page).getByRole('button', { name: 'relay-07', exact: true }),
-        ).not.toBeInViewport()
-        await button(page, 'Open local hosts, 1 new').tap()
-        const host = log(page).getByRole('button', { name: 'relay-07', exact: true }).last()
+        await request(page).focus()
+        await page.keyboard.press('Tab')
+        await expect(host).toBeFocused()
         await expect(host).toBeInViewport({ ratio: 1 })
         await host.tap()
         await expect(page.getByRole('button', { name: /^Session:.*relay-07/ })).toBeVisible()
+        await expect(log(page).locator('.arrival')).toHaveText('@relay-07 · guest')
+        await page.screenshot({ path: info.outputPath('arrival.png') })
       }
     })
   })
@@ -324,6 +336,7 @@ test('development direct entry leaves both onboarding and campaign storage alone
   test.skip(Boolean(process.env.PLAYWRIGHT_TEST_PREVIEW), 'Requires the development server')
   await page.goto('/?scenario=002-dead-letter')
   await expect(page.getByRole('button', { name: /^Session:.*postbox-03/ })).toBeVisible()
+  await expect(log(page).locator('.arrival')).toHaveText('@postbox-03 · guest')
   await expect(access(page)).toHaveCount(0)
   expect(await preferences(page)).toEqual({ campaign: null, onboarding: null })
 })

@@ -43,7 +43,7 @@ defineProps<{ path?: string; messages: MailMessage[] }>()
 <style scoped>
 .terminal-mail {
   max-inline-size: 42rem;
-  padding: 6px var(--space-3) var(--space-2);
+  padding: 6px var(--mail-inset, var(--space-3)) var(--space-2);
   color: var(--record-ink);
   background: #2a2a25;
 }
@@ -83,7 +83,7 @@ defineProps<{ path?: string; messages: MailMessage[] }>()
 }
 @media (max-width: 830px) {
   .terminal-mail {
-    padding: var(--space-1) var(--space-2) 6px;
+    padding: var(--space-1) var(--mail-inset, var(--space-2)) 6px;
   }
   .mail-subject {
     font-size: 18px;

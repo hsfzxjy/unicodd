@@ -4,6 +4,7 @@ import FirstRun from './components/FirstRun.vue'
 import Terminal from './components/Terminal.vue'
 import TerminalSession from './components/TerminalSession.vue'
 import TerminalTitle from './components/TerminalTitle.vue'
+import type { TerminalEntryView } from './composables/terminal-presentation'
 import { useVisibleViewport } from './composables/useVisibleViewport'
 import logicRevision, { previousRevision } from 'virtual:unicodd-logic-revision'
 import { campaignKey, createCampaign, type DirectEntry } from './lib/campaign'
@@ -19,7 +20,6 @@ import {
   scrollbackLimit,
   type Checkpoint,
   type ComposerSave,
-  type Entry,
   type JournalFrame,
   type TerminalPanel,
 } from './lib/workspace'
@@ -80,7 +80,7 @@ const application = ref<HTMLElement>()
 const shortViewport = useVisibleViewport(application)
 const terminal = ref<InstanceType<typeof Terminal>>()
 const contextVersion = ref(0)
-const transcript = shallowRef<Entry[]>([])
+const transcript = shallowRef<TerminalEntryView[]>([])
 const transcriptLive = ref(false)
 const prompt = computed(() => session.value?.host?.id ?? 'local')
 const operations = computed(() => {
@@ -177,7 +177,19 @@ const caseProgressLabel = computed(() => {
   const total = progress.steps.length
   return `${progress.completed} of ${total} case ${total === 1 ? 'step' : 'steps'} complete`
 })
-const permissionLabel = computed(() => session.value?.identity.role.replaceAll('-', ' ') ?? '')
+const formatPermission = (role: string) => role.replaceAll('-', ' ')
+const permissionLabel = computed(() => formatPermission(session.value?.identity.role ?? ''))
+
+function arrival(host: string | undefined, role: string): TerminalEntryView['arrival'] {
+  if (host) return { host, role: formatPermission(role) }
+}
+
+function welcomeEntry(
+  output: TerminalEntryView['output'],
+  { host, identity }: ReturnType<NonNullable<typeof runtime>['snapshot']>,
+): TerminalEntryView {
+  return { id: 0, output, arrival: arrival(host, identity.role) }
+}
 const goalStatus = computed(() =>
   session.value?.completed ? 'Complete' : caseComplete.value ? 'Completed earlier' : 'In progress',
 )
@@ -295,7 +307,7 @@ watch([scenarioId, attempt], async ([id]) => {
   includeWelcome = true
   checkpointNext = false
   sequence = 1
-  transcript.value = [{ id: 0, output: active.welcome() }]
+  transcript.value = [welcomeEntry(active.welcome(), baseline.runtime)]
   let restored = false
   if (historyMatches && saved?.journal) {
     try {
@@ -312,7 +324,14 @@ watch([scenarioId, attempt], async ([id]) => {
       includeWelcome = saved.journal.welcome
       checkpointNext = true
       sequence = (frames.at(-1)?.record.id ?? 0) + 1
-      transcript.value = replay.entries
+      const actions = new Map(frames.map(({ record }) => [record.id, record.action]))
+      transcript.value = replay.entries.map((entry) => {
+        if (entry.id === 0) return welcomeEntry(entry.output, baseline.runtime)
+        const action = actions.get(entry.id)
+        if (action?.type !== 'connect' || !connectionWelcome(entry.output)) return entry
+        const host = loaded.hosts.find(({ id }) => id === action.host)
+        return host ? { ...entry, arrival: arrival(host.id, host.guest.role) } : entry
+      })
       restored = true
     } catch {
       // A malformed history can be discarded independently of the level state.
@@ -343,6 +362,10 @@ watch([scenarioId, attempt], async ([id]) => {
   }
 })
 void loadCatalog()
+
+function connectionWelcome(output: TerminalEntryView['output']) {
+  return output.length === 1 && output[0].kind === 'message' && output[0].narrative
+}
 
 async function dispatch(action: Action, command?: string) {
   const active = runtime
@@ -393,16 +416,20 @@ async function dispatch(action: Action, command?: string) {
       checkpointNext = false
       sequence = 1
       if (action.type === 'reset') terminal.value?.resetComposer()
-      transcript.value = response.output ? [{ id: 0, output: response.output }] : []
+      transcript.value = response.output ? [welcomeEntry(response.output, baseline.runtime)] : []
       terminal.value?.restoreView()
       saveLevel(command !== undefined)
     } else if (response.enter === undefined && (echo || response.output)) {
       const output = response.output ?? []
-      const entry: Entry = {
+      const entry: TerminalEntryView = {
         id: sequence++,
         echo,
         ...entryContext(action, before.host?.id),
         output,
+        arrival:
+          action.type === 'connect' && connectionWelcome(output)
+            ? arrival(active.state.host?.id, active.state.identity.role)
+            : undefined,
         freshProgress: output.some((row) => 'progress' in row && Boolean(row.progress)),
       }
       frames = [
@@ -507,6 +534,7 @@ async function dispatch(action: Action, command?: string) {
       <Terminal
         ref="terminal"
         :transcript="transcript"
+        :opening-request="direct === undefined && scenario.id === relayId ? requestId : undefined"
         :live="transcriptLive"
         :prompt="prompt"
         :connected="Boolean(session.host)"

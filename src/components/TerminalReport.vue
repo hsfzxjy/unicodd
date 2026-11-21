@@ -136,6 +136,9 @@ function usePayload(text: string) {
   row-gap: 3px;
   overflow-wrap: anywhere;
 }
+.terminal-report .terminal-link[aria-disabled='true'] {
+  opacity: 0.7;
+}
 .report-content {
   display: flex;
   flex-wrap: wrap;
@@ -145,7 +148,7 @@ function usePayload(text: string) {
 }
 .report-label {
   min-width: 0;
-  font-weight: 650;
+  font-weight: 550;
 }
 .report-hex {
   display: flex;
@@ -198,6 +201,9 @@ function usePayload(text: string) {
 .source-coordinate.terminal-link:hover:not([aria-disabled='true']) {
   background: var(--raised);
 }
+.source-coordinate.terminal-link {
+  color: var(--evidence);
+}
 .source-row .report-content > button {
   justify-self: start;
 }
@@ -205,6 +211,9 @@ function usePayload(text: string) {
   gap: 2px 8px;
 }
 @media (min-width: 900px) {
+  .terminal-report:has(.source-row) {
+    max-inline-size: 70rem;
+  }
   .source-row .report-content {
     grid-template-columns: minmax(0, 1fr) minmax(0, 32ch);
     align-items: start;
@@ -215,6 +224,8 @@ function usePayload(text: string) {
   .source-row .source-coordinates {
     grid-column: 2;
     grid-row-end: span 2;
+    padding-inline-start: var(--space-2);
+    box-shadow: inset 1px 0 var(--line);
   }
   .source-row :is(.report-details, .report-fields) {
     grid-column: 1 / -1;
@@ -222,8 +233,8 @@ function usePayload(text: string) {
 }
 
 .report-source mark {
-  color: inherit;
-  background: #304d42;
+  color: #f2d4a4;
+  background: #493925;
   border-bottom: 1px solid currentColor;
 }
 
@@ -275,6 +286,9 @@ function usePayload(text: string) {
   }
   .source-row .report-content {
     row-gap: 0;
+  }
+  .short-viewport .source-coordinate:not(.terminal-link) {
+    min-height: 23px;
   }
 }
 </style>

@@ -666,13 +666,12 @@ defineExpose({
 .prompt {
   display: block;
   padding-inline-start: 7px;
-  /* border-inline-start: 2px solid var(--control); */
-  background: var(--inset);
+  background: var(--editor-well);
   font-family: var(--mono);
 }
 .prompt:focus-within {
-  border-inline-start-color: var(--accent);
-  background: #192a28;
+  background: var(--editor-active);
+  box-shadow: inset 2px 0 var(--accent);
 }
 .prompt label {
   cursor: text;
@@ -682,6 +681,9 @@ defineExpose({
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.prompt .prompt-host {
+  color: var(--accent);
 }
 .prompt input {
   flex: 1;
@@ -694,6 +696,12 @@ defineExpose({
 }
 .prompt input:focus {
   outline: none;
+}
+@media (forced-colors: active) {
+  .prompt:has(input:focus) {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
 }
 /* Reads and its file shortcut teleport into the prompt on compact layouts. */
 .prompt button,
@@ -708,8 +716,8 @@ defineExpose({
 }
 .prompt button.run-command {
   border-color: transparent;
-  background: var(--raised);
-  color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
   font-weight: 700;
 }
 .prompt button.run-command:disabled {
@@ -717,8 +725,7 @@ defineExpose({
   color: var(--muted);
 }
 .prompt button.run-command:hover:not(:disabled) {
-  background: var(--accent);
-  color: var(--accent-ink);
+  background: var(--accent-hover);
 }
 .suggestions {
   position: absolute;
@@ -729,6 +736,7 @@ defineExpose({
   gap: 4px;
   padding: 4px;
   border: 1px solid var(--control);
+  border-block-start-color: var(--accent);
   background: var(--surface);
   font-family: var(--mono);
 }
@@ -879,9 +887,6 @@ defineExpose({
   }
   .prompt .command-picker[aria-expanded='true'] .disclosure-icon {
     rotate: 180deg;
-  }
-  .prompt:focus-within {
-    background: var(--inset);
   }
   .prompt-line {
     gap: var(--compact-gap);

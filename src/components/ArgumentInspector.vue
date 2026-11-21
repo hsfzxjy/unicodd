@@ -282,6 +282,7 @@ defineExpose({
   rotate: 90deg;
 }
 .inspector-title select {
+  border-color: var(--control);
   border-radius: 2px;
   background: var(--surface);
   color-scheme: dark;
@@ -346,12 +347,12 @@ defineExpose({
   padding: 2px 4px;
   line-height: 1.3;
 }
-.argument-inspector .point[aria-pressed='true'] {
-  background-color: #27343e;
+.argument-inspector button.point[aria-pressed='true'] {
+  background-color: var(--selection-fill);
+  color: var(--text);
   box-shadow: inset 0 0 0 2px var(--accent);
 }
 .point:focus-visible {
-  outline-color: var(--text);
   outline-offset: -5px;
 }
 .point-caret {

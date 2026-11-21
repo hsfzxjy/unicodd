@@ -403,6 +403,7 @@ defineExpose({
   background: transparent;
   color: var(--accent);
   text-decoration: underline;
+  text-decoration-thickness: 1px;
   text-underline-offset: 3px;
 }
 :where(.terminal-frame) :deep(.transcript-prose) {
@@ -457,7 +458,7 @@ defineExpose({
 .earlier-read {
   margin-bottom: 10px;
   padding: 5px 8px;
-  border-inline-start: 2px dashed var(--muted);
+  border-inline-start: 2px dashed var(--control);
   background: var(--surface);
 }
 .earlier-read-label {

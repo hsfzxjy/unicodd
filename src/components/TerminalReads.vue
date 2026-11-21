@@ -131,6 +131,7 @@ defineExpose({ close })
   overflow: auto;
   overscroll-behavior: contain;
   border: 1px solid var(--control);
+  border-block-start-color: var(--accent);
   color: var(--text);
   background: var(--surface);
   font: 13px/1.35 var(--sans);

@@ -41,6 +41,16 @@ defineProps<{ path?: string; messages: MailMessage[] }>()
 </template>
 
 <style scoped>
+.terminal-mail {
+  max-inline-size: 42rem;
+  padding: 6px var(--space-3) var(--space-2);
+  color: var(--record-ink);
+  background: #2a2a25;
+}
+.terminal-mail .file-path,
+.mail-headers {
+  color: #c6bdae;
+}
 .mail-headers {
   font: 12px/1.35 var(--mono);
   display: grid;
@@ -48,13 +58,15 @@ defineProps<{ path?: string; messages: MailMessage[] }>()
   margin-block: var(--space-1);
 }
 .mail-headers dt {
+  color: inherit;
   font-size: inherit;
+  font-weight: 550;
 }
 .mail-headers dd {
   margin: 0;
 }
 .mail-subject {
-  font: 650 15px/1.35 var(--sans);
+  font: 400 20px/1.2 var(--record-display);
 }
 .terminal-mail pre {
   max-width: 72ch;
@@ -64,12 +76,18 @@ defineProps<{ path?: string; messages: MailMessage[] }>()
 .terminal-mail article + article {
   margin-top: 12px;
   padding-top: 8px;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid #62584a;
 }
 .terminal-mail:focus-visible {
   outline-offset: 3px;
 }
 @media (max-width: 830px) {
+  .terminal-mail {
+    padding: var(--space-1) var(--space-2) 6px;
+  }
+  .mail-subject {
+    font-size: 18px;
+  }
   .mail-headers {
     grid-template-columns: 7ch minmax(0, 1fr);
     column-gap: var(--space-1);

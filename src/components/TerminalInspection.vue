@@ -277,6 +277,10 @@ details[open] > summary .disclosure-icon {
 .inspection-point bdi {
   overflow-wrap: anywhere;
 }
+.inspection-summary > .inspection-point bdi {
+  font-size: 20px;
+  line-height: 1.2;
+}
 .inspection-point code {
   text-decoration: underline;
   text-underline-offset: 3px;

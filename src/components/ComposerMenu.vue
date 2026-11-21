@@ -127,6 +127,7 @@ function menuKey(event: KeyboardEvent) {
   overflow-y: auto;
   overscroll-behavior: contain;
   border: 1px solid var(--control);
+  border-block-start-color: var(--accent);
   padding: 3px;
   background: var(--surface);
 }

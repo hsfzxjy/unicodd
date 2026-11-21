@@ -11,7 +11,7 @@ import {
   Target,
   Terminal as TerminalIcon,
 } from '@lucide/vue'
-import { computed, ref, shallowRef, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { ScenarioEntry } from '../lib/content'
 import type { createRuntime, Session } from '../lib/runtime'
 import type { TerminalPanel } from '../lib/workspace'
@@ -87,17 +87,14 @@ const titleStatus = computed(() => {
     },
   ] as const
 })
-const changedStatus = shallowRef(new Set<TerminalPanel>())
 const statusAnnouncement = ref('')
 watch(titleStatus, (current, previous) => {
   if (!props.transcriptLive) {
-    changedStatus.value = new Set()
     statusAnnouncement.value = ''
     return
   }
   const changed = current.filter((item, index) => previous[index]?.detail !== item.detail)
   if (changed.length) {
-    changedStatus.value = new Set(changed.map(({ key }) => key))
     statusAnnouncement.value = changed.map(({ detail }) => detail).join(' ')
   }
 })
@@ -131,10 +128,7 @@ watch(titleStatus, (current, previous) => {
         :key="item.key"
         type="button"
         class="icon-button title-status"
-        :class="{
-          'status-reached': item.reached,
-          'status-changing': changedStatus.has(item.key),
-        }"
+        :class="{ 'status-reached': item.reached }"
         :aria-label="item.name"
         :title="item.detail"
         :aria-controls="item.key + '-details'"
@@ -189,6 +183,7 @@ watch(titleStatus, (current, previous) => {
 
 <style scoped>
 .wordmark {
+  color: var(--accent);
   font: 700 17px var(--mono);
   white-space: nowrap;
 }
@@ -206,7 +201,7 @@ h1.terminal-scenario {
   white-space: nowrap;
 }
 .frame-title select {
-  border-color: var(--line);
+  border-color: var(--control);
 }
 .frame-title {
   display: flex;
@@ -216,6 +211,7 @@ h1.terminal-scenario {
   padding-inline: var(--space-2);
   border-bottom: 1px solid var(--line);
   background: var(--surface);
+  box-shadow: inset 0 1px #29393b;
 }
 .frame-title button,
 .frame-title select {
@@ -274,20 +270,6 @@ h1.terminal-scenario {
   color: var(--accent-ink);
   font: 700 10px/12px var(--sans);
   text-align: center;
-}
-.status-changing .status-mark {
-  animation: title-status-change 1000ms ease-out;
-}
-@keyframes title-status-change {
-  from {
-    color: var(--accent);
-    filter: drop-shadow(0 0 3px var(--accent));
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .status-changing .status-mark {
-    animation: none;
-  }
 }
 @media (max-width: 700px) {
   .frame-title {

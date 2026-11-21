@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ChevronDown, ChevronRight, Mail, Pencil } from '@lucide/vue'
+import { computed } from 'vue'
 import ConsoleControls from './ConsoleControls.vue'
 import TerminalInspection from './TerminalInspection.vue'
 import TerminalListing from './TerminalListing.vue'
@@ -7,7 +8,7 @@ import TerminalProgress from './TerminalProgress.vue'
 import TerminalReport from './TerminalReport.vue'
 import TerminalResource from './TerminalResource.vue'
 import { commandDefinition, commandEcho, commandRegistry, type CommandName } from '../lib/commands'
-import type { Action, Session } from '../lib/runtime'
+import type { Action, ProgressTransition, Session } from '../lib/runtime'
 import type { Entry } from '../lib/workspace'
 
 const props = defineProps<{
@@ -30,6 +31,17 @@ const emit = defineEmits<{
   mail: []
   reuse: [string]
 }>()
+
+const collapsedProgress = computed(() => {
+  if (!props.collapsed) return
+  let scope: ProgressTransition['scope'] | undefined
+  for (const row of props.entry.output) {
+    if (!('progress' in row) || !row.progress) continue
+    if (row.progress.scope === 'scenario') return 'scenario'
+    scope = row.progress.scope
+  }
+  return scope
+})
 
 function helpCommand(name: CommandName, referenceConnected: boolean) {
   // Local help prints console command names without the prefix.
@@ -84,10 +96,8 @@ function echoText(value: string) {
           v-if="entry.output.length || entry.waiting"
           type="button"
           class="icon-button output-toggle"
-          :class="{
-            'collapsed-progress':
-              collapsed && entry.output.some((row) => 'progress' in row && row.progress),
-          }"
+          :class="{ 'collapsed-progress': collapsedProgress }"
+          :data-scope="collapsedProgress"
           aria-label="Toggle command output"
           :aria-controls="outputId"
           :aria-expanded="!collapsed"
@@ -232,20 +242,21 @@ function echoText(value: string) {
   margin-top: var(--space-2);
 }
 .terminal-entry.has-command {
-  border-inline-start: 2px solid #7f95a5;
+  border-inline-start: 2px solid #506466;
 }
 .terminal-entry.remote-entry {
-  border-inline-start-color: #698799;
+  border-inline-start-color: #536d72;
 }
 .command-echo {
   display: flex;
   align-items: flex-start;
-  background: #27343e;
+  background: #1d282b;
+  box-shadow: inset 0 -1px #304346;
   color: var(--text);
   cursor: pointer;
 }
 .command-echo.remote {
-  background: #22343e;
+  background: #1d2b30;
 }
 .command-line {
   display: flex;
@@ -254,7 +265,7 @@ function echoText(value: string) {
   gap: 6px;
   min-width: 0;
   padding: 4px 6px;
-  font-weight: 650;
+  font-weight: 550;
   white-space: pre-wrap;
 }
 .command-line .prompt-host {
@@ -283,16 +294,20 @@ function echoText(value: string) {
 .entry-actions button:focus-visible {
   outline-offset: -2px;
 }
-.entry-actions .output-toggle {
-  color: var(--accent);
-}
 .entry-actions .collapsed-progress {
-  background: #294b42;
-  color: var(--text);
+  background: var(--verification-fill);
+  color: var(--verification-ink);
+}
+.entry-actions .collapsed-progress[data-scope='scenario'] {
+  background: var(--completion-fill);
+  color: var(--completion-ink);
 }
 .has-command .entry-body {
   padding: var(--space-1) var(--space-2) 6px;
   background: var(--surface);
+}
+.has-command .entry-body:has(> .entry-output:only-child > .terminal-mail:only-child) {
+  background: transparent;
 }
 .terminal-line {
   white-space: pre-wrap;
@@ -309,7 +324,8 @@ function echoText(value: string) {
 }
 .terminal-line.error {
   padding-inline-start: 6px;
-  border-inline-start: 2px solid var(--error);
+  border-inline-start: 2px solid #d98a80;
+  background: #362729;
 }
 .output-wait {
   margin-top: 2px;

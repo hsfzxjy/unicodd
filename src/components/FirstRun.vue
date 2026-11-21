@@ -24,11 +24,12 @@ const emit = defineEmits<{ readRequest: [] }>()
 
 <style scoped>
 .access-console {
-  max-inline-size: 1200px;
+  max-inline-size: 40rem;
   margin-inline: auto;
-  padding: var(--space-3);
+  padding: 16px;
   border: 1px solid var(--line);
-  background: var(--inset);
+  border-block-start: 2px solid var(--accent);
+  background: var(--surface);
   overflow-wrap: anywhere;
 }
 .access-console p {
@@ -36,7 +37,8 @@ const emit = defineEmits<{ readRequest: [] }>()
   margin-block: var(--space-2);
 }
 .access-console h1 {
-  color: var(--accent);
+  color: var(--record-ink);
+  font: 400 22px/1.25 var(--record-display);
 }
 .read-request {
   min-block-size: 44px;
@@ -45,12 +47,24 @@ const emit = defineEmits<{ readRequest: [] }>()
   border-radius: 0;
   background: var(--accent);
   color: var(--accent-ink);
+  padding-inline: var(--space-3);
   font-weight: 650;
 }
 .read-request:hover {
-  background: var(--text);
+  background: var(--accent-hover);
 }
 .guidance {
   color: var(--muted);
+}
+.access-console :deep(.console-controls summary) {
+  background: var(--raised);
+}
+@media (max-width: 600px) {
+  .access-console {
+    padding: var(--space-3);
+  }
+  .access-console h1 {
+    font-size: 20px;
+  }
 }
 </style>

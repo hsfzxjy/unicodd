@@ -1,17 +1,27 @@
 :root {
   color-scheme: dark;
-  --bg: #10161b;
-  --surface: #161e24;
-  --inset: #10171c;
-  --raised: #202b33;
-  --text: #e5ebee;
-  --muted: #a6b4bd;
-  --line: #303e48;
-  --control: #43535e;
-  --accent: #a0d7c0;
-  --accent-ink: #10241c;
-  --evidence: #b8d1ea;
-  --error: #f0aaa6;
+  --bg: #0e1517;
+  --inset: #131d20;
+  --surface: #1a2528;
+  --raised: #243337;
+  --text: #e4ede9;
+  --muted: #a6b8b7;
+  --line: #394c50;
+  --control: #6a8285;
+  --accent: #a6dbc5;
+  --accent-ink: #122923;
+  --accent-hover: #c6eadb;
+  --evidence: #b7d7ed;
+  --error: #f1b1a8;
+  --focus: #f3dfad;
+  --editor-well: #10191c;
+  --editor-active: #1a2c29;
+  --selection-fill: #27453f;
+  --record-ink: #eee8da;
+  --verification-fill: #22353f;
+  --verification-ink: #c6e3f3;
+  --completion-fill: #263a31;
+  --completion-ink: #deefdd;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -21,6 +31,7 @@
   --touch-height: 32px;
   --mono: 'Cascadia Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
   --sans: system-ui, 'Segoe UI', sans-serif;
+  --record-display: Georgia, 'Noto Serif', serif;
   background: var(--bg);
   color: var(--text);
   font: 14px/1.5 var(--sans);
@@ -115,8 +126,14 @@ button:active:not(:disabled) {
   opacity: 0.57;
 }
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
+}
+@media (forced-colors: none) {
+  ::selection {
+    background: var(--selection-fill);
+    color: var(--text);
+  }
 }
 button[aria-pressed='true'] {
   border-color: var(--accent);

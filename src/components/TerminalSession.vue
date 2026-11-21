@@ -116,7 +116,7 @@ const emit = defineEmits<{ restart: [] }>()
 
 <style scoped>
 .title-panel {
-  --panel-surface: #1b2931;
+  --panel-surface: var(--raised);
   width: calc(100% - 2 * var(--space-2));
   max-height: min(calc(var(--app-height, 100dvh) * 0.34), 250px);
   margin-inline: auto var(--space-2);

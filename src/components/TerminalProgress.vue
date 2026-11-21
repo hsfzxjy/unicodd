@@ -10,7 +10,7 @@ onMounted(() => {
   if (!props.fresh || matchMedia('(prefers-reduced-motion: reduce)').matches) return
   band.value?.animate(
     [{ backgroundColor: 'var(--progress-highlight)' }, { backgroundColor: 'var(--progress-fill)' }],
-    { duration: props.progress.scope === 'scenario' ? 800 : 460, easing: 'ease-out' },
+    { duration: props.progress.scope === 'scenario' ? 560 : 320, easing: 'ease-out' },
   )
 })
 </script>
@@ -28,10 +28,10 @@ onMounted(() => {
 
 <style scoped>
 .progress-band {
-  --progress-ink: #c3e0f3;
-  --progress-edge: #8dbad8;
-  --progress-fill: #203241;
-  --progress-highlight: #32536a;
+  --progress-ink: var(--verification-ink);
+  --progress-edge: #84b5d0;
+  --progress-fill: var(--verification-fill);
+  --progress-highlight: #2b4654;
   margin-block: var(--space-2);
   padding: 5px var(--space-2);
   border-inline-start: 3px solid var(--progress-edge);
@@ -46,17 +46,24 @@ onMounted(() => {
   font: 700 14px/1.4 var(--sans);
 }
 .progress-band p {
+  max-inline-size: 76ch;
   margin-top: 3px;
 }
 .progress-band[data-scope='scenario'] {
-  --progress-ink: #d4f3e5;
-  --progress-edge: #96cdb6;
-  --progress-fill: #1d362f;
-  --progress-highlight: #345c50;
-  padding: 6px var(--space-2);
+  --progress-ink: var(--completion-ink);
+  --progress-edge: #91bd9b;
+  --progress-fill: var(--completion-fill);
+  --progress-highlight: #345244;
+  padding: 6px var(--space-3);
   border-inline-start-width: 4px;
 }
 .progress-band[data-scope='scenario'] h3 {
-  font-size: 16px;
+  font-size: 17px;
+  line-height: 1.3;
+}
+@media (max-width: 830px) {
+  .progress-band[data-scope='scenario'] {
+    padding-inline: var(--space-2);
+  }
 }
 </style>

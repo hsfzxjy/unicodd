@@ -100,7 +100,7 @@ const lines = computed(() =>
 }
 .terminal-file[data-format='evidence'] {
   padding-inline-start: 8px;
-  border-inline-start: 1px solid #6b859a;
+  border-inline-start: 1px solid #7ea2b4;
 }
 .terminal-file[data-format] .file-path {
   color: var(--evidence);

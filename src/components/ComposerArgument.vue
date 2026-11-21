@@ -164,11 +164,12 @@ defineExpose({
 .argument-editor {
   position: relative;
   min-width: 0;
-  background: var(--inset);
+  background: var(--editor-well);
   box-shadow: inset 0 -1px var(--control);
 }
 .argument-editor:focus-within {
-  box-shadow: inset 0 -1px var(--accent);
+  background: var(--editor-active);
+  box-shadow: inset 0 -2px var(--accent);
 }
 .argument-editor :is(textarea, .argument-mirror) {
   padding: 5px 6px var(--space-1);
@@ -191,6 +192,12 @@ defineExpose({
 }
 .argument-editor textarea:focus {
   outline: none;
+}
+@media (forced-colors: active) {
+  .argument-editor:has(textarea:focus) {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
 }
 .argument-overlay {
   position: absolute;

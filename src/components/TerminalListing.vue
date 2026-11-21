@@ -112,6 +112,7 @@ function listingIcon(action: Action) {
   min-width: 0;
   text-decoration: underline;
   text-decoration-color: var(--muted);
+  text-decoration-thickness: 1px;
   text-underline-offset: 3px;
 }
 .listing-title {
@@ -135,7 +136,7 @@ function listingIcon(action: Action) {
   white-space: nowrap;
 }
 .listing-unseen {
-  --unseen-surface: #1d322c;
+  --unseen-surface: #1d302b;
   background: var(--unseen-surface);
 }
 .listing-unseen :is(.listing-link, .listing-status, .listing-icon) {

@@ -568,7 +568,9 @@ async function dispatch(action: Action, command?: string) {
   padding: 16px;
 }
 .startup p {
+  max-inline-size: 76ch;
   margin-block: 6px 10px;
+  overflow-wrap: anywhere;
 }
 .startup-opening {
   min-block-size: 0;

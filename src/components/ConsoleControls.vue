@@ -15,9 +15,9 @@
       </p>
       <p dir="auto">
         Use <code>inspect</code> for a Unicode character or code point. Copy the character or use
-        Insert in the active argument. With text selected, Replace changes just the selection.
-        Earlier reads opens files and messages you’ve already opened. Use Back to work to return to
-        your work.
+        Insert in the active argument. With text selected, Replace changes just the selection. Use
+        Earlier reads to reopen files and mail. Back to work restores your previous transcript
+        position.
       </p>
     </div>
   </details>

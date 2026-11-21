@@ -105,11 +105,7 @@ const emit = defineEmits<{ restart: [] }>()
       </div>
     </dl>
     <p v-else-if="!campaignFinished" class="panel-note">
-      {{
-        session.host
-          ? 'No progress checks for this host.'
-          : 'Connect to a host to see its progress.'
-      }}
+      {{ session.host ? 'No checks for this host.' : 'Connect to a host to see its checks.' }}
     </p>
   </section>
 </template>

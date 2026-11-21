@@ -69,9 +69,12 @@ for (const [width, height] of [
       await page.screenshot({ path: info.outputPath('opening-reference.png') })
       if (width === 320) {
         await page.evaluate(() => (document.documentElement.style.fontSize = '200%'))
-        const lastParagraph = page.getByText('Use Back to work to return to your work.', {
-          exact: false,
-        })
+        const lastParagraph = page.getByText(
+          'Back to work restores your previous transcript position.',
+          {
+            exact: false,
+          },
+        )
         await lastParagraph.scrollIntoViewIfNeeded()
         await expect(lastParagraph).toBeInViewport()
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)

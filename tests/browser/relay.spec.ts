@@ -852,16 +852,27 @@ for (const [width, height] of [
       await expect(sessionToggle).toHaveAttribute('title', /Permissions: maintenance/)
       const queue = progressButton(page)
       await expect(queue).toBeInViewport()
-      await expect(queue).toHaveAccessibleName('Progress: 0 of 12 cases complete')
+      await expect(queue).toHaveAccessibleName(
+        'Progress: 1 of 2 case steps complete, 0 of 12 cases complete',
+      )
       await expect(queue.getByText('0/12', { exact: true })).toBeInViewport()
       await act(queue)
       const progress = frame.getByRole('region', { name: 'Progress', exact: true })
+      const caseMeter = progress.getByRole('progressbar', { name: 'Case steps complete' })
+      const steps = progress.getByRole('list', { name: 'Case steps' })
+      await expect(caseMeter).toBeInViewport()
+      await expect(caseMeter).toHaveJSProperty('value', 1)
+      await expect(caseMeter).toHaveJSProperty('max', 2)
+      await expect(progress.locator('.case-next')).toHaveText(
+        /Last step\s*Read the incident record/,
+      )
+      await expect(steps.locator('[aria-current=step]')).toContainText('Read the incident record')
       const meter = progress.getByRole('progressbar', { name: 'Campaign cases complete' })
       await expect(meter).toBeInViewport()
       await expect(meter).toHaveJSProperty('value', 0)
       await expect(meter).toHaveJSProperty('max', 12)
-      await expect(progress).toContainText('Record ready to read')
-      await expect(progress.locator('.lucide-check')).toBeVisible()
+      await expect(queue).toHaveAttribute('title', /Record ready to read/)
+      await expect(steps.locator('.lucide-check')).toBeVisible()
       await expect(sessionToggle).toHaveAttribute('aria-expanded', 'false')
       await capture('12-progress')
       await act(sessionToggle)
@@ -885,7 +896,9 @@ for (const [width, height] of [
       await act(link(page, 'queue/'))
       await act(link(page, '8c2f.msg'))
       await expect(contextPanel(page)).toBeHidden()
-      await expect(queue).toHaveAccessibleName('Progress: 1 of 12 cases complete')
+      await expect(queue).toHaveAccessibleName(
+        'Progress: 2 of 2 case steps complete, 1 of 12 cases complete',
+      )
       await expect(queue.getByText('1/12', { exact: true })).toBeInViewport()
       await expect(
         frame.getByRole('button', { name: 'Goal: Complete', exact: true }),
@@ -895,6 +908,9 @@ for (const [width, height] of [
         terminal(page).getByRole('heading', { name: 'The Relay · Complete' }),
       ).toBeInViewport()
       await capture('13-complete')
+      await act(queue)
+      await expect(caseMeter).toHaveJSProperty('value', 2)
+      await expect(meter).toHaveJSProperty('value', 1)
       await act(goalButton(page, 'Complete'))
       await expect(frame.getByRole('region', { name: 'Goal', exact: true })).toBeVisible()
       await capture('14-goal')

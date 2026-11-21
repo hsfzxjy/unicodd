@@ -293,6 +293,21 @@
     }
   ],
   "objective": {
+    "progress": {
+      "steps": [
+        {
+          "host": "recovery-05",
+          "state": "approval-receipts",
+          "label": "Retrieve both approval receipts"
+        },
+        {
+          "host": "recovery-05",
+          "status": "Owner approvals",
+          "label": "Verify the owner approvals"
+        }
+      ],
+      "finish": "Read the repair authorization"
+    },
     "text": "Link each approval to its owner and read the authorization.",
     "read": "authorization",
     "message": "Two-record repair authorized. Release remains on hold.",

@@ -4,8 +4,9 @@
     <div class="controls-copy">
       <p dir="auto">
         Open hosts, folders, files and messages from the transcript. Goal shows your task. Session
-        shows your location and access. Progress counts completed cases. Hosts and Mail in the title
-        bar open the local directory and inbox, including during a host session.
+        shows your location and access. Progress shows the steps left in this case and how many
+        cases you’ve finished. Hosts and Mail in the title bar open the local directory and inbox,
+        including during a host session.
       </p>
       <p dir="auto">
         Type a command and press Enter, or use a shortcut. On small screens, open Commands. Choose a

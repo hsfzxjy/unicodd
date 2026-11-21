@@ -186,6 +186,16 @@
     }
   ],
   "objective": {
+    "progress": {
+      "steps": [
+        {
+          "host": "relay-07",
+          "status": "Incident 8C2F",
+          "label": "Get maintenance access"
+        }
+      ],
+      "finish": "Read the incident record"
+    },
     "text": "Read the original record for incident 8C2F.",
     "read": "incident",
     "message": "Incident 8C2F retrieved.",

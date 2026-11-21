@@ -234,6 +234,16 @@
     }
   ],
   "objective": {
+    "progress": {
+      "steps": [
+        {
+          "host": "spool-13",
+          "status": "Application acknowledgments",
+          "label": "Verify both application acknowledgments"
+        }
+      ],
+      "finish": "Read the ingestion report"
+    },
     "text": "Verify both acknowledgments against the capture and read the ingestion report.",
     "read": "final-report",
     "handoff": "ingestion",

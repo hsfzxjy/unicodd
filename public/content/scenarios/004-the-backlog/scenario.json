@@ -314,6 +314,21 @@
     }
   ],
   "objective": {
+    "progress": {
+      "steps": [
+        {
+          "host": "appeals-04",
+          "status": "Appeal queue replay",
+          "label": "Verify the queue traversal"
+        },
+        {
+          "host": "appeals-04",
+          "status": "Appeals for review",
+          "label": "Recover both appeals"
+        }
+      ],
+      "finish": "Read the review handoff"
+    },
     "text": "Recover both appeals and read the review handoff.",
     "read": "review-handoff",
     "message": "Both appeals are open for review.",

@@ -223,6 +223,21 @@
     }
   ],
   "objective": {
+    "progress": {
+      "steps": [
+        {
+          "host": "bundle-17",
+          "state": "dossier-candidate",
+          "label": "Stage an extraction trial"
+        },
+        {
+          "host": "bundle-17",
+          "status": "Receiver readback",
+          "label": "Verify receiver readback"
+        }
+      ],
+      "finish": "Read the delivery report"
+    },
     "text": "Verify all approved files on all three receivers, then read the delivery report.",
     "read": "final-report",
     "dossier": "bundle",

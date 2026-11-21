@@ -208,6 +208,16 @@
     }
   ],
   "objective": {
+    "progress": {
+      "steps": [
+        {
+          "host": "postbox-03",
+          "status": "Notice 2917",
+          "label": "Release the held notice"
+        }
+      ],
+      "finish": "Read notice 2917"
+    },
     "text": "Release and read notice 2917.",
     "read": "body",
     "message": "Notice 2917 recovered.",

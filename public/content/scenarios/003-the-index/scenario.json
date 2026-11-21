@@ -282,6 +282,21 @@
     }
   ],
   "objective": {
+    "progress": {
+      "steps": [
+        {
+          "host": "index-09",
+          "status": "Collision lookup",
+          "label": "Locate the collision bucket"
+        },
+        {
+          "host": "index-09",
+          "status": "Original registrations",
+          "label": "Verify the original registrations"
+        }
+      ],
+      "finish": "Read the registration export"
+    },
     "text": "Verify both original registrations and read the export for Support.",
     "read": "originals",
     "message": "Original registration export opened for Support.",

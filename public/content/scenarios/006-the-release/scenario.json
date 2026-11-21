@@ -477,6 +477,26 @@
     }
   ],
   "objective": {
+    "progress": {
+      "steps": [
+        {
+          "host": "audit-06",
+          "status": "Split plan",
+          "label": "Stage the split plan"
+        },
+        {
+          "host": "audit-06",
+          "status": "Audit preview",
+          "label": "Pass the audit preview"
+        },
+        {
+          "host": "audit-06",
+          "status": "Dry run",
+          "label": "Pass the dry run"
+        }
+      ],
+      "finish": "Apply the account split"
+    },
     "text": "Verify and apply the split while keeping both original registrations and approvals.",
     "action": "commit",
     "message": "Both accounts are back in service under their original registrations.",

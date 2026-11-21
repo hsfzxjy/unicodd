@@ -19,6 +19,7 @@ import {
 import {
   parentPath,
   puzzleArity,
+  type CaseStep,
   type Effect,
   type Guard,
   type Host,
@@ -848,6 +849,7 @@ export function createContentLoader(
         'dossier',
         'message',
         'completionBand',
+        'progress',
         'onComplete',
       )
       const read = objective('read').optional((item) => item.ref(fileIds, 'file resource'))
@@ -900,6 +902,41 @@ export function createContentLoader(
             'Expected a read gate opened by the matching archive operation.',
           )
       }
+      const progress = objective('progress').optional((field) => {
+        const get = field.object('steps', 'finish')
+        const seen = new Set<string>()
+        const steps = get('steps').list((item): CaseStep => {
+          const step = item.object('host', 'label', 'status', 'state')
+          const hostId = step('host').ref(
+            hosts.map(({ id }) => id),
+            'host',
+          )
+          const host = hosts.find(({ id }) => id === hostId)!
+          const label = step('label').text()
+          const status = step('status').optional((value) => value.text())
+          const state = step('state').optional((value) =>
+            value.ref(['approval-receipts', 'dossier-candidate'] as const, 'progress state'),
+          )
+          if (Boolean(status) === Boolean(state)) item.fail('Specify one status or progress state.')
+          if (state) {
+            const command =
+              state === 'approval-receipts'
+                ? recovery && 'lookup'
+                : stage && dossierCandidates[stage]
+            if (!host.recovery?.some((binding) => binding.command === command))
+              step('state').fail('This host does not provide the corresponding operation.')
+            step('state').unique(seen, `${hostId}/state/${state}`)
+            return { host: hostId, label, when: state }
+          }
+          const matches = host.status.filter(({ label }) => label === status)
+          const guard = matches[0]?.after
+          if (matches.length !== 1 || !guard)
+            return step('status').fail('Expected one matching host status with a condition.')
+          step('status').unique(seen, `${hostId}/status/${status}`)
+          return { host: hostId, label, when: 'status', guard }
+        })
+        return { steps, finish: get('finish').text() }
+      })
       const onComplete =
         objective('onComplete').optional((field) =>
           field.list((item): ProgressEffect => {
@@ -948,6 +985,7 @@ export function createContentLoader(
           ...(read ? { read, handoff, dossier: stage } : { action: action! }),
           message: objective('message').text(),
           completionBand: objective('completionBand').optional((item) => item.bool()),
+          progress,
           onComplete,
         },
       }

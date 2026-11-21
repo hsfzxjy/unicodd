@@ -37,6 +37,7 @@ import {
 } from './recovery.ts'
 import {
   parentPath,
+  type CaseStep,
   type Effect,
   type FileFormat,
   type Guard,
@@ -123,6 +124,18 @@ export interface Session {
   readResources: readonly string[]
   recovery?: Readonly<Record<string, { context: RecoveryContext; handoff?: Handoff }>>
   dossier?: Readonly<Record<string, DossierDraft>>
+}
+
+interface CaseStepStatus {
+  label: string
+  complete: boolean
+  detail?: string
+}
+
+export interface CaseProgress {
+  steps: CaseStepStatus[]
+  completed: number
+  nextIndex: number
 }
 
 interface DossierDraft {
@@ -340,6 +353,34 @@ export function createRuntime(
       (!guard?.roles || guard.roles.includes(state.identity.role)) &&
       (!guard?.flag || state.flags.includes(guard.flag))
     )
+  }
+
+  function caseStepStatus(step: CaseStep): CaseStepStatus {
+    const { host, label } = step
+    switch (step.when) {
+      case 'status':
+        return {
+          label,
+          complete: (!step.guard.roles || state.host?.id === host) && allows(step.guard),
+        }
+      case 'dossier-candidate':
+        return { label, complete: Boolean(state.dossier?.[host]?.candidate) }
+      case 'approval-receipts': {
+        const expected =
+          scenario.recovery?.dataset.receipts.filter(
+            ({ diagnostic, verified }) => verified && !diagnostic,
+          ) ?? []
+        const retrieved = state.recovery?.[host]?.context.receipts
+        const count = Array.isArray(retrieved)
+          ? expected.filter(({ id }) => retrieved.includes(id)).length
+          : 0
+        return {
+          label,
+          complete: expected.length > 0 && count === expected.length,
+          detail: `${count} of ${expected.length} receipts retrieved`,
+        }
+      }
+    }
   }
 
   function hostLinks(): Link[] {
@@ -1013,6 +1054,19 @@ export function createRuntime(
     },
     get operations() {
       return availableOperations()
+    },
+    get caseProgress(): CaseProgress {
+      const { progress, text } = scenario.objective
+      const finished = state.completed || campaign.completed(scenario.id)
+      const steps: CaseStepStatus[] = (progress?.steps ?? []).map((step) =>
+        finished ? { label: step.label, complete: true } : caseStepStatus(step),
+      )
+      steps.push({ label: progress?.finish ?? text, complete: finished })
+      return {
+        steps,
+        completed: steps.filter(({ complete }) => complete).length,
+        nextIndex: steps.findIndex(({ complete }) => !complete),
+      }
     },
     get hostStatus() {
       return state.host?.status.map(({ label, value, description, after }) => {

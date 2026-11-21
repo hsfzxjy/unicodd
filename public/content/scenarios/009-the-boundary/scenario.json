@@ -220,6 +220,16 @@
     }
   ],
   "objective": {
+    "progress": {
+      "steps": [
+        {
+          "host": "bridge-14",
+          "status": "Archive references",
+          "label": "Check the records on both readers"
+        }
+      ],
+      "finish": "Read the reconciliation report"
+    },
     "text": "Check all five records on both readers and open the reconciliation report.",
     "read": "final-report",
     "handoff": "mirror",

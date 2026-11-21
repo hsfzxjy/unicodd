@@ -195,6 +195,7 @@ test('keeps the focused last parameter inside its scrollport through live resizi
     await expect(panel.getByRole('heading', { name: 'Progress', exact: true })).toBeInViewport({
       ratio: 1,
     })
+    await expect(panel.getByRole('progressbar', { name: 'Case steps complete' })).toBeInViewport()
     await expect(progress.getByText('0/12', { exact: true })).toBeInViewport()
     await expect.poll(async () => (await log.boundingBox())!.height).toBeGreaterThanOrEqual(floor)
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)

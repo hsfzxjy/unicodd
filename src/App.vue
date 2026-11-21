@@ -37,6 +37,14 @@ const direct: DirectEntry | undefined = debugSelector
   : requestedScenario
 const catalog = shallowRef<ScenarioEntry[]>([])
 const scenarios = shallowRef<Scenario[]>([])
+const historyDefinitions = computed(() => [
+  catalog.value,
+  scenarios.value.map((scenario) => {
+    // Panel metadata does not affect any recorded command or transcript output.
+    const { progress: _progress, ...objective } = scenario.objective
+    return { ...scenario, objective }
+  }),
+])
 let campaign: ReturnType<typeof createCampaign> | undefined
 const destinations = computed(() =>
   session.value ? catalog.value.filter(({ id }) => campaign?.selectable(id)) : [],
@@ -162,6 +170,13 @@ const shortcuts = computed((): Link[] => {
 
 const suggestions = computed(() => (session.value ? (runtime?.suggestions() ?? []) : []))
 const hostStatus = computed(() => (session.value ? runtime?.hostStatus : undefined))
+const caseProgress = computed(() => (session.value ? runtime?.caseProgress : undefined))
+const caseProgressLabel = computed(() => {
+  const progress = caseProgress.value
+  if (!progress) return ''
+  const total = progress.steps.length
+  return `${progress.completed} of ${total} case ${total === 1 ? 'step' : 'steps'} complete`
+})
 const permissionLabel = computed(() => session.value?.identity.role.replaceAll('-', ' ') ?? '')
 const goalStatus = computed(() =>
   session.value?.completed ? 'Complete' : caseComplete.value ? 'Completed earlier' : 'In progress',
@@ -207,12 +222,11 @@ function needsOpening() {
 }
 
 async function startCampaign() {
-  const definitions = [catalog.value, scenarios.value]
   campaign = createCampaign(scenarios.value, storage, direct)
   await campaign.verifyDossier(props.engine)
   campaign.invalidateHistory(
     revision,
-    previousRevision && (await historyRevision(previousRevision, definitions)),
+    previousRevision && (await historyRevision(previousRevision, historyDefinitions.value)),
   )
   scenarioId.value = campaign.current
 }
@@ -238,7 +252,7 @@ async function loadCatalog() {
   try {
     catalog.value = await props.content.manifest()
     scenarios.value = await props.content.campaign(catalog.value)
-    revision = await historyRevision(logicRevision, [catalog.value, scenarios.value])
+    revision = await historyRevision(logicRevision, historyDefinitions.value)
     try {
       if (direct === undefined) storage = window.localStorage
     } catch {
@@ -485,7 +499,11 @@ async function dispatch(action: Action, command?: string) {
     class="application"
     :class="{ 'session-expanded': openPanel, 'short-viewport': shortViewport }"
   >
-    <main v-if="scenario && session" :key="scenario.id + '/' + attempt" class="workspace">
+    <main
+      v-if="scenario && session && caseProgress"
+      :key="scenario.id + '/' + attempt"
+      class="workspace"
+    >
       <Terminal
         ref="terminal"
         :transcript="transcript"
@@ -518,6 +536,8 @@ async function dispatch(action: Action, command?: string) {
               :permission-label="permissionLabel"
               :goal-status="goalStatus"
               :case-complete="caseComplete"
+              :case-progress-label="caseProgressLabel"
+              :next-step="caseProgress.steps[caseProgress.nextIndex]?.label"
               :campaign-progress="campaignProgress"
               :campaign-progress-label="campaignProgressLabel"
               :campaign-finished="campaignFinished"
@@ -532,13 +552,14 @@ async function dispatch(action: Action, command?: string) {
             />
             <TerminalSession
               :open-panel="openPanel"
-              :scenario-title="scenario.title"
               :session="session"
               :host-status="hostStatus"
               :permission-label="permissionLabel"
               :objective="scenario.objective.text"
               :goal-status="goalStatus"
               :case-complete="caseComplete"
+              :case-progress="caseProgress"
+              :case-progress-label="caseProgressLabel"
               :campaign-progress="campaignProgress"
               :campaign-progress-label="campaignProgressLabel"
               :busy="busy"

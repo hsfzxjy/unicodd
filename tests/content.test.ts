@@ -19,7 +19,10 @@ it('loads the production scenario catalog in progression order', async () => {
     '011-the-mask',
     '012-the-parcel',
   ])
-  await expect(production.campaign(entries)).resolves.toHaveLength(entries.length)
+  const scenarios = await production.campaign(entries)
+  expect(scenarios.map(({ objective }) => (objective.progress?.steps.length ?? 0) + 1)).toEqual([
+    2, 2, 3, 3, 3, 4, 2, 2, 2, 3, 3, 3,
+  ])
   expect(await readdir(productionRoot)).toEqual([
     'dossier',
     'manifest.json',
@@ -141,6 +144,29 @@ it.each([
       body.hosts[0].status[0].description = 7
     },
     /status\[0\]\.description.*text/i,
+  ],
+  [
+    'missing case step condition',
+    (body) => {
+      body.objective.progress.steps[0].status = 'Unlisted check'
+    },
+    /progress\.steps\[0\]\.status.*matching host status/,
+  ],
+  [
+    'repeated case step condition',
+    (body) => {
+      body.objective.progress.steps.push(body.objective.progress.steps[0])
+    },
+    /progress\.steps\[1\]\.status.*Duplicate/,
+  ],
+  [
+    'case step unsupported by its host',
+    (body) => {
+      const step = body.objective.progress.steps[0]
+      delete step.status
+      step.state = 'dossier-candidate'
+    },
+    /progress\.steps\[0\]\.state.*does not provide the corresponding operation/,
   ],
   [
     'unsupported record format',

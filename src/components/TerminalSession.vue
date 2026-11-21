@@ -1,25 +1,40 @@
 <script setup lang="ts">
-import { Check, CircleDashed } from '@lucide/vue'
-import { computed } from 'vue'
+import { ArrowRight, Check, CircleDashed } from '@lucide/vue'
+import { computed, ref, watch } from 'vue'
 import type { CampaignProgress } from '../lib/campaign'
-import type { createRuntime, Session } from '../lib/runtime'
+import type { CaseProgress, createRuntime, Session } from '../lib/runtime'
 import type { TerminalPanel } from '../lib/workspace'
 
 const props = defineProps<{
   openPanel?: TerminalPanel
-  scenarioTitle: string
   session: Session
   hostStatus?: ReturnType<typeof createRuntime>['hostStatus']
   permissionLabel: string
   objective: string
   goalStatus: string
   caseComplete: boolean
+  caseProgress: CaseProgress
+  caseProgressLabel: string
   campaignProgress: CampaignProgress
   campaignProgressLabel: string
   busy: boolean
 }>()
 const emit = defineEmits<{ restart: [] }>()
-const remaining = computed(() => props.campaignProgress.total - props.campaignProgress.completed)
+const casesRemaining = computed(
+  () => props.campaignProgress.total - props.campaignProgress.completed,
+)
+const nextStep = computed(() => props.caseProgress.steps[props.caseProgress.nextIndex])
+const lastStep = computed(
+  () => props.caseProgress.nextIndex === props.caseProgress.steps.length - 1,
+)
+const progressPanel = ref<HTMLElement>()
+watch(
+  () => props.openPanel,
+  (panel) => {
+    if (panel === 'progress') progressPanel.value?.scrollTo(0, 0)
+  },
+  { flush: 'post' },
+)
 </script>
 
 <template>
@@ -84,58 +99,82 @@ const remaining = computed(() => props.campaignProgress.total - props.campaignPr
   <section
     :hidden="openPanel !== 'progress'"
     id="progress-details"
+    ref="progressPanel"
     class="title-panel"
     aria-labelledby="progress-heading"
     tabindex="0"
   >
     <div class="panel-heading">
       <h2 id="progress-heading">Progress</h2>
-      <p class="campaign-summary">{{ campaignProgressLabel }}</p>
+      <p class="progress-count">{{ caseProgressLabel }}</p>
     </div>
-    <div class="campaign-track">
-      <progress
-        class="campaign-meter"
-        :value="campaignProgress.completed"
-        :max="campaignProgress.total"
-        aria-label="Campaign cases complete"
-        :aria-valuetext="campaignProgressLabel"
-      ></progress>
-      <p class="panel-note" :class="{ reached: remaining === 0 }">
-        {{ remaining ? `${remaining} remaining` : 'Campaign complete' }}
-      </p>
-    </div>
-    <div class="panel-heading progress-case">
-      <h3>
-        <bdi>{{ scenarioTitle }}</bdi>
-      </h3>
-      <span class="panel-status" :class="{ reached: caseComplete }">{{ goalStatus }}</span>
-    </div>
-    <dl v-if="hostStatus?.length" class="progress-details" aria-label="Host checks">
-      <div
-        v-for="({ label, value, description, reached }, index) in hostStatus"
+    <progress
+      class="progress-meter"
+      :value="caseProgress.completed"
+      :max="caseProgress.steps.length"
+      aria-label="Case steps complete"
+      :aria-valuetext="caseProgressLabel"
+    ></progress>
+    <p v-if="nextStep" class="case-next">
+      <span class="panel-status">{{ lastStep ? 'Last step' : 'Next step' }}</span>
+      <bdi>{{ nextStep.label }}</bdi>
+      <span v-if="nextStep.detail" class="panel-note">{{ nextStep.detail }}</span>
+    </p>
+    <p v-else class="case-next reached">{{ goalStatus }}</p>
+    <ol class="case-steps" role="list" aria-label="Case steps">
+      <li
+        v-for="({ label, complete }, index) in caseProgress.steps"
         :key="index"
-        :class="{ 'host-detail': reached === undefined }"
+        :class="{ reached: complete }"
+        :aria-current="index === caseProgress.nextIndex ? 'step' : undefined"
       >
-        <dt>
-          <bdi>{{ label }}</bdi>
-        </dt>
-        <dd>
-          <div class="check-result" :class="{ reached }">
-            <Check v-if="reached" aria-hidden="true" />
-            <CircleDashed v-else-if="reached === false" aria-hidden="true" />
-            <bdi>{{ value }}</bdi>
-          </div>
-          <p v-if="description" class="panel-note" dir="auto">{{ description }}</p>
-        </dd>
+        <Check v-if="complete" aria-hidden="true" />
+        <ArrowRight v-else-if="index === caseProgress.nextIndex" aria-hidden="true" />
+        <CircleDashed v-else aria-hidden="true" />
+        <span class="step-status">{{ complete ? 'Complete' : 'Pending' }}</span>
+        <bdi>{{ label }}</bdi>
+      </li>
+    </ol>
+    <section class="campaign-progress" aria-labelledby="campaign-heading">
+      <div class="panel-heading">
+        <h3 id="campaign-heading">Campaign</h3>
+        <p class="progress-count">{{ campaignProgressLabel }}</p>
       </div>
-    </dl>
-    <p v-else class="panel-note">
-      {{ session.host ? 'No checks for this host.' : 'No host connected.' }}
-    </p>
-    <p v-if="!caseComplete" class="panel-note case-objective" dir="auto">{{ objective }}</p>
-    <p v-else-if="!session.completed && hostStatus?.length" class="panel-note case-objective">
-      Host checks show the current session.
-    </p>
+      <div class="campaign-track">
+        <progress
+          class="progress-meter"
+          :value="campaignProgress.completed"
+          :max="campaignProgress.total"
+          aria-label="Campaign cases complete"
+          :aria-valuetext="campaignProgressLabel"
+        ></progress>
+        <p class="panel-note" :class="{ reached: casesRemaining === 0 }">
+          {{ casesRemaining ? `${casesRemaining} remaining` : 'Campaign complete' }}
+        </p>
+      </div>
+    </section>
+    <details v-if="hostStatus?.length" class="host-checks">
+      <summary>Host checks</summary>
+      <dl class="progress-details" aria-label="Host checks">
+        <div
+          v-for="({ label, value, description, reached }, index) in hostStatus"
+          :key="index"
+          :class="{ 'host-detail': reached === undefined }"
+        >
+          <dt>
+            <bdi>{{ label }}</bdi>
+          </dt>
+          <dd>
+            <div class="check-result" :class="{ reached }">
+              <Check v-if="reached" aria-hidden="true" />
+              <CircleDashed v-else-if="reached === false" aria-hidden="true" />
+              <bdi>{{ value }}</bdi>
+            </div>
+            <p v-if="description" class="panel-note" dir="auto">{{ description }}</p>
+          </dd>
+        </div>
+      </dl>
+    </details>
   </section>
 </template>
 
@@ -216,17 +255,60 @@ const remaining = computed(() => props.campaignProgress.total - props.campaignPr
   align-items: baseline;
   gap: var(--space-2);
 }
-.campaign-summary,
-.progress-case h3 {
+.progress-count,
+.campaign-progress h3 {
   font: 600 13px/1.25 var(--sans);
+}
+.case-next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-2);
+  margin-block-start: var(--space-1);
+  font-size: 13px;
+  font-weight: 600;
+}
+.case-next .panel-note {
+  font-weight: 400;
+}
+.case-steps {
+  display: grid;
+  gap: 2px;
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  font-size: 13px;
+}
+.case-steps li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  color: var(--muted);
+}
+.case-steps [aria-current='step'] {
+  color: var(--text);
+  font-weight: 600;
+}
+.case-steps .lucide {
+  --icon-size: 13px;
+  align-self: center;
+  flex: none;
+}
+.step-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
 }
 .campaign-track {
   display: flex;
   align-items: center;
   gap: var(--space-2);
 }
-.campaign-meter {
-  flex: 1;
+.progress-meter {
+  display: block;
+  inline-size: 100%;
   min-inline-size: 0;
   block-size: 8px;
   appearance: none;
@@ -234,36 +316,45 @@ const remaining = computed(() => props.campaignProgress.total - props.campaignPr
   background: var(--inset);
   color: var(--accent);
 }
-.campaign-meter::-webkit-progress-bar {
+.campaign-track .progress-meter {
+  flex: 1;
+}
+.progress-meter::-webkit-progress-bar {
   background: var(--inset);
 }
-.campaign-meter::-webkit-progress-value {
+.progress-meter::-webkit-progress-value {
   background: var(--accent);
 }
-.campaign-meter::-moz-progress-bar {
+.progress-meter::-moz-progress-bar {
   background: var(--accent);
 }
-.progress-case {
-  margin-block-start: var(--space-1);
-  padding-block-start: var(--space-1);
+.campaign-progress,
+.host-checks {
+  margin-block-start: var(--space-2);
+  padding-block-start: var(--space-2);
   border-block-start: 1px solid var(--line);
 }
-.case-objective {
-  margin-block-start: var(--space-1);
+.host-checks summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 13px;
+}
+.host-checks[open] summary {
+  margin-block-end: var(--space-1);
 }
 @media (forced-colors: active) {
-  .campaign-meter {
+  .progress-meter {
     forced-color-adjust: none;
     border-color: CanvasText;
     background: Canvas;
   }
-  .campaign-meter::-webkit-progress-bar {
+  .progress-meter::-webkit-progress-bar {
     background: Canvas;
   }
-  .campaign-meter::-webkit-progress-value {
+  .progress-meter::-webkit-progress-value {
     background: Highlight;
   }
-  .campaign-meter::-moz-progress-bar {
+  .progress-meter::-moz-progress-bar {
     background: Highlight;
   }
 }

@@ -27,6 +27,8 @@ const props = defineProps<{
   permissionLabel: string
   goalStatus: string
   caseComplete: boolean
+  caseProgressLabel: string
+  nextStep?: string
   campaignProgress: CampaignProgress
   campaignProgressLabel: string
   campaignFinished: boolean
@@ -65,9 +67,11 @@ const titleStatus = computed(() => {
     {
       key: 'progress',
       label: 'Progress',
-      name: 'Progress: ' + props.campaignProgressLabel,
+      name: `Progress: ${props.caseProgressLabel}, ${props.campaignProgressLabel}`,
       detail: [
-        'Progress: ' + props.campaignProgressLabel,
+        props.caseProgressLabel,
+        ...(props.nextStep ? [`Next step · ${props.nextStep}`] : []),
+        props.campaignProgressLabel,
         ...(props.hostStatus ?? []).map(({ label, value }) => `${label}: ${value}`),
       ].join('\n'),
       icon: props.campaignFinished ? Flag : ListChecks,

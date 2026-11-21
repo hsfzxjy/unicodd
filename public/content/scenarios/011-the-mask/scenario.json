@@ -270,6 +270,21 @@
     }
   ],
   "objective": {
+    "progress": {
+      "steps": [
+        {
+          "host": "review-16",
+          "state": "dossier-candidate",
+          "label": "Stage the client copy"
+        },
+        {
+          "host": "review-16",
+          "status": "Client copy",
+          "label": "Pass the publication audit"
+        }
+      ],
+      "finish": "Read the publication report"
+    },
     "text": "Audit the client copy against the disclosure rules and read the publication report.",
     "read": "final-report",
     "dossier": "publication",

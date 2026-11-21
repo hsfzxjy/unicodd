@@ -226,6 +226,16 @@
     }
   ],
   "objective": {
+    "progress": {
+      "steps": [
+        {
+          "host": "gateway-12",
+          "status": "Vault confirmations",
+          "label": "Verify both vault deliveries"
+        }
+      ],
+      "finish": "Read the gateway report"
+    },
     "text": "Confirm both vault deliveries and read the gateway report.",
     "read": "final-report",
     "handoff": "dispatch",

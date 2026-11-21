@@ -222,6 +222,21 @@
     }
   ],
   "objective": {
+    "progress": {
+      "steps": [
+        {
+          "host": "catalog-15",
+          "state": "dossier-candidate",
+          "label": "Stage a search candidate"
+        },
+        {
+          "host": "catalog-15",
+          "status": "Source selection",
+          "label": "Verify the source selection"
+        }
+      ],
+      "finish": "Read the selection report"
+    },
     "text": "Reconcile the search with the signed duty ledger and read the selection report.",
     "read": "final-report",
     "dossier": "selection",

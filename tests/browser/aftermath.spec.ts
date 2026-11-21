@@ -117,6 +117,7 @@ for (const [width, height] of [
         'title',
         /Application acknowledgments: Payload verification pending/,
       )
+      await expect(progress).toHaveAccessibleName(/0 of 2 case steps complete/)
       const ingestionPath = '/reports/ingestion.txt'
       const ingestion = transcript(page).getByRole('region', { name: 'File ' + ingestionPath })
       const fragmentsComplete = transcript(page).getByRole('heading', {
@@ -169,6 +170,8 @@ for (const [width, height] of [
         'title',
         /Application acknowledgments: Both payloads match the ledger/,
       )
+      await expect(progress).toHaveAccessibleName(/1 of 2 case steps complete/)
+      await expect(progress).toHaveAttribute('title', /Next step · Read the ingestion report/)
       await expect(
         last(page).getByRole('heading', { name: 'Receiver acknowledgments verified' }),
       ).toBeInViewport()

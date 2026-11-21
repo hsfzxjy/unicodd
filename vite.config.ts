@@ -15,9 +15,9 @@ const logicFiles = [
   'wasm/pkg/unicodd_core_bg.wasm',
 ].sort()
 const logicPaths = logicFiles.map((name) => fileURLToPath(new URL(name, root)))
-// Replay the preceding build's journals with the new transcript presentation metadata.
-const upgradeLogic = '44d423b425f2a3aa9aa24167c86879bb19ffc7bb634e37689a2d1fd0a9d8e0fb'
-const previousLogic = '1:de93be50d744f7f7a11ddff4e3ca1b8193cdb862e36e38774da0abcbe3bc5c68'
+// The case progress projection is read-only. This build can replay the preceding build's journals.
+const upgradeLogic = '42b54f4266de91fdaf855344824882d7050f86a6d57a93d441be8d2305042d0f'
+const previousLogic = '1:ee9e6afa21b7afb1b1e595944d90b15d35b254a3398c2dfbcded0c55ade1eef6'
 
 export default defineConfig({
   plugins: [

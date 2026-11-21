@@ -90,10 +90,10 @@ test('recovers Dead Letter by graphical actions from the development entry', asy
   await expect(notice.locator('.status-mark')).toBeInViewport()
   await notice.click()
   const progress = panel(page, 'Progress')
-  await expect(progress.getByRole('progressbar')).toBeInViewport()
-  await expect(progress.getByText('Held in the queue', { exact: true })).toBeInViewport({
-    ratio: 1,
-  })
+  await expect(progress.getByRole('progressbar', { name: 'Case steps complete' })).toBeInViewport()
+  await expect(progress.locator('.case-next')).toHaveText(/Next step\s*Release the held notice/)
+  await progress.getByText('Host checks', { exact: true }).click()
+  await expect(progress.getByText('Held in the queue', { exact: true })).toBeVisible()
   const hold = progress.getByText('The hold keeps recovery mail from reaching the wrong account.')
   await hold.scrollIntoViewIfNeeded()
   await expect(hold).toBeInViewport()
@@ -108,6 +108,7 @@ test('recovers Dead Letter by graphical actions from the development entry', asy
   await page.setViewportSize({ width: 1280, height: 800 })
   await recoverNotice(page, (target) => target.click())
   await expect(notice).toHaveAttribute('title', /Notice 2917: Body ready to read/)
+  await expect(notice).toHaveAccessibleName(/2 of 2 case steps complete, 1 of 12 cases complete/)
   await expect(goalButton(page, 'Complete')).toBeVisible()
 })
 

@@ -14,6 +14,10 @@ export interface Guard {
   flag?: string
 }
 
+export type CaseStep = { host: string; label: string } & (
+  { when: 'status'; guard: Guard } | { when: 'approval-receipts' | 'dossier-candidate' }
+)
+
 export const puzzleArity = { login: 1, route: 2, reconcile: 1, reconstruct: 2 } as const
 export type PuzzleCommand = keyof typeof puzzleArity
 
@@ -151,6 +155,7 @@ export interface Scenario {
     text: string
     message: string
     completionBand?: boolean
+    progress?: { steps: CaseStep[]; finish: string }
     onComplete: ProgressEffect[]
   }
 }

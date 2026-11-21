@@ -14,6 +14,9 @@ defineProps<{ path?: string; messages: MailMessage[] }>()
       <bdi>{{ path }}</bdi>
     </p>
     <article v-for="message in messages" :key="message.id">
+      <h3 class="mail-subject">
+        <bdi>{{ message.subject }}</bdi>
+      </h3>
       <dl class="mail-headers">
         <dt class="transcript-label">From</dt>
         <dd>
@@ -29,10 +32,6 @@ defineProps<{ path?: string; messages: MailMessage[] }>()
             <bdi>{{ message.date }}</bdi>
           </dd>
         </template>
-        <dt class="transcript-label">Subject</dt>
-        <dd class="mail-subject">
-          <bdi>{{ message.subject }}</bdi>
-        </dd>
       </dl>
       <pre class="resource-text transcript-prose" data-resource-text dir="auto">{{
         message.body
@@ -43,20 +42,23 @@ defineProps<{ path?: string; messages: MailMessage[] }>()
 
 <style scoped>
 .mail-headers {
-  font-size: var(--transcript-meta-size, inherit);
+  font: 12px/1.35 var(--mono);
   display: grid;
   grid-template-columns: 8ch minmax(0, 1fr);
-  margin: 4px 0 6px;
+  margin-block: var(--space-1);
+}
+.mail-headers dt {
+  font-size: inherit;
 }
 .mail-headers dd {
   margin: 0;
 }
-.mail-headers .mail-subject {
-  font: 650 14px/1.4 var(--sans);
+.mail-subject {
+  font: 650 15px/1.35 var(--sans);
 }
 .terminal-mail pre {
   max-width: 72ch;
-  margin-top: 8px;
+  margin-block: 0;
   line-height: 1.6;
 }
 .terminal-mail article + article {
@@ -71,10 +73,8 @@ defineProps<{ path?: string; messages: MailMessage[] }>()
   .mail-headers {
     grid-template-columns: 7ch minmax(0, 1fr);
     column-gap: var(--space-1);
-    margin-block: var(--space-1);
   }
   .terminal-mail pre {
-    margin-top: var(--space-1);
     line-height: 1.5;
   }
 }

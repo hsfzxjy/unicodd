@@ -32,7 +32,7 @@ function usePayload(text: string) {
       v-for="(record, number) in rows"
       :key="number"
       class="report-row transcript-list-row"
-      :class="{ 'audit-row': record.audit }"
+      :class="{ 'audit-row': record.audit, 'source-row': record.source }"
     >
       <strong class="report-label"
         ><bdi>{{ record.label }}</bdi></strong
@@ -74,25 +74,32 @@ function usePayload(text: string) {
             >{{ record.source.before }}<mark>{{ record.source.hit }}</mark
             >{{ record.source.after }}</bdi
           >
-          <span class="report-details" dir="ltr">
-            <template v-for="[space, label] in sourceCoordinates" :key="space">
-              <button
-                v-if="canInsert"
-                type="button"
-                class="terminal-link"
-                :aria-label="
-                  'Use ' + label + ' range ' + record.source.coordinates[space].join('-')
-                "
-                :aria-disabled="busy || undefined"
-                @click="usePayload(record.source.coordinates[space].join('-'))"
-              >
-                {{ label }} {{ record.source.coordinates[space].join('–') }}
-              </button>
-              <span v-else>{{ label }} {{ record.source.coordinates[space].join('–') }}</span>
-              <span v-if="space === 'graphemes' && !record.source.coordinates.exactGraphemes"
-                >(covering)</span
-              >
-            </template>
+          <span class="source-coordinates" dir="ltr">
+            <component
+              :is="canInsert ? 'button' : 'span'"
+              v-for="[space, label] in sourceCoordinates"
+              :key="space"
+              class="source-coordinate"
+              :class="{ 'terminal-link': canInsert }"
+              :type="canInsert ? 'button' : undefined"
+              :aria-label="
+                canInsert
+                  ? 'Use ' +
+                    label +
+                    ' range ' +
+                    record.source.coordinates[space].join('-') +
+                    (space === 'graphemes' && !record.source.coordinates.exactGraphemes
+                      ? ', covering'
+                      : '')
+                  : undefined
+              "
+              :aria-disabled="canInsert && busy ? true : undefined"
+              @click="usePayload(record.source.coordinates[space].join('-'))"
+              >{{ label }} {{ record.source.coordinates[space].join('–')
+              }}<span v-if="space === 'graphemes' && !record.source.coordinates.exactGraphemes">
+                (covering)</span
+              ></component
+            >
           </span>
         </template>
         <button
@@ -160,6 +167,59 @@ function usePayload(text: string) {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.source-row {
+  padding-block: 2px;
+}
+.source-row .report-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 4px;
+}
+.source-coordinates {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 6px;
+  color: var(--evidence);
+  font: 12px/16px var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+.source-coordinate,
+.source-coordinate.terminal-link {
+  align-content: center;
+  min-height: 24px;
+  min-width: 0;
+  padding: 2px 3px;
+  margin: 0;
+  border: 1px solid transparent;
+  font: inherit;
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+.source-coordinate.terminal-link:hover:not([aria-disabled='true']) {
+  background: var(--raised);
+}
+.source-row .report-content > button {
+  justify-self: start;
+}
+.source-row .report-points {
+  gap: 2px 8px;
+}
+@media (min-width: 900px) {
+  .source-row .report-content {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 32ch);
+    align-items: start;
+  }
+  .source-row .report-content > * {
+    grid-column: 1;
+  }
+  .source-row .source-coordinates {
+    grid-column: 2;
+    grid-row-end: span 2;
+  }
+  .source-row :is(.report-details, .report-fields) {
+    grid-column: 1 / -1;
+  }
+}
 
 .report-source mark {
   color: inherit;
@@ -199,10 +259,22 @@ function usePayload(text: string) {
   .terminal-report {
     grid-template-columns: minmax(0, 1fr);
   }
+  .terminal-report:has(.source-row) {
+    row-gap: 0;
+  }
   .report-row {
     display: flex;
     flex-wrap: wrap;
     gap: 2px var(--space-2);
+  }
+  .report-row.source-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+    padding-block: 0;
+  }
+  .source-row .report-content {
+    row-gap: 0;
   }
 }
 </style>

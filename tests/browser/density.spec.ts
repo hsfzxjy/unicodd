@@ -58,7 +58,9 @@ for (const [width, height] of [
       await header.press('Control+End')
       expect(await header.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeGreaterThan(0)
       expect(await header.evaluate((el) => el.scrollTop)).toBeGreaterThan(0)
-      await expect(page.getByLabel('Total units').filter({ visible: true })).toHaveText('140')
+      await expect(
+        page.getByText('140 total', { exact: true }).filter({ visible: true }),
+      ).toBeVisible()
       const label = page.getByText('Header recipient', { exact: true })
       await expect(label).toHaveCSS('font-family', /^system-ui\b/u)
       if (phone) {

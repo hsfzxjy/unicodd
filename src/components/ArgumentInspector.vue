@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronRight, Search, Sigma, TextCursor, TextCursorInput } from '@lucide/vue'
+import { ChevronRight, Search } from '@lucide/vue'
 import { computed, nextTick, ref, useId } from 'vue'
 import { useInspectorDrag } from '../composables/useInspectorDrag'
 import {
@@ -39,6 +39,22 @@ const projection = computed(() => inspectArgument(props.source, props.literal))
 const view = computed(() => encodeArgument(kind.value, projection.value))
 const position = computed(() => inspectorSelection(view.value, props.selection))
 const selected = computed(() => position.value.selected)
+const unitNames = {
+  'code-points': 'code point',
+  'utf-8': 'UTF-8 byte',
+  'utf-16': 'UTF-16 code unit',
+  'wtf-8': 'WTF-8 byte',
+}
+const status = computed(() => {
+  const unit = unitNames[kind.value]
+  const { total, error } = view.value
+  if (error) return `${label.value} count unavailable.`
+  const count = `${total} ${unit}${total === 1 ? '' : 's'} total.`
+  const range = selected.value?.units
+  return range
+    ? `Range from zero-based ${unit} offset ${range.start} to ${range.end} exclusive. ${count}`
+    : `Caret at zero-based ${unit} offset ${position.value.caretIndex}. ${count}`
+})
 const selectedScalar = computed(() => {
   const points = selected.value?.points
   if (points?.length === 1 && points[0].valid) return points[0].scalar
@@ -117,20 +133,17 @@ defineExpose({
           {{ argumentInspectors[type].label }}
         </option>
       </select>
-      <span v-if="!view.error" class="inspector-stats" role="status">
-        <span v-if="selected" aria-label="Selected unit range">
-          <TextCursorInput aria-hidden="true" />
-          {{ selected.units.start }}-{{ selected.units.end }}
-        </span>
-        <span v-else aria-label="Caret position">
-          <TextCursor aria-hidden="true" />
-          {{ position.caretIndex }}
-        </span>
-        <span aria-label="Total units"><Sigma aria-hidden="true" /> {{ view.total }}</span>
-      </span>
-      <span v-else class="inspector-stats" role="status">
-        <span aria-label="Unit count unavailable" :title="view.error">
-          <Sigma aria-hidden="true" /> —
+      <span class="inspector-stats" role="status">
+        <span class="inspector-status-text">{{ status }}</span>
+        <span aria-hidden="true">
+          <template v-if="view.error">Count unavailable</template>
+          <template v-else>
+            <span v-if="selected"
+              >Range [{{ selected.units.start }}, {{ selected.units.end }})</span
+            >
+            <span v-else>Caret {{ position.caretIndex }}</span>
+            · <span>{{ view.total }} total</span>
+          </template>
         </span>
       </span>
     </div>
@@ -206,8 +219,16 @@ defineExpose({
             type="button"
             class="point"
             :data-point-index="index"
-            :aria-label="description"
-            :title="description"
+            :aria-label="
+              kind === 'code-points'
+                ? `Code point offset ${offset}, ${point.notation}, ${point.glyph}`
+                : description
+            "
+            :title="
+              kind === 'code-points'
+                ? `Code point offset ${offset}, ${point.notation}, ${point.glyph}`
+                : description
+            "
             :aria-pressed="
               selected !== undefined && point.start >= selected.start && point.end <= selected.end
             "
@@ -236,6 +257,7 @@ defineExpose({
 <style scoped>
 .inspector-title {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-1);
 }
@@ -264,22 +286,19 @@ defineExpose({
   background: var(--surface);
   color-scheme: dark;
 }
-.inspector-stats,
-.inspector-stats > span {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-}
 .inspector-stats {
   margin-inline-start: auto;
   padding-inline-end: var(--space-1);
-  gap: var(--space-2);
-  font-size: 12px;
-  white-space: nowrap;
-}
-.inspector-stats .lucide {
-  --icon-size: 13px;
   color: var(--muted);
+  font: 12px/1.35 var(--sans);
+  font-variant-numeric: tabular-nums;
+}
+.inspector-status-text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
 }
 .point-view {
   border-top: 1px solid var(--line);
@@ -329,9 +348,11 @@ defineExpose({
 }
 .argument-inspector .point[aria-pressed='true'] {
   background-color: #27343e;
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 .point:focus-visible {
-  outline-offset: -2px;
+  outline-color: var(--text);
+  outline-offset: -5px;
 }
 .point-caret {
   position: absolute;
@@ -358,6 +379,20 @@ defineExpose({
 }
 .argument-byte-values {
   white-space: nowrap;
+}
+@media (forced-colors: active) {
+  .argument-inspector .point {
+    border-width: 2px;
+  }
+  .argument-inspector .point[aria-pressed='true'] {
+    border-color: Highlight;
+  }
+  .point:focus-visible {
+    outline-color: CanvasText;
+  }
+  .point-caret {
+    border-inline-start: 2px solid Highlight;
+  }
 }
 @media (max-width: 830px) {
   .point-view {

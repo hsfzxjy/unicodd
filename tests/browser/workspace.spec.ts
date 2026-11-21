@@ -25,7 +25,7 @@ test('inspects a selected scalar and reuses earlier results at the active select
   const details = (notation: string) => log.getByRole('region', { name: 'Unicode ' + notation })
   const command = page.getByRole('textbox', { name: 'Terminal command' })
   await input.fill('e\u0301🧪\u200b')
-  await expect(page.getByLabel('Total units')).toHaveText('4')
+  await expect(page.getByText('4 total', { exact: true })).toBeVisible()
   await editor.getByRole('button', { name: 'Code points', exact: true }).click()
   await expect(editor.getByRole('button', { name: /U\+0301/ })).toBeVisible()
   await expect(editor.getByRole('button', { name: /U\+200B, ZWSP/ })).toBeVisible()
@@ -219,13 +219,51 @@ async function center(locator: Locator) {
   return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }
 }
 
+test('labels exact inspector units and distinguishes selection in forced colors', async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 320, height: 435 })
+  await fixture(page)
+  const input = page.getByRole('textbox', { name: 'Account alias' })
+  const kind = page.getByRole('combobox', { name: 'Account alias inspector type' })
+  const status = page.locator('.inspector-stats')
+  await expect(status).toContainText('Caret 0 · 0 total')
+  await input.fill('e\u0301🧪')
+  await input.evaluate((el: HTMLTextAreaElement) => el.setSelectionRange(2, 4))
+  for (const [type, range, total, unit] of [
+    ['code-points', '[2, 3)', '3', 'code point'],
+    ['utf-16', '[2, 4)', '4', 'UTF-16 code unit'],
+    ['utf-8', '[3, 7)', '7', 'UTF-8 byte'],
+  ]) {
+    await kind.selectOption(type)
+    await expect(status.getByText('Range ' + range, { exact: true })).toBeVisible()
+    await expect(status.getByText(total + ' total', { exact: true })).toBeVisible()
+    expect(await status.ariaSnapshot()).toContain('zero-based ' + unit + ' offset')
+    expect(await status.ariaSnapshot()).toContain('exclusive')
+  }
+  const selected = page.getByRole('button', { name: /Byte offset.*U\+1F9EA/, pressed: true })
+  const neighbor = page.getByRole('button', { name: /Byte offset.*U\+0301/, pressed: false })
+  await expect(selected).not.toHaveCSS('box-shadow', 'none')
+  await page.emulateMedia({ forcedColors: 'active' })
+  await page.keyboard.press('Tab')
+  await selected.focus()
+  await expect(selected).toHaveCSS('outline-style', 'solid')
+  expect(await selected.evaluate((el) => getComputedStyle(el).borderColor)).not.toBe(
+    await neighbor.evaluate((el) => getComputedStyle(el).borderColor),
+  )
+  await page.screenshot({ path: info.outputPath('forced-colors-selection.png') })
+  await input.fill(String.raw`\ud800`)
+  await expect(status.getByText('Count unavailable', { exact: true })).toBeVisible()
+  await expect(page.getByText('Unpaired surrogate at UTF-16 offset 0.')).toBeVisible()
+})
+
 test('drags a range across rows and scrolls to select offscreen inspector blocks', async ({
   page,
 }, info) => {
   await page.setViewportSize({ width: 390, height: 650 })
   await fixture(page)
   const input = page.getByRole('textbox', { name: 'Account alias' })
-  const range = page.getByLabel('Selected unit range')
+  const range = page.getByText(/^Range \[/u)
   const kind = page.getByRole('combobox', { name: 'Account alias inspector type' })
   await input.fill(String.raw`a\u00AE🧪bcdefg`)
   await kind.selectOption('utf-8')
@@ -236,9 +274,9 @@ test('drags a range across rows and scrolls to select offscreen inspector blocks
   await page.mouse.move(start.x, start.y)
   await page.mouse.down()
   await page.mouse.move(end.x, end.y, { steps: 8 })
-  await expect(range).toHaveText('1-11')
+  await expect(range).toHaveText('Range [1, 11)')
   await page.mouse.up()
-  await expect(range).toHaveText('1-11')
+  await expect(range).toHaveText('Range [1, 11)')
   await expect(bytes.and(page.getByRole('button', { pressed: true }))).toHaveCount(6)
   await page.setViewportSize({ width: 1280, height: 800 })
   await page.screenshot({ path: info.outputPath('inspector-desktop-range.png') })
@@ -259,7 +297,7 @@ test('drags a range across rows and scrolls to select offscreen inspector blocks
   await page.mouse.up()
   const selected = points.and(page.getByRole('button', { pressed: true }))
   expect(await selected.count()).toBeGreaterThan(16)
-  await expect(selected.first()).toHaveAccessibleName('1. U+0078, x')
+  await expect(selected.first()).toHaveAccessibleName('Code point offset 0, U+0078, x')
 })
 
 test.describe('touch range selection', () => {
@@ -270,7 +308,7 @@ test.describe('touch range selection', () => {
   }, info) => {
     await fixture(page)
     const input = page.getByRole('textbox', { name: 'Account alias' })
-    const range = page.getByLabel('Selected unit range')
+    const range = page.getByText(/^Range \[/u)
     await input.fill('abcdefghijklmnopqrstuvwxyz'.repeat(4))
     await page.getByRole('button', { name: 'Code points', exact: true }).tap()
     const points = page
@@ -282,7 +320,7 @@ test.describe('touch range selection', () => {
     await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [start] })
     await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [across] })
     await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
-    await expect(range).toHaveText('1-4')
+    await expect(range).toHaveText('Range [1, 4)')
 
     const lower = await center(points.nth(6))
     expect(lower.y).toBeGreaterThan(start.y)
@@ -294,7 +332,7 @@ test.describe('touch range selection', () => {
     await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
     const scroll = page.locator('.point-scroll')
     await expect.poll(() => scroll.evaluate((node) => node.scrollTop)).toBeGreaterThan(0)
-    await expect(range).toHaveText('1-4')
+    await expect(range).toHaveText('Range [1, 4)')
 
     await scroll.evaluate((node) => {
       node.scrollTop = 0
@@ -303,7 +341,7 @@ test.describe('touch range selection', () => {
     await page.waitForTimeout(350)
     await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [lower] })
     await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
-    await expect(range).toHaveText('1-7')
+    await expect(range).toHaveText('Range [1, 7)')
     await page.screenshot({ path: info.outputPath('inspector-touch-range.png') })
     await expect
       .poll(() =>

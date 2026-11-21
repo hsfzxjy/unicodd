@@ -26,11 +26,11 @@
       "welcome": "Archive review. Original labels and owner assignments are read-only.",
       "status": [
         {
-          "label": "Archive lookups",
-          "value": "Archive lookup pending",
+          "label": "Archive references",
+          "value": "Reader checks pending",
           "after": {
             "flag": "mirror_verified",
-            "value": "Both readers verified"
+            "value": "Both readers resolve all five records"
           }
         }
       ],

@@ -27,12 +27,12 @@
       "status": [
         {
           "label": "Vault confirmations",
-          "value": "Vault check pending",
+          "value": "Vault and resource checks pending",
           "after": {
             "flag": "dispatch_verified",
-            "value": "Both vaults verified"
+            "value": "Both receipts match the registry"
           },
-          "description": "Gateway acceptance records the submission. A vault confirmation shows that the intended vault received its receipt."
+          "description": "A 202 records gateway acceptance. A vault confirmation names what the vault received."
         }
       ],
       "resources": [

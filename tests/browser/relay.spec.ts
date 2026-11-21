@@ -768,7 +768,10 @@ for (const [width, height] of [
       await expect(mail(page)).toContainText('Could you see if the original’s there?')
       await capture('01-incoming-mail')
       await act(link(page, 'relay-07'))
-      await expect(progressButton(page)).toHaveAttribute('title', /Incident 8C2F: Message locked/)
+      await expect(progressButton(page)).toHaveAttribute(
+        'title',
+        /Incident 8C2F: Maintenance access required/,
+      )
       await capture('02-guest')
       await commandControl(page, 'ls', act, true)
       await capture('03-resources')
@@ -849,10 +852,15 @@ for (const [width, height] of [
       await expect(sessionToggle).toHaveAttribute('title', /Permissions: maintenance/)
       const queue = progressButton(page)
       await expect(queue).toBeInViewport()
-      await expect(queue).toHaveAccessibleName('Progress: 1 of 1 checks complete')
+      await expect(queue).toHaveAccessibleName('Progress: 0 of 12 cases complete')
+      await expect(queue.getByText('0/12', { exact: true })).toBeInViewport()
       await act(queue)
       const progress = frame.getByRole('region', { name: 'Progress', exact: true })
-      await expect(progress).toContainText('Message readable')
+      const meter = progress.getByRole('progressbar', { name: 'Campaign cases complete' })
+      await expect(meter).toBeInViewport()
+      await expect(meter).toHaveJSProperty('value', 0)
+      await expect(meter).toHaveJSProperty('max', 12)
+      await expect(progress).toContainText('Record ready to read')
       await expect(progress.locator('.lucide-check')).toBeVisible()
       await expect(sessionToggle).toHaveAttribute('aria-expanded', 'false')
       await capture('12-progress')
@@ -877,6 +885,8 @@ for (const [width, height] of [
       await act(link(page, 'queue/'))
       await act(link(page, '8c2f.msg'))
       await expect(contextPanel(page)).toBeHidden()
+      await expect(queue).toHaveAccessibleName('Progress: 1 of 12 cases complete')
+      await expect(queue.getByText('1/12', { exact: true })).toBeInViewport()
       await expect(
         frame.getByRole('button', { name: 'Goal: Complete', exact: true }),
       ).toBeInViewport()

@@ -90,10 +90,13 @@ test('recovers Dead Letter by graphical actions from the development entry', asy
   await expect(notice.locator('.status-mark')).toBeInViewport()
   await notice.click()
   const progress = panel(page, 'Progress')
-  await expect(progress.getByText('Delivery paused', { exact: true })).toBeInViewport()
-  await expect(
-    progress.getByText('A paused notice stays in the delivery queue.', { exact: false }),
-  ).toBeInViewport()
+  await expect(progress.getByRole('progressbar')).toBeInViewport()
+  await expect(progress.getByText('Held in the queue', { exact: true })).toBeInViewport({
+    ratio: 1,
+  })
+  const hold = progress.getByText('The hold keeps recovery mail from reaching the wrong account.')
+  await hold.scrollIntoViewIfNeeded()
+  await expect(hold).toBeInViewport()
   const goal = page.getByRole('button', { name: 'Goal: In progress' })
   await goal.click()
   await expect(
@@ -104,7 +107,7 @@ test('recovers Dead Letter by graphical actions from the development entry', asy
   await goal.click()
   await page.setViewportSize({ width: 1280, height: 800 })
   await recoverNotice(page, (target) => target.click())
-  await expect(notice).toHaveAttribute('title', /Notice 2917: Released for delivery/)
+  await expect(notice).toHaveAttribute('title', /Notice 2917: Body ready to read/)
   await expect(goalButton(page, 'Complete')).toBeVisible()
 })
 

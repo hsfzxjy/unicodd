@@ -24,10 +24,10 @@
       "status": [
         {
           "label": "Source selection",
-          "value": "Selection pending",
+          "value": "Selection not verified",
           "after": {
             "flag": "selection_verified",
-            "value": "Source matches verified"
+            "value": "Original occurrences verified"
           }
         }
       ],

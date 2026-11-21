@@ -38,15 +38,15 @@
         },
         {
           "label": "Appeal queue replay",
-          "value": "Awaiting verification",
+          "value": "Traversal not verified",
           "after": {
             "flag": "replay_verified",
-            "value": "Complete replay verified"
+            "value": "Every row visited once"
           }
         },
         {
-          "label": "Appeal cases",
-          "value": "Recovery pending",
+          "label": "Appeals for review",
+          "value": "Intake match pending",
           "after": {
             "flag": "appeals_recovered",
             "value": "Both appeals recovered"

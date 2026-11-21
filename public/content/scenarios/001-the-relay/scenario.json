@@ -48,12 +48,12 @@
       "status": [
         {
           "label": "Incident 8C2F",
-          "value": "Message locked",
+          "value": "Maintenance access required",
           "after": {
             "roles": ["maintenance"],
-            "value": "Message readable"
+            "value": "Record ready to read"
           },
-          "description": "The relay keeps messages in a queue while they wait for delivery. Reading this message requires maintenance access."
+          "description": "Guests can list the queue. Maintenance access opens its message bodies."
         }
       ],
       "resources": [

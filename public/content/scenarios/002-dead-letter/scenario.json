@@ -30,12 +30,12 @@
       "status": [
         {
           "label": "Notice 2917",
-          "value": "Delivery paused",
+          "value": "Held in the queue",
           "after": {
             "flag": "released",
-            "value": "Released for delivery"
+            "value": "Body ready to read"
           },
-          "description": "A paused notice stays in the delivery queue. Release makes it available for delivery."
+          "description": "The hold keeps recovery mail from reaching the wrong account."
         },
         {
           "label": "Router version",

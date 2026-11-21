@@ -24,13 +24,13 @@
       "welcome": "Delivery sandbox. Trials use the approved assets in isolated trees.",
       "status": [
         {
-          "label": "Receiver checks",
-          "value": "Delivery check pending",
+          "label": "Receiver readback",
+          "value": "Readback pending",
           "after": {
             "flag": "delivery_verified",
-            "value": "All receivers verified"
+            "value": "Verified on all three receivers"
           },
-          "description": "Readback checks that each receiver can open the correct files after unpacking the parcel."
+          "description": "Each receiver must open every approved file and confirm its source reference."
         }
       ],
       "resources": [

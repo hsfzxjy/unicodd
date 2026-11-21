@@ -22,12 +22,15 @@ it('keeps campaign progression and inbox separate from replayable sessions', asy
   let runtime = createRuntime(relay, engine, campaign)
   const run = (command: string) => runtime.dispatch(parseCommand(command)!)
   expect(campaign.destinations()).toEqual([relay])
+  expect(campaign.progress).toEqual({ completed: 0, total: scenarios.length })
   expect(await run('scenario ' + dead.id)).toMatchObject({ output: [{ kind: 'error' }] })
   await run('connect relay-07')
   await run('login \u{1D40C}AINT')
   expect(campaign.completed(relay.id)).toBe(false)
+  expect(campaign.progress.completed).toBe(0)
   await run('cat /queue/8c2f.msg')
   expect(campaign.destinations()).toEqual([relay, dead])
+  expect(campaign.progress.completed).toBe(1)
   await run('local mail missing-notice')
   await runtime.dispatch({ type: 'reset' })
   expect(runtime.state.completed).toBe(false)
@@ -39,6 +42,7 @@ it('keeps campaign progression and inbox separate from replayable sessions', asy
     'objective',
   ])
   campaign = createCampaign(scenarios, disk)
+  expect(campaign.progress.completed).toBe(1)
   expect(campaign.read).toEqual(['missing-notice'])
   expect(campaign.delivered).toEqual(['favor', 'missing-notice'])
   expect(campaign.current).toBe(relay.id)
@@ -62,6 +66,7 @@ it('keeps campaign progression and inbox separate from replayable sessions', asy
   await run(String.raw`route Mi\u00200Bra \u00FF2Dira`)
   expect(runtime.state.flags).toContain('released')
   expect(runtime.state.completed).toBe(false)
+  expect(campaign.progress.completed).toBe(1)
   await run('cat /delivered/2917.msg')
   expect(runtime.state.completed).toBe(true)
   await run('cat /delivered/2917.msg')
@@ -123,6 +128,7 @@ it('keeps campaign progression and inbox separate from replayable sessions', asy
   const restored = createCampaign(scenarios, disk)
   expect(restored.current).toBe(index.id)
   expect(restored.finished).toBe(false)
+  expect(restored.progress).toEqual({ completed: 3, total: scenarios.length })
   expect(restored.delivered).toEqual([
     'favor',
     'missing-notice',
@@ -132,6 +138,7 @@ it('keeps campaign progression and inbox separate from replayable sessions', asy
     'reopened-both-cases',
   ])
   expect(restored.reset()).toBe(relay.id)
+  expect(restored.progress).toEqual({ completed: 0, total: scenarios.length })
   expect(restored.delivered).toEqual(['favor'])
   expect(restored.destinations()).toEqual([relay])
   expect(createCampaign(scenarios, disk).completed(relay.id)).toBe(false)

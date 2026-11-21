@@ -725,7 +725,7 @@ export function createRuntime(
           output: [
             {
               kind: 'listing',
-              title: campaign.finished ? 'All available scenarios complete' : 'Cases you can open',
+              title: campaign.finished ? 'Campaign complete' : 'Cases you can open',
               links: [
                 ...destinationLinks(campaign.destinations()),
                 { label: 'Reset campaign…', action: { type: 'resetCampaign' } },

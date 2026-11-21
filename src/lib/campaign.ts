@@ -5,6 +5,11 @@ import { dossierReview, sameReceipt, validDossierReceipt, type DossierReceipt } 
 import type { LevelSave } from './workspace.ts'
 
 export const campaignKey = 'unicodd.campaign'
+
+export interface CampaignProgress {
+  completed: number
+  total: number
+}
 type StorageAccess = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 
 export interface CampaignSnapshot {
@@ -426,6 +431,9 @@ export function createCampaign(
   return {
     get current() {
       return current
+    },
+    get progress(): CampaignProgress {
+      return { completed: completed.size, total: available.length }
     },
     get finished() {
       return available.length > 0 && available.every(({ id }) => completed.has(id))

@@ -24,13 +24,13 @@
       "welcome": "Disclosure review. The sealed originals and disclosure ledger are read-only.",
       "status": [
         {
-          "label": "Disclosure audit",
-          "value": "Audit pending",
+          "label": "Client copy",
+          "value": "Output audit pending",
           "after": {
             "flag": "publication_verified",
-            "value": "Public copy verified"
+            "value": "Output audit passed"
           },
-          "description": "The disclosure rules specify which details can leave the review workspace."
+          "description": "The audit checks what the client will receive, including the index and manifest."
         }
       ],
       "resources": [

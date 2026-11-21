@@ -39,12 +39,12 @@
         },
         {
           "label": "Owner approvals",
-          "value": "Approvals unlinked",
+          "value": "Owner links pending",
           "after": {
             "flag": "consent_verified",
-            "value": "Approvals linked"
+            "value": "Both linked to verified owners"
           },
-          "description": "Each approval must be linked to its original owner before it can authorize the split."
+          "description": "An approval applies to its own original registration."
         }
       ],
       "resources": [

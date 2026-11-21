@@ -247,13 +247,13 @@ const baseCommands = [
   {
     name: 'campaign',
     usage: 'campaign',
-    description: 'List discovered destinations.',
+    description: 'List the cases you can open.',
     arguments: [],
   },
   {
     name: 'scenario',
     usage: 'scenario <id>',
-    description: 'Enter a discovered scenario.',
+    description: 'Open an available case.',
     arguments: [argument('id', 'scenario')],
   },
   {

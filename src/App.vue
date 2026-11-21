@@ -41,6 +41,13 @@ let campaign: ReturnType<typeof createCampaign> | undefined
 const destinations = computed(() =>
   session.value ? catalog.value.filter(({ id }) => campaign?.selectable(id)) : [],
 )
+const campaignProgress = computed(
+  () => (session.value ? campaign?.progress : undefined) ?? { completed: 0, total: 0 },
+)
+const campaignProgressLabel = computed(() => {
+  const { completed, total } = campaignProgress.value
+  return `${completed} of ${total} ${total === 1 ? 'case' : 'cases'} complete`
+})
 const campaignFinished = computed(() => Boolean(session.value && campaign?.finished))
 const caseComplete = computed(
   () =>
@@ -511,6 +518,8 @@ async function dispatch(action: Action, command?: string) {
               :permission-label="permissionLabel"
               :goal-status="goalStatus"
               :case-complete="caseComplete"
+              :campaign-progress="campaignProgress"
+              :campaign-progress-label="campaignProgressLabel"
               :campaign-finished="campaignFinished"
               :transcript-live="transcriptLive"
               :open-panel="openPanel"
@@ -523,13 +532,15 @@ async function dispatch(action: Action, command?: string) {
             />
             <TerminalSession
               :open-panel="openPanel"
+              :scenario-title="scenario.title"
               :session="session"
               :host-status="hostStatus"
               :permission-label="permissionLabel"
               :objective="scenario.objective.text"
               :goal-status="goalStatus"
               :case-complete="caseComplete"
-              :campaign-finished="campaignFinished"
+              :campaign-progress="campaignProgress"
+              :campaign-progress-label="campaignProgressLabel"
               :busy="busy"
               @restart="dispatch({ type: 'reset' })"
             />

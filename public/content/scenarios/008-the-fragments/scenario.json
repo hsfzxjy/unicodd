@@ -27,12 +27,12 @@
       "status": [
         {
           "label": "Application acknowledgments",
-          "value": "Acknowledgments pending",
+          "value": "Payload verification pending",
           "after": {
             "flag": "ingestion_verified",
-            "value": "Acknowledgments verified"
+            "value": "Both payloads match the ledger"
           },
-          "description": "An acknowledgment records that the receiving application accepted the original payload."
+          "description": "The application issues an acknowledgment after accepting a payload."
         }
       ],
       "resources": [

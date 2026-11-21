@@ -1,20 +1,25 @@
 <script setup lang="ts">
 import { Check, CircleDashed } from '@lucide/vue'
+import { computed } from 'vue'
+import type { CampaignProgress } from '../lib/campaign'
 import type { createRuntime, Session } from '../lib/runtime'
 import type { TerminalPanel } from '../lib/workspace'
 
-defineProps<{
+const props = defineProps<{
   openPanel?: TerminalPanel
+  scenarioTitle: string
   session: Session
   hostStatus?: ReturnType<typeof createRuntime>['hostStatus']
   permissionLabel: string
   objective: string
   goalStatus: string
   caseComplete: boolean
-  campaignFinished: boolean
+  campaignProgress: CampaignProgress
+  campaignProgressLabel: string
   busy: boolean
 }>()
 const emit = defineEmits<{ restart: [] }>()
+const remaining = computed(() => props.campaignProgress.total - props.campaignProgress.completed)
 </script>
 
 <template>
@@ -31,7 +36,7 @@ const emit = defineEmits<{ restart: [] }>()
     </div>
     <p class="objective" dir="auto">{{ objective }}</p>
     <p v-if="caseComplete && !session.completed" class="panel-note">
-      This case still counts as complete. You can replay its goal in this session.
+      You’ve finished this case. You can still run it again.
     </p>
   </section>
 
@@ -85,12 +90,32 @@ const emit = defineEmits<{ restart: [] }>()
   >
     <div class="panel-heading">
       <h2 id="progress-heading">Progress</h2>
+      <p class="campaign-summary">{{ campaignProgressLabel }}</p>
     </div>
-    <p v-if="campaignFinished" class="reached campaign-complete">
-      All available scenarios complete
-    </p>
-    <dl v-if="hostStatus?.length" class="progress-details">
-      <div v-for="({ label, value, description, reached }, index) in hostStatus" :key="index">
+    <div class="campaign-track">
+      <progress
+        class="campaign-meter"
+        :value="campaignProgress.completed"
+        :max="campaignProgress.total"
+        aria-label="Campaign cases complete"
+        :aria-valuetext="campaignProgressLabel"
+      ></progress>
+      <p class="panel-note" :class="{ reached: remaining === 0 }">
+        {{ remaining ? `${remaining} remaining` : 'Campaign complete' }}
+      </p>
+    </div>
+    <div class="panel-heading progress-case">
+      <h3>
+        <bdi>{{ scenarioTitle }}</bdi>
+      </h3>
+      <span class="panel-status" :class="{ reached: caseComplete }">{{ goalStatus }}</span>
+    </div>
+    <dl v-if="hostStatus?.length" class="progress-details" aria-label="Host checks">
+      <div
+        v-for="({ label, value, description, reached }, index) in hostStatus"
+        :key="index"
+        :class="{ 'host-detail': reached === undefined }"
+      >
         <dt>
           <bdi>{{ label }}</bdi>
         </dt>
@@ -104,8 +129,12 @@ const emit = defineEmits<{ restart: [] }>()
         </dd>
       </div>
     </dl>
-    <p v-else-if="!campaignFinished" class="panel-note">
-      {{ session.host ? 'No checks for this host.' : 'Connect to a host to see its checks.' }}
+    <p v-else class="panel-note">
+      {{ session.host ? 'No checks for this host.' : 'No host connected.' }}
+    </p>
+    <p v-if="!caseComplete" class="panel-note case-objective" dir="auto">{{ objective }}</p>
+    <p v-else-if="!session.completed && hostStatus?.length" class="panel-note case-objective">
+      Host checks show the current session.
     </p>
   </section>
 </template>
@@ -159,7 +188,6 @@ const emit = defineEmits<{ restart: [] }>()
 .title-panel .reached {
   color: var(--accent);
 }
-.campaign-complete,
 .check-result {
   font-weight: 600;
 }
@@ -178,11 +206,74 @@ const emit = defineEmits<{ restart: [] }>()
 .session-details dd {
   font: 13px/1.4 var(--mono);
 }
-.progress-details > div + div,
-.campaign-complete + .progress-details {
-  margin-block-start: var(--space-2);
-  padding-block-start: var(--space-2);
+.progress-details > div + div {
+  margin-block-start: var(--space-1);
+  padding-block-start: var(--space-1);
   border-block-start: 1px solid var(--line);
+}
+.progress-details .host-detail {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+.campaign-summary,
+.progress-case h3 {
+  font: 600 13px/1.25 var(--sans);
+}
+.campaign-track {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.campaign-meter {
+  flex: 1;
+  min-inline-size: 0;
+  block-size: 8px;
+  appearance: none;
+  border: 1px solid var(--control);
+  background: var(--inset);
+  color: var(--accent);
+}
+.campaign-meter::-webkit-progress-bar {
+  background: var(--inset);
+}
+.campaign-meter::-webkit-progress-value {
+  background: var(--accent);
+}
+.campaign-meter::-moz-progress-bar {
+  background: var(--accent);
+}
+.progress-case {
+  margin-block-start: var(--space-1);
+  padding-block-start: var(--space-1);
+  border-block-start: 1px solid var(--line);
+}
+.case-objective {
+  margin-block-start: var(--space-1);
+}
+@media (forced-colors: active) {
+  .campaign-meter {
+    forced-color-adjust: none;
+    border-color: CanvasText;
+    background: Canvas;
+  }
+  .campaign-meter::-webkit-progress-bar {
+    background: Canvas;
+  }
+  .campaign-meter::-webkit-progress-value {
+    background: Highlight;
+  }
+  .campaign-meter::-moz-progress-bar {
+    background: Highlight;
+  }
+}
+@media (min-width: 601px) {
+  .progress-details > div {
+    display: grid;
+    grid-template-columns: 10.5rem minmax(0, 1fr);
+    align-items: baseline;
+    column-gap: var(--space-2);
+  }
 }
 .check-result {
   display: flex;
@@ -207,6 +298,12 @@ const emit = defineEmits<{ restart: [] }>()
     margin-inline-end: var(--space-1);
     padding-inline: var(--space-2);
     max-height: min(calc(var(--app-height, 100dvh) * 0.28), 186px);
+  }
+  .short-viewport .progress-details > div:not(.host-detail) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    align-items: baseline;
+    column-gap: var(--space-2);
   }
 }
 .short-viewport .title-panel {

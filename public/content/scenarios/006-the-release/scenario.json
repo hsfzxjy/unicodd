@@ -52,32 +52,32 @@
         },
         {
           "label": "Split plan",
-          "value": "Not staged",
+          "value": "No mapping staged",
           "after": {
             "flag": "plan_prepared",
-            "value": "Staged"
+            "value": "Both mappings staged"
           }
         },
         {
           "label": "Audit preview",
-          "value": "Awaiting verification",
+          "value": "Display and capacity checks pending",
           "after": {
             "flag": "preview_ready",
-            "value": "Passed"
+            "value": "Display and capacity checks passed"
           }
         },
         {
           "label": "Dry run",
-          "value": "Pending",
+          "value": "Current plan not verified",
           "after": {
             "flag": "plan_verified",
-            "value": "Passed"
+            "value": "Current plan verified"
           },
-          "description": "A dry run checks the plan, approvals and preview without applying the repair."
+          "description": "Checks the plan, approvals, preview and rollback readiness without applying the split."
         },
         {
           "label": "Account split",
-          "value": "Pending",
+          "value": "Changes not applied",
           "after": {
             "flag": "released",
             "value": "Accounts separated"

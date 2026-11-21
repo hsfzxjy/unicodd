@@ -12,6 +12,7 @@ import {
   Terminal as TerminalIcon,
 } from '@lucide/vue'
 import { computed, ref, watch } from 'vue'
+import type { CampaignProgress } from '../lib/campaign'
 import type { ScenarioEntry } from '../lib/content'
 import type { createRuntime, Session } from '../lib/runtime'
 import type { TerminalPanel } from '../lib/workspace'
@@ -26,6 +27,8 @@ const props = defineProps<{
   permissionLabel: string
   goalStatus: string
   caseComplete: boolean
+  campaignProgress: CampaignProgress
+  campaignProgressLabel: string
   campaignFinished: boolean
   transcriptLive: boolean
   openPanel?: TerminalPanel
@@ -39,19 +42,6 @@ const emit = defineEmits<{
   list: ['hosts' | 'mail']
 }>()
 
-const checks = computed(() =>
-  (props.hostStatus ?? []).filter(({ reached }) => reached !== undefined),
-)
-const reachedChecks = computed(() => checks.value.filter(({ reached }) => reached).length)
-const progress = computed(() =>
-  props.campaignFinished
-    ? 'All available scenarios complete'
-    : checks.value.length
-      ? `${reachedChecks.value} of ${checks.value.length} checks complete`
-      : props.session.host
-        ? 'Host status'
-        : 'No host connected',
-)
 const titleStatus = computed(() => {
   const { host, identity, completed } = props.session
   const location = host ? '@' + host.id : 'Local console'
@@ -75,15 +65,13 @@ const titleStatus = computed(() => {
     {
       key: 'progress',
       label: 'Progress',
-      name: 'Progress: ' + progress.value,
+      name: 'Progress: ' + props.campaignProgressLabel,
       detail: [
-        'Progress: ' + progress.value,
+        'Progress: ' + props.campaignProgressLabel,
         ...(props.hostStatus ?? []).map(({ label, value }) => `${label}: ${value}`),
       ].join('\n'),
       icon: props.campaignFinished ? Flag : ListChecks,
-      reached:
-        props.campaignFinished ||
-        (checks.value.length > 0 && reachedChecks.value === checks.value.length),
+      reached: props.campaignFinished,
     },
   ] as const
 })
@@ -128,7 +116,7 @@ watch(titleStatus, (current, previous) => {
         :key="item.key"
         type="button"
         class="icon-button title-status"
-        :class="{ 'status-reached': item.reached }"
+        :class="{ 'status-reached': item.reached, 'progress-toggle': item.key === 'progress' }"
         :aria-label="item.name"
         :title="item.detail"
         :aria-controls="item.key + '-details'"
@@ -138,12 +126,8 @@ watch(titleStatus, (current, previous) => {
       >
         <component :is="item.icon" :key="item.detail" class="status-mark" aria-hidden="true" />
         <span class="title-action-label" aria-hidden="true">{{ item.label }}</span>
-        <span
-          v-if="item.key === 'progress' && checks.length && !campaignFinished"
-          class="check-meter"
-          aria-hidden="true"
-        >
-          <span :style="{ inlineSize: `${(100 * reachedChecks) / checks.length}%` }"></span>
+        <span v-if="item.key === 'progress'" class="campaign-count" aria-hidden="true">
+          {{ campaignProgress.completed }}/{{ campaignProgress.total }}
         </span>
       </button>
       <button
@@ -247,17 +231,8 @@ h1.terminal-scenario {
   border-color: var(--control);
   border-block-end-color: var(--accent);
 }
-.check-meter {
-  position: absolute;
-  inset-inline: 8px;
-  inset-block-end: 3px;
-  block-size: 2px;
-  background: var(--control);
-}
-.check-meter span {
-  display: block;
-  block-size: 100%;
-  background: var(--accent);
+.campaign-count {
+  font: 600 11px/1.2 var(--mono);
 }
 .notification-count {
   position: absolute;
@@ -311,9 +286,17 @@ h1.terminal-scenario {
   .notification-count {
     position: static;
   }
-  .check-meter {
-    inset-inline: 7px auto;
-    inline-size: 16px;
+}
+@media (max-width: 719px) {
+  .progress-toggle {
+    align-content: center;
+    row-gap: 1px;
+  }
+  .progress-toggle .status-mark {
+    --icon-size: 13px;
+  }
+  .campaign-count {
+    font-size: 10px;
   }
 }
 @media (max-width: 379px) {

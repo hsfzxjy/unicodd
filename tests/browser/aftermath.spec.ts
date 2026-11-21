@@ -115,7 +115,7 @@ for (const [width, height] of [
       const progress = page.getByRole('button', { name: /^Progress:/ })
       await expect(progress).toHaveAttribute(
         'title',
-        /Application acknowledgments: Acknowledgments pending/,
+        /Application acknowledgments: Payload verification pending/,
       )
       const ingestionPath = '/reports/ingestion.txt'
       const ingestion = transcript(page).getByRole('region', { name: 'File ' + ingestionPath })
@@ -167,7 +167,7 @@ for (const [width, height] of [
       await expect(last(page)).toContainText('Both owner-bound ACKs verified.')
       await expect(progress).toHaveAttribute(
         'title',
-        /Application acknowledgments: Acknowledgments verified/,
+        /Application acknowledgments: Both payloads match the ledger/,
       )
       await expect(
         last(page).getByRole('heading', { name: 'Receiver acknowledgments verified' }),

@@ -40,19 +40,19 @@
           "value": "8C2F"
         },
         {
-          "label": "Matching records",
-          "value": "Search pending",
+          "label": "Collision lookup",
+          "value": "Bucket not located",
           "after": {
             "flag": "bucket_found",
-            "value": "Two records located"
+            "value": "Two source records found"
           }
         },
         {
           "label": "Original registrations",
-          "value": "Access restricted",
+          "value": "Export locked",
           "after": {
             "flag": "export_ready",
-            "value": "Verified and readable"
+            "value": "Export ready to read"
           }
         }
       ],

@@ -6,7 +6,7 @@ import TerminalEntry from './TerminalEntry.vue'
 import TerminalReads from './TerminalReads.vue'
 import TerminalResource from './TerminalResource.vue'
 import type { TerminalEntryView } from '../composables/terminal-presentation'
-import { useTerminalTranscript } from '../composables/useTerminalTranscript'
+import { sameResult, useTerminalTranscript } from '../composables/useTerminalTranscript'
 import type { CommandName } from '../lib/commands'
 import type { Action, Link, Output, Response, Session } from '../lib/runtime'
 import type { OperationBinding } from '../lib/scenario'
@@ -35,6 +35,7 @@ const outputPrefix = useId() + '-output-'
 const scroll = ref<HTMLDivElement>()
 const frame = ref<HTMLElement>()
 const dock = ref<HTMLElement>()
+const outcomeButton = ref<HTMLButtonElement>()
 const composer = ref<InstanceType<typeof CommandComposer>>()
 const readsControls = ref<InstanceType<typeof TerminalReads>>()
 const compactLayout = window.matchMedia('(max-width: 830px)')
@@ -64,6 +65,9 @@ const opening = computed(() => {
 const {
   awayFromEnd,
   offscreenProgress,
+  presentation,
+  progressVisible,
+  consumeProgress,
   collapsedAnnouncement,
   selectedScalar,
   collapsed,
@@ -93,6 +97,36 @@ const {
 })
 
 const outcome = computed(() => (reading.value ? result.value : offscreenProgress.value))
+watch([outcome, resultReturn], ([target, returning]) => {
+  const cue = presentation.value
+  if (cue?.target === 'jump' && (returning || !sameResult(target, cue.result)))
+    consumeProgress(cue.result)
+})
+watch(presentation, async (cue, _, cleanup) => {
+  if (cue?.target !== 'jump' || matchMedia('(prefers-reduced-motion: reduce)').matches) return
+  let animation: Animation | undefined
+  let canceled = false
+  cleanup(() => {
+    canceled = true
+    animation?.cancel()
+  })
+  await nextTick()
+  if (
+    canceled ||
+    !sameResult(outcome.value, cue.result) ||
+    resultReturn.value ||
+    !scroll.value?.contains(cue.anchor) ||
+    progressVisible(cue.result, cue.anchor)
+  )
+    return
+  animation = outcomeButton.value?.animate(
+    [
+      { boxShadow: 'inset 0 0 0 2px var(--evidence)' },
+      { boxShadow: 'inset 0 0 0 2px transparent' },
+    ],
+    { duration: 180, easing: 'ease-out' },
+  )
+})
 const viewLabel = computed(() => {
   switch (outcome.value?.kind) {
     case 'completion':
@@ -221,6 +255,7 @@ function keepEditing(event: MouseEvent) {
 }
 
 function viewOutcome(event: MouseEvent) {
+  if (outcome.value) consumeProgress(outcome.value)
   const keyboard = event.detail === 0
   if (reading.value) void showResult(keyboard)
   else void showProgress(keyboard)
@@ -275,6 +310,11 @@ defineExpose({
         v-for="entry in transcript"
         :key="entry.id"
         :entry="entry"
+        :progress-cue="
+          presentation?.target === 'band' && presentation.result.id === entry.id
+            ? presentation.result.kind
+            : undefined
+        "
         :opening-directory="entry.id === opening?.read ? opening?.directory : undefined"
         :omit-row="entry.id === 0 ? opening?.directory : undefined"
         :output-id="outputPrefix + entry.id"
@@ -310,6 +350,7 @@ defineExpose({
         </button>
         <button
           v-if="outcome && !resultReturn"
+          ref="outcomeButton"
           type="button"
           class="view-outcome"
           @click="viewOutcome"

@@ -1,18 +1,26 @@
 <script setup lang="ts">
 import { Check, Flag } from '@lucide/vue'
-import { onMounted, ref } from 'vue'
+import { ref, watch } from 'vue'
 import type { ProgressTransition } from '../lib/runtime'
 
-const props = defineProps<{ progress: ProgressTransition; fresh: boolean }>()
+const props = defineProps<{ progress: ProgressTransition; present: boolean }>()
 const band = ref<HTMLElement>()
 
-onMounted(() => {
-  if (!props.fresh || matchMedia('(prefers-reduced-motion: reduce)').matches) return
-  band.value?.animate(
-    [{ backgroundColor: 'var(--progress-highlight)' }, { backgroundColor: 'var(--progress-fill)' }],
-    { duration: props.progress.scope === 'scenario' ? 560 : 320, easing: 'ease-out' },
-  )
-})
+watch(
+  () => props.present,
+  (present, _, cleanup) => {
+    if (!present || matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const animation = band.value?.animate(
+      [
+        { backgroundColor: 'var(--progress-highlight)' },
+        { backgroundColor: 'var(--progress-fill)' },
+      ],
+      { duration: props.progress.scope === 'scenario' ? 560 : 320, easing: 'ease-out' },
+    )
+    cleanup(() => animation?.cancel())
+  },
+  { flush: 'post' },
+)
 </script>
 
 <template>

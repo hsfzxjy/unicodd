@@ -8,11 +8,13 @@ import TerminalProgress from './TerminalProgress.vue'
 import TerminalReport from './TerminalReport.vue'
 import TerminalResource from './TerminalResource.vue'
 import type { TerminalEntryView } from '../composables/terminal-presentation'
+import type { TranscriptResult } from '../composables/useTerminalReads'
 import { commandDefinition, commandEcho, commandRegistry, type CommandName } from '../lib/commands'
 import type { Action, Output, ProgressTransition, Session } from '../lib/runtime'
 
 const props = defineProps<{
   entry: TerminalEntryView
+  progressCue?: TranscriptResult['kind']
   openingDirectory?: Extract<Output, { kind: 'listing' }>
   omitRow?: Output
   outputId: string
@@ -68,6 +70,14 @@ const closeout = computed(() => {
     else break
   }
   return lists
+})
+const presentedBand = computed(() => {
+  if (!props.progressCue) return -1
+  const scope = props.progressCue === 'completion' ? 'scenario' : 'subobjective'
+  return props.entry.output.findIndex(
+    (row) =>
+      (row.kind === 'objective' || row.kind === 'milestone') && row.progress?.scope === scope,
+  )
 })
 
 function helpCommand(name: CommandName, referenceConnected: boolean) {
@@ -238,7 +248,7 @@ function echoText(value: string) {
           <TerminalProgress
             v-else-if="(row.kind === 'milestone' || row.kind === 'objective') && row.progress"
             :progress="row.progress"
-            :fresh="Boolean(entry.freshProgress)"
+            :present="index === presentedBand"
           />
           <p
             v-else

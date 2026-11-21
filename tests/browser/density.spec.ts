@@ -144,11 +144,17 @@ test('compact normalization keeps each form visible and represents only equal re
   await expect(rows.last().locator('dt code:visible')).toHaveText(['NFD', 'NFKD'])
   await expect(rows.first().locator('dd code')).toHaveText(['U+01FA'])
   await expect(rows.last().locator('dd code')).toHaveText(['U+0041', 'U+030A', 'U+0301'])
+  await expect(
+    inspection.getByText('Changed', { exact: true }).filter({ visible: true }),
+  ).toHaveCount(1)
   await rows.last().getByRole('button', { name: 'Insert NFD' }).click()
   await expect(command).toHaveValue('A\u030a\u0301')
   await page.setViewportSize({ width: 1440, height: 900 })
   await expect(rows).toHaveCount(4)
   await expect(rows.locator('dt code:visible')).toHaveText(['NFC', 'NFD', 'NFKC', 'NFKD'])
+  await expect(
+    inspection.getByText('Changed', { exact: true }).filter({ visible: true }),
+  ).toHaveCount(2)
 })
 
 test('keeps the focused last parameter inside its scrollport through live resizing', async ({

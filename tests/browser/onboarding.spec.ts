@@ -18,9 +18,35 @@ function preferences(page: Page) {
 }
 
 async function run(page: Page, command: string) {
+  const tag = page.getByRole('button', { name: /^Change command:/ })
+  if (await tag.count()) await tag.press('Escape')
   const input = page.getByRole('textbox', { name: 'Terminal command' })
   await input.fill(command)
   await input.press('Enter')
+}
+
+async function watchOutcomes(page: Page) {
+  await page.addInitScript(() => {
+    const animate = Element.prototype.animate
+    Element.prototype.animate = function (frames, options) {
+      const band = this.matches('.progress-band')
+      if (band || this.matches('.view-outcome')) {
+        const entry = band
+          ? this.closest('.terminal-entry')
+          : document.querySelector('.terminal-entry:last-child')
+        if (entry) {
+          const cues = JSON.parse((entry as HTMLElement).dataset.outcomeCues ?? '[]')
+          cues.push({
+            target: band ? 'band' : this.textContent?.trim(),
+            duration: Number(typeof options === 'number' ? options : options?.duration),
+            waiting: Boolean(entry.querySelector('.output-wait')),
+          })
+          ;(entry as HTMLElement).dataset.outcomeCues = JSON.stringify(cues)
+        }
+      }
+      return animate.call(this, frames, options)
+    }
+  })
 }
 
 for (const [width, height] of [
@@ -184,6 +210,7 @@ test.describe('Relay after a touch opening', () => {
       page,
     }, info) => {
       await page.emulateMedia({ reducedMotion })
+      await watchOutcomes(page)
       await page.goto('/')
       await primary(page).tap()
       await expect(request(page)).toContainText('I gave Support 8C2F')
@@ -220,6 +247,7 @@ test.describe('Relay after a touch opening', () => {
       await expect(button(page, 'The missing notice')).toHaveCount(0)
       await log(page).getByRole('button', { name: '/queue/8c2f.msg', exact: true }).tap()
       const incident = log(page).getByRole('region', { name: 'File /queue/8c2f.msg' })
+      const entry = log(page).locator('.terminal-entry').last()
       const complete = page.getByRole('heading', { name: 'The Relay · Complete' })
       await expect(incident).toBeFocused()
       await expect(incident.locator('.file-path')).toBeInViewport({ ratio: 1 })
@@ -227,6 +255,12 @@ test.describe('Relay after a touch opening', () => {
         'Two original registration records were recovered and independently verified.',
       )
       await expect(complete).not.toBeInViewport({ ratio: 1 })
+      if (reducedMotion === 'reduce') await expect(entry).not.toHaveAttribute('data-outcome-cues')
+      else
+        await expect(entry).toHaveAttribute(
+          'data-outcome-cues',
+          JSON.stringify([{ target: 'View completion', duration: 180, waiting: false }]),
+        )
       await page.screenshot({ path: info.outputPath('incident-start.png') })
       const title = page.locator('.terminal-scenario')
       const titleWidth = (await title.boundingBox())!.width
@@ -246,6 +280,7 @@ test.describe('Relay after a touch opening', () => {
 
 test('reveals a fresh completion when the waiting output was collapsed', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 435 })
+  await watchOutcomes(page)
   await page.goto('/')
   await primary(page).press('Enter')
   await run(page, 'connect relay-07')
@@ -268,6 +303,10 @@ test('reveals a fresh completion when the waiting output was collapsed', async (
   await incident.click()
   const view = button(page, 'View completion')
   await expect(view).toBeVisible()
+  await expect(log(page).locator('.terminal-entry').last()).toHaveAttribute(
+    'data-outcome-cues',
+    JSON.stringify([{ target: 'View completion', duration: 180, waiting: false }]),
+  )
   await expect(page.locator('.collapsed-progress')).toBeVisible()
   await expect(page.locator('.terminal-frame > .milestone-announcement')).toContainText(
     'The Relay · Complete',
@@ -277,7 +316,71 @@ test('reveals a fresh completion when the waiting output was collapsed', async (
   await page.reload()
   await expect(button(page, 'Goal: Complete')).toBeVisible()
   await expect(view).toHaveCount(0)
+  await expect(log(page).locator('[data-outcome-cues]')).toHaveCount(0)
   await expect(page.locator('.terminal-frame > .milestone-announcement')).toBeEmpty()
+})
+
+test('cues a visible band once, then points to an earned result during Earlier reads', async ({
+  page,
+}) => {
+  await watchOutcomes(page)
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await page.goto('/')
+  await primary(page).click()
+  await expect(request(page)).toBeFocused()
+  await run(page, 'connect relay-07')
+  await expect(log(page).locator('.arrival')).toHaveText('@relay-07 · guest')
+  await run(page, 'login 𝐌AINT')
+  const last = log(page).locator('.terminal-entry').last()
+  await expect(last).toHaveAttribute(
+    'data-outcome-cues',
+    JSON.stringify([{ target: 'band', duration: 320, waiting: false }]),
+  )
+  await expect(log(page).locator('.arrival')).toHaveText('@relay-07 · guest')
+  await run(page, 'local connect relay-07')
+  await expect(last).toContainText('Already connected')
+  await run(page, 'local connect unknown')
+  await expect(last).toContainText('Unknown host')
+  await run(page, 'local mail favor')
+  await expect(request(page)).toHaveCount(2)
+  await expect(log(page).locator('.opening-directory')).toHaveCount(1)
+  await run(page, 'logout')
+  await expect(last).toContainText('Local console active')
+  await expect(log(page).locator('.arrival')).toHaveCount(1)
+
+  await page.reload()
+  await expect(log(page).locator('.arrival')).toHaveText('@relay-07 · guest')
+  await expect(log(page).locator('[data-outcome-cues]')).toHaveCount(0)
+  await run(page, 'connect relay-07')
+  await run(page, 'login 𝐌AINT')
+  await run(page, 'cat /queue/8c2f.msg')
+  await button(page, 'Dead Letter').click()
+  await expect(log(page).locator('.arrival')).toHaveText('@postbox-03 · guest')
+  await page.setViewportSize({ width: 390, height: 430 })
+  await run(page, 'cat /mail/01-delivery-hold')
+  await run(page, 'cat /spool/router-history.txt')
+  await button(page, 'Earlier reads').click()
+  const earlier = page.getByRole('list', { name: 'Earlier reads' })
+  await earlier.getByRole('button', { name: /01-delivery-hold/ }).click()
+  const letter = log(page).getByRole('region', { name: 'Mail /mail/01-delivery-hold' })
+  await expect(letter).toBeInViewport()
+  await run(page, String.raw`route Mi\u00200Bra \u00FF2Dira`)
+  const cue = JSON.stringify([{ target: 'View result', duration: 180, waiting: false }])
+  await expect(last).toHaveAttribute('data-outcome-cues', cue)
+  await expect(letter).toBeInViewport()
+  const input = page.getByRole('textbox', { name: 'Terminal command' })
+  await input.fill('cat /delivered/🧪')
+  await input.press('Shift+ArrowLeft')
+  const selection = () =>
+    input.evaluate((el: HTMLInputElement) => [el.value, el.selectionStart, el.selectionEnd])
+  const draft = await selection()
+  await button(page, 'View result').press('Enter')
+  await expect(page.getByRole('heading', { name: 'Notice 2917 released' })).toBeFocused()
+  await button(page, 'Back to read').press('Enter')
+  await expect(letter).toBeFocused()
+  await expect(last).toHaveAttribute('data-outcome-cues', cue)
+  await button(page, 'Back to work').press('Enter')
+  expect(await selection()).toEqual(draft)
 })
 
 test('preserves the preference through cancelled and confirmed campaign reset', async ({

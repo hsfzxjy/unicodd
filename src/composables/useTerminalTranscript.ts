@@ -12,6 +12,10 @@ const outputSelectors = {
   help: '.command-help',
 }
 
+export function sameResult(a: TranscriptResult | undefined, b: TranscriptResult) {
+  return a?.id === b.id && a.kind === b.kind
+}
+
 export function useTerminalTranscript({
   entries,
   scroll,
@@ -30,6 +34,13 @@ export function useTerminalTranscript({
   const awayFromEnd = ref(false)
   const freshProgress = shallowRef<TranscriptResult>()
   const offscreenProgress = shallowRef<TranscriptResult>()
+  const presentation = shallowRef<{
+    result: TranscriptResult
+    anchor: HTMLElement
+    target: 'band' | 'jump'
+  }>()
+  let pendingProgress: TranscriptResult | undefined
+  let settlementFrame = 0
   const collapsedAnnouncement = ref('')
   const selectedScalar = ref<string>()
   const collapsed = reactive(new Set<number>())
@@ -123,7 +134,7 @@ export function useTerminalTranscript({
       awayFromEnd.value = remaining - reserved > 1
       following.value = !reading.value && !holdScrollSpace && remaining < (atOpening() ? 1 : 28)
     }
-    measureProgress()
+    if (!pendingProgress) measureProgress()
     change()
   }
 
@@ -141,6 +152,8 @@ export function useTerminalTranscript({
     resetReads()
     collapsed.clear()
     holdScrollSpace = false
+    cancelAnimationFrame(settlementFrame)
+    pendingProgress = presentation.value = undefined
     freshProgress.value = offscreenProgress.value = undefined
     if (Array.isArray(view?.collapsed))
       for (const id of view.collapsed)
@@ -192,11 +205,14 @@ export function useTerminalTranscript({
     document.removeEventListener('selectionchange', readResourceSelection)
     transcriptResize.disconnect()
     cancelAnimationFrame(resizeFrame)
+    cancelAnimationFrame(settlementFrame)
   })
 
   watch(
     entries,
     (entries, previous) => {
+      if (presentation.value && !entries.some(({ id }) => id === presentation.value?.result.id))
+        presentation.value = undefined
       for (const id of collapsed) {
         if (!entries.some((entry) => entry.id === id)) collapsed.delete(id)
       }
@@ -219,8 +235,15 @@ export function useTerminalTranscript({
       if (last && !last.waiting && (last.id !== prior?.id || prior?.waiting)) {
         freshProgress.value = progressResult(last)
         offscreenProgress.value = undefined
+        pendingProgress = freshProgress.value
         // The settled command can still reveal the start of its file or report this tick.
-        requestAnimationFrame(() => trackScroll())
+        cancelAnimationFrame(settlementFrame)
+        settlementFrame = requestAnimationFrame(() => {
+          const pending = pendingProgress
+          pendingProgress = undefined
+          if (pending) measureProgress(pending)
+          trackScroll()
+        })
       }
     },
     { flush: 'post' },
@@ -242,29 +265,45 @@ export function useTerminalTranscript({
     return entry?.querySelector<HTMLElement>(selector) ?? entry
   }
 
-  function measureProgress() {
-    const target = freshProgress.value
+  function progressVisible(target: TranscriptResult, anchor: HTMLElement) {
     const box = scroll.value
-    if (!target || !box || reading.value) return
-    const anchor = resultAnchor(target)
-    const band = anchor?.closest('.progress-band')
-    const handoff = band?.nextElementSibling?.querySelector('button')
+    const band = anchor.closest('.progress-band')
+    if (!box?.contains(anchor) || !band || collapsed.has(target.id)) return false
+    const handoff = band.nextElementSibling?.querySelector('button')
     const viewport = box.getBoundingClientRect()
-    if (
-      !collapsed.has(target.id) &&
-      band &&
-      anchor &&
+    return (
       anchor.getBoundingClientRect().top >= viewport.top &&
       (handoff ?? band).getBoundingClientRect().bottom <= viewport.bottom
-    ) {
-      freshProgress.value = offscreenProgress.value = undefined
-    } else if (anchor) offscreenProgress.value = target
+    )
+  }
+
+  function measureProgress(pending?: TranscriptResult) {
+    const target = freshProgress.value
+    if (!target || (reading.value && !pending)) return
+    const anchor = resultAnchor(target)
+    if (!anchor?.closest('.progress-band')) return
+    const visible = progressVisible(target, anchor)
+    if (!reading.value) {
+      if (visible) freshProgress.value = offscreenProgress.value = undefined
+      else offscreenProgress.value = target
+    }
+    if (
+      pending === target &&
+      (!reading.value || (sameResult(result.value, target) && !resultReturn.value))
+    )
+      presentation.value = { result: target, anchor, target: visible ? 'band' : 'jump' }
+  }
+
+  function consumeProgress(target: TranscriptResult) {
+    if (sameResult(pendingProgress, target)) pendingProgress = undefined
+    if (sameResult(presentation.value?.result, target)) presentation.value = undefined
   }
 
   async function revealResult(target: TranscriptResult, keyboard: boolean) {
     const box = scroll.value
     const anchor = resultAnchor(target)
     if (!box || !anchor) return
+    consumeProgress(target)
     if (freshProgress.value?.id === target.id)
       freshProgress.value = offscreenProgress.value = undefined
     const position = () =>
@@ -333,6 +372,9 @@ export function useTerminalTranscript({
   return {
     awayFromEnd,
     offscreenProgress,
+    presentation,
+    progressVisible,
+    consumeProgress,
     collapsedAnnouncement,
     selectedScalar,
     collapsed,

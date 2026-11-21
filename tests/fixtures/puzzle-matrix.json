@@ -156,7 +156,7 @@
       }
     },
     "solved": true,
-    "feedback": "Authentication accepted. Resolved identity: MAINT. Session elevated.",
+    "feedback": "Authentication accepted. Resolved identity: MAINT.",
     "principle": "One supplementary scalar adds one UTF-16 unit and three extra UTF-8 bytes."
   },
   {
@@ -196,7 +196,7 @@
       }
     },
     "solved": true,
-    "feedback": "Authentication accepted. Resolved identity: MAINT. Session elevated.",
+    "feedback": "Authentication accepted. Resolved identity: MAINT.",
     "principle": "The valid styled position is not fixed."
   },
   {

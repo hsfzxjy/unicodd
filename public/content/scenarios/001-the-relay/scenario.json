@@ -152,7 +152,7 @@
           },
           {
             "type": "message",
-            "text": "Authentication accepted. Resolved identity: MAINT. Session elevated."
+            "text": "Authentication accepted. Resolved identity: MAINT."
           },
           {
             "type": "resourceLink",

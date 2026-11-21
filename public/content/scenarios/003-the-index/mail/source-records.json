@@ -5,14 +5,14 @@
       "from": "Rowan / Directory Team",
       "to": "Helena / Identity Architecture",
       "subject": "Re: Duplicate-looking accounts",
-      "body": "Which owner ID will Support get if it opens the shared entry? Both registrations already have verified IDs.\n\nThe same spelling always gets the same key. Other spellings can get it too. Audit will still need the source records for the export."
+      "body": "Which owner ID will Support get if it opens the shared entry? Both registrations already have verified IDs.\n\nEither spelling could land in the same similarity bucket. I’d have Audit check each name against its own record before issuing an export."
     },
     {
       "id": "reconstruct",
       "from": "Helena / Identity Architecture",
       "to": "Rowan / Directory Team",
       "subject": "Re: Duplicate-looking accounts",
-      "body": "Require a match against each retained registration before the export opens. The diagnostic can locate a bucket.\n\nAudit still has the pre-merge lengths, scripts and a limited byte comparison. Those came from the source records."
+      "body": "Agreed on the export. Keep the bucket lookup for diagnostics. Require a match against each retained registration before the export opens.\n\nAudit kept the pre-merge lengths, scripts and a limited byte comparison from the source records."
     }
   ]
 }

@@ -1,5 +1,5 @@
-import { nextTick, onMounted, onUnmounted, reactive, ref, watch, type Ref } from 'vue'
-import { useTerminalReads } from './useTerminalReads'
+import { nextTick, onMounted, onUnmounted, reactive, ref, shallowRef, watch, type Ref } from 'vue'
+import { progressResult, useTerminalReads, type TranscriptResult } from './useTerminalReads'
 import { unpairedSurrogate } from '../lib/unicode'
 import type { Entry, TerminalView } from '../lib/workspace'
 
@@ -27,10 +27,13 @@ export function useTerminalTranscript({
 }) {
   const scrollSpace = '--transcript-scroll-space'
   const following = ref(true)
-  const unseenProgress = ref(false)
+  const awayFromEnd = ref(false)
+  const freshProgress = shallowRef<TranscriptResult>()
+  const offscreenProgress = shallowRef<TranscriptResult>()
   const collapsedAnnouncement = ref('')
   const selectedScalar = ref<string>()
   const collapsed = reactive(new Set<number>())
+  let holdScrollSpace = false
   const {
     reads,
     reading,
@@ -40,6 +43,7 @@ export function useTerminalTranscript({
     openRead,
     remember,
     back,
+    backToRead,
     showResult,
     latest,
     reset: resetReads,
@@ -51,6 +55,8 @@ export function useTerminalTranscript({
     expand: (id) => collapsed.delete(id),
     move: moveTranscript,
     followLatest: scrollToEnd,
+    revealResult,
+    focusTranscript,
     change,
   })
 
@@ -65,7 +71,7 @@ export function useTerminalTranscript({
     readResourceSelection()
   }
 
-  function moveTranscript(top: number) {
+  function moveTranscript(top: number, hold = false) {
     const box = scroll.value
     if (!box) return
     const last = box.lastElementChild
@@ -79,17 +85,25 @@ export function useTerminalTranscript({
     const space = Math.ceil(top + box.clientHeight - end)
     if (last && top > 0 && space > 0) box.style.setProperty(scrollSpace, `${space}px`)
     else box.style.removeProperty(scrollSpace)
+    holdScrollSpace = hold
     box.scrollTop = top
   }
 
-  function scrollToEnd() {
+  function scrollToEnd(keyboard = false) {
     const box = scroll.value
     if (box) {
       box.style.removeProperty(scrollSpace)
       box.scrollTop = box.scrollHeight
     }
     following.value = !reading.value
-    unseenProgress.value = false
+    holdScrollSpace = false
+    awayFromEnd.value = false
+    if (keyboard) {
+      const last = box?.lastElementChild as HTMLElement | undefined
+      if (box && last && last.getBoundingClientRect().top >= box.getBoundingClientRect().top)
+        last.focus({ preventScroll: true })
+      else focusTranscript()
+    }
   }
 
   function atOpening() {
@@ -103,11 +117,13 @@ export function useTerminalTranscript({
       const space = Number.parseFloat(box.style.getPropertyValue(scrollSpace))
       const distance = box.scrollHeight - box.scrollTop - box.clientHeight
       if (space && (box.scrollTop === 0 || distance >= space)) box.style.removeProperty(scrollSpace)
-      following.value =
-        !reading.value &&
-        box.scrollHeight - box.scrollTop - box.clientHeight < (atOpening() ? 1 : 28)
+      const remaining = box.scrollHeight - box.scrollTop - box.clientHeight
+      const reserved = Number.parseFloat(box.style.getPropertyValue(scrollSpace)) || 0
+      if (!reserved) holdScrollSpace = false
+      awayFromEnd.value = remaining - reserved > 1
+      following.value = !reading.value && !holdScrollSpace && remaining < (atOpening() ? 1 : 28)
     }
-    if (following.value) unseenProgress.value = false
+    measureProgress()
     change()
   }
 
@@ -124,6 +140,8 @@ export function useTerminalTranscript({
     closeReads()
     resetReads()
     collapsed.clear()
+    holdScrollSpace = false
+    freshProgress.value = offscreenProgress.value = undefined
     if (Array.isArray(view?.collapsed))
       for (const id of view.collapsed)
         if (entries().some((entry) => entry.id === id)) collapsed.add(id)
@@ -158,12 +176,13 @@ export function useTerminalTranscript({
         : undefined
   }
 
+  let resizeFrame = 0
   const transcriptResize = new ResizeObserver(() => {
-    if (atOpening()) {
-      requestAnimationFrame(() => {
-        if (atOpening()) trackScroll()
-      })
-    } else if (following.value) scrollToEnd()
+    cancelAnimationFrame(resizeFrame)
+    resizeFrame = requestAnimationFrame(() => {
+      if (following.value && !atOpening()) scrollToEnd()
+      trackScroll()
+    })
   })
   onMounted(() => {
     document.addEventListener('selectionchange', readResourceSelection)
@@ -172,6 +191,7 @@ export function useTerminalTranscript({
   onUnmounted(() => {
     document.removeEventListener('selectionchange', readResourceSelection)
     transcriptResize.disconnect()
+    cancelAnimationFrame(resizeFrame)
   })
 
   watch(
@@ -196,13 +216,91 @@ export function useTerminalTranscript({
       }
       const firstCommand = prior?.id === 0 && last && last.id !== 0 && scroll.value?.scrollTop === 0
       if (following.value || firstCommand) scrollToEnd()
-      else if (progress.length) unseenProgress.value = true
+      if (last && !last.waiting && (last.id !== prior?.id || prior?.waiting)) {
+        freshProgress.value = progressResult(last)
+        offscreenProgress.value = undefined
+        // The settled command can still reveal the start of its file or report this tick.
+        requestAnimationFrame(() => trackScroll())
+      }
     },
     { flush: 'post' },
   )
 
-  function revealOutput(kind: keyof typeof outputSelectors, focus: boolean, followOnly = false) {
-    if (reading.value && kind === 'report' && !focus) return
+  function findEntry(id: number) {
+    return scroll.value?.querySelector<HTMLElement>(`[data-entry-id="${id}"]`)
+  }
+
+  function resultAnchor(target: TranscriptResult) {
+    const entry = findEntry(target.id)
+    const selector = {
+      completion: '.progress-band[data-scope="scenario"] h3',
+      milestone: '.progress-band[data-scope="subobjective"] h3',
+      diagnostic: '.terminal-line.error',
+      report: '.entry-output > :first-child',
+      inspection: outputSelectors.inspection,
+    }[target.kind]
+    return entry?.querySelector<HTMLElement>(selector) ?? entry
+  }
+
+  function measureProgress() {
+    const target = freshProgress.value
+    const box = scroll.value
+    if (!target || !box || reading.value) return
+    const anchor = resultAnchor(target)
+    const band = anchor?.closest('.progress-band')
+    const handoff = band?.nextElementSibling?.querySelector('button')
+    const viewport = box.getBoundingClientRect()
+    if (
+      !collapsed.has(target.id) &&
+      band &&
+      anchor &&
+      anchor.getBoundingClientRect().top >= viewport.top &&
+      (handoff ?? band).getBoundingClientRect().bottom <= viewport.bottom
+    ) {
+      freshProgress.value = offscreenProgress.value = undefined
+    } else if (anchor) offscreenProgress.value = target
+  }
+
+  async function revealResult(target: TranscriptResult, keyboard: boolean) {
+    const box = scroll.value
+    const anchor = resultAnchor(target)
+    if (!box || !anchor) return
+    if (freshProgress.value?.id === target.id)
+      freshProgress.value = offscreenProgress.value = undefined
+    const position = () =>
+      moveTranscript(
+        box.scrollTop + anchor.getBoundingClientRect().top - box.getBoundingClientRect().top - 6,
+        true,
+      )
+    position()
+    trackScroll()
+    // Removing the action can grow the transcript and clamp the jump before it paints.
+    await nextTick()
+    if (!anchor.isConnected) return
+    position()
+    trackScroll()
+    if (keyboard) anchor.focus({ preventScroll: true })
+  }
+
+  async function showProgress(keyboard: boolean) {
+    const target = offscreenProgress.value
+    if (!target) return
+    collapsed.delete(target.id)
+    await nextTick()
+    revealResult(target, keyboard)
+  }
+
+  function revealOutput(
+    kind: keyof typeof outputSelectors,
+    focus: boolean,
+    followOnly = false,
+    fromComposer = false,
+  ) {
+    if (reading.value && (kind === 'report' || kind === 'inspection')) {
+      if (!fromComposer && !followOnly && result.value?.kind === 'inspection')
+        void showResult(focus)
+      return
+    }
     if (followOnly && !following.value) return
     const entry = entries().at(-1)
     if (!entry || collapsed.has(entry.id)) return
@@ -219,12 +317,6 @@ export function useTerminalTranscript({
       const viewport = box.getBoundingClientRect()
       box.scrollTop += top - viewport.top - 6
       trackScroll()
-      if (entry.freshProgress) {
-        const band = Array.from(last.querySelectorAll('.progress-band')).at(-1)
-        unseenProgress.value = Boolean(
-          band && band.getBoundingClientRect().bottom > viewport.bottom,
-        )
-      }
     } else {
       scrollToEnd()
     }
@@ -239,8 +331,8 @@ export function useTerminalTranscript({
   }
 
   return {
-    following,
-    unseenProgress,
+    awayFromEnd,
+    offscreenProgress,
     collapsedAnnouncement,
     selectedScalar,
     collapsed,
@@ -251,7 +343,9 @@ export function useTerminalTranscript({
     resultReturn,
     openRead,
     back,
+    backToRead,
     showResult,
+    showProgress,
     latest,
     toggleOutput,
     trackScroll,

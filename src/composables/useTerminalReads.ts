@@ -1,4 +1,4 @@
-import { computed, nextTick, ref, shallowRef, watch, type Ref } from 'vue'
+import { computed, nextTick, shallowRef, watch, type Ref } from 'vue'
 import type { Output } from '../lib/runtime'
 import type { Entry } from '../lib/workspace'
 
@@ -26,12 +26,31 @@ interface Transcript {
   scroll: Ref<HTMLDivElement | undefined>
   following: Ref<boolean>
   expand: (id: number) => void
-  move: (top: number) => void
-  followLatest: () => void
+  move: (top: number, hold?: boolean) => void
+  followLatest: (keyboard?: boolean) => void
+  revealResult: (result: TranscriptResult, keyboard: boolean) => void
+  focusTranscript: () => void
   change: () => void
 }
 
 const inset = 6
+
+export type TranscriptResult = {
+  id: number
+  kind: 'completion' | 'milestone' | 'diagnostic' | 'report' | 'inspection'
+}
+
+export function progressResult(entry: Entry): TranscriptResult | undefined {
+  if (!entry.freshProgress || entry.waiting) return
+  const bands = entry.output.flatMap((row) =>
+    'progress' in row && row.progress ? [row.progress] : [],
+  )
+  if (bands.length)
+    return {
+      id: entry.id,
+      kind: bands.some(({ scope }) => scope === 'scenario') ? 'completion' : 'milestone',
+    }
+}
 
 export function useTerminalReads({
   entries,
@@ -40,6 +59,8 @@ export function useTerminalReads({
   expand,
   move,
   followLatest,
+  revealResult,
+  focusTranscript,
   change,
 }: Transcript) {
   const bySource = new Map<string, EarlierRead>()
@@ -47,7 +68,7 @@ export function useTerminalReads({
   const selected = shallowRef<EarlierRead>()
   const origin = shallowRef<Position>()
   const resultReturn = shallowRef<Position>()
-  const openedAfter = ref(0)
+  let openedAfter = 0
   let indexedThrough = 0
   let navigation = 0
 
@@ -56,14 +77,17 @@ export function useTerminalReads({
     const read = selected.value
     return read && !entries().some(({ id }) => id === read.entry) ? read : undefined
   })
-  const result = computed(() => {
+  const result = computed<TranscriptResult | undefined>(() => {
     const entry = entries().at(-1)
-    if (!reading.value || !entry || entry.waiting || entry.id <= openedAfter.value) return
-    const milestone = Boolean(
-      entry.freshProgress && entry.output.some((row) => 'progress' in row && row.progress),
+    if (!reading.value || !entry || entry.waiting || entry.id <= openedAfter) return
+    const progress = progressResult(entry)
+    if (progress) return progress
+    if (entry.output.some((row) => row.kind === 'error'))
+      return { id: entry.id, kind: 'diagnostic' }
+    const experiment = entry.output.find(
+      (row) => row.kind === 'report' || row.kind === 'inspection',
     )
-    if (milestone || entry.output.some((row) => row.kind === 'error'))
-      return { id: entry.id, milestone }
+    if (experiment) return { id: entry.id, kind: experiment.kind }
   })
 
   // Keep one snapshot per source in the open workspace. Pending responses and directory
@@ -107,8 +131,8 @@ export function useTerminalReads({
     return height && top < (scroll.value?.clientHeight ?? 0) && top + height > 0 ? top : undefined
   }
 
-  function moveTo(el: HTMLElement, at: number) {
-    if (scroll.value) move(scroll.value.scrollTop + offset(el) - at)
+  function moveTo(el: HTMLElement, at: number, hold?: boolean) {
+    if (scroll.value) move(scroll.value.scrollTop + offset(el) - at, hold)
   }
 
   function capture(read?: EarlierRead): Position {
@@ -136,18 +160,18 @@ export function useTerminalReads({
     }
   }
 
-  function restore(place: Position) {
+  function restore(place: Position, hold?: boolean) {
     const entry = place.entry === undefined ? undefined : findEntry(place.entry)
     const el = place.resource
       ? entry?.querySelector<HTMLElement>('.terminal-file, .terminal-mail')
       : entry
-    if (el) moveTo(el, place.offset)
-    else move(place.entry === undefined ? place.top : 0)
+    if (el) moveTo(el, place.offset, hold)
+    else move(place.entry === undefined ? place.top : 0, hold)
   }
 
   function remember() {
     const read = selected.value
-    if (!read) return
+    if (!read || resultReturn.value) return
     const el = findRead(read)
     const top = el ? visibleOffset(el) : undefined
     if (top !== undefined) read.offset = Math.max(0, inset - top)
@@ -185,7 +209,7 @@ export function useTerminalReads({
       origin.value = capture()
       const history = entries()
       const latest = history.at(-1)
-      openedAfter.value = (latest?.waiting ? history.at(-2)?.id : latest?.id) ?? 0
+      openedAfter = (latest?.waiting ? history.at(-2)?.id : latest?.id) ?? 0
     }
     resultReturn.value = undefined
     selected.value = read
@@ -207,7 +231,7 @@ export function useTerminalReads({
     resultReturn.value = undefined
   }
 
-  async function back() {
+  async function back(keyboard: boolean) {
     const place = origin.value
     if (!place) return
     remember()
@@ -216,46 +240,53 @@ export function useTerminalReads({
     await nextTick()
     if (request !== navigation) return
     if (place.following) followLatest()
+    else {
+      restore(place, true)
+      following.value = false
+    }
+    if (keyboard) focusTranscript()
+    change()
+  }
+
+  async function backToRead(keyboard: boolean) {
+    const request = ++navigation
+    const place = resultReturn.value
+    if (!place) return
+    resultReturn.value = undefined
+    await nextTick()
+    if (request !== navigation) return
+    const read = selected.value
+    const resource = read && findRead(read)
+    if (resource && place.resource) moveTo(resource, place.offset)
     else restore(place)
+    if (keyboard) {
+      if (resource && visibleOffset(resource) !== undefined) resource.focus({ preventScroll: true })
+      else focusTranscript()
+    }
     change()
   }
 
   async function showResult(keyboard: boolean) {
+    const target = result.value
+    if (!target) return
     const request = ++navigation
-    const place = resultReturn.value
-    if (place) {
-      resultReturn.value = undefined
-      await nextTick()
-      if (request !== navigation) return
-      restore(place)
-      if (keyboard) scroll.value?.focus({ preventScroll: true })
-      change()
-      return
+    if (!resultReturn.value) {
+      remember()
+      resultReturn.value = capture(selected.value)
     }
-    if (!result.value) return
-    const { id, milestone } = result.value
-    remember()
-    resultReturn.value = capture(selected.value)
-    expand(id)
+    expand(target.id)
     await nextTick()
-    if (request !== navigation) return
-    const el = findEntry(id)
-    if (el)
-      moveTo(
-        el.querySelector<HTMLElement>(milestone ? '.progress-band' : '.terminal-line.error') ?? el,
-        inset,
-      )
-    if (keyboard) scroll.value?.focus({ preventScroll: true })
-    change()
+    if (request === navigation && entries().some(({ id }) => id === target.id))
+      revealResult(target, keyboard)
   }
 
-  async function latest() {
+  async function latest(keyboard: boolean) {
     if (reading.value) {
       remember()
       dismiss()
       await nextTick()
     }
-    followLatest()
+    followLatest(keyboard)
     change()
   }
 
@@ -277,6 +308,7 @@ export function useTerminalReads({
     openRead,
     remember,
     back,
+    backToRead,
     showResult,
     latest,
     reset,

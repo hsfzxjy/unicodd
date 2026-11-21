@@ -19,7 +19,7 @@ const emit = defineEmits<{ restart: [] }>()
 
 <template>
   <section
-    v-show="openPanel === 'goal'"
+    :hidden="openPanel !== 'goal'"
     id="goal-details"
     class="title-panel"
     aria-labelledby="goal-heading"
@@ -36,7 +36,7 @@ const emit = defineEmits<{ restart: [] }>()
   </section>
 
   <section
-    v-show="openPanel === 'session'"
+    :hidden="openPanel !== 'session'"
     id="session-details"
     class="title-panel"
     aria-labelledby="session-heading"
@@ -77,7 +77,7 @@ const emit = defineEmits<{ restart: [] }>()
   </section>
 
   <section
-    v-show="openPanel === 'progress'"
+    :hidden="openPanel !== 'progress'"
     id="progress-details"
     class="title-panel"
     aria-labelledby="progress-heading"
@@ -116,6 +116,7 @@ const emit = defineEmits<{ restart: [] }>()
 
 <style scoped>
 .title-panel {
+  --panel-surface: #1b2931;
   width: calc(100% - 2 * var(--space-2));
   max-height: min(calc(var(--app-height, 100dvh) * 0.34), 250px);
   margin-inline: auto var(--space-2);
@@ -124,7 +125,7 @@ const emit = defineEmits<{ restart: [] }>()
   overscroll-behavior: contain;
   border: 1px solid var(--control);
   border-block-start-color: var(--accent);
-  background: #1b2931;
+  background: var(--panel-surface);
   box-shadow: 0 3px 0 var(--bg);
   overflow-wrap: anywhere;
   font: 14px/1.4 var(--sans);
@@ -215,6 +216,31 @@ const emit = defineEmits<{ restart: [] }>()
 .short-viewport .title-panel {
   max-height: min(calc(var(--app-height, 100dvh) * 0.24), 108px);
   padding-block: var(--space-1);
+}
+@media (max-width: 830px) {
+  .short-viewport .title-panel {
+    max-height: min(
+      calc(var(--app-height, 100dvh) * 0.24),
+      108px,
+      var(--title-detail-budget, 108px)
+    );
+  }
+}
+@media (max-width: 830px) and (pointer: coarse) {
+  .title-panel {
+    scrollbar-width: thin;
+    scrollbar-color: var(--muted) transparent;
+    scrollbar-gutter: stable;
+    /* Keep a cue at an overflow edge when the touch scrollbar fades out. */
+    background:
+      linear-gradient(var(--panel-surface), var(--panel-surface)) right top / 4px 12px no-repeat
+        local,
+      linear-gradient(var(--panel-surface), var(--panel-surface)) right bottom / 4px 12px no-repeat
+        local,
+      linear-gradient(to bottom, var(--muted), transparent) right top / 4px 10px no-repeat scroll,
+      linear-gradient(to top, var(--muted), transparent) right bottom / 4px 10px no-repeat scroll
+        var(--panel-surface);
+  }
 }
 @media (min-width: 831px) {
   .title-panel {

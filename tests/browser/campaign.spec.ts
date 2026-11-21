@@ -133,9 +133,7 @@ test('continues from the Dead Letter completion by keyboard at 390 × 430', asyn
   await expect(letter).toBeFocused()
   await expect(letter.locator('.file-path')).toBeInViewport({ ratio: 1 })
   await expect(complete).not.toBeInViewport()
-  await page
-    .getByRole('button', { name: 'Latest output, new milestone', exact: true })
-    .press('Enter')
+  await page.getByRole('button', { name: 'View completion', exact: true }).press('Enter')
   await expect(complete).toBeFocused()
   await expect(complete).toBeInViewport({ ratio: 1 })
 

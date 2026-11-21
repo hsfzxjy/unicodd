@@ -187,7 +187,7 @@ for (const [width, height] of [
       await snap('03-ingestion-start')
       if (width < 600) {
         await expect(fragmentsComplete).not.toBeInViewport()
-        await act(page.getByRole('button', { name: 'Latest output, new milestone', exact: true }))
+        await act(page.getByRole('button', { name: 'View completion', exact: true }))
       }
       await expect(fragmentsComplete).toBeInViewport({ ratio: 1 })
       await expect(link(page, 'Legacy archive import review')).toBeInViewport({ ratio: 1 })

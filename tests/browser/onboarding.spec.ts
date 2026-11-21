@@ -69,7 +69,9 @@ for (const [width, height] of [
       await page.screenshot({ path: info.outputPath('opening-reference.png') })
       if (width === 320) {
         await page.evaluate(() => (document.documentElement.style.fontSize = '200%'))
-        const lastParagraph = page.getByText('Use Back to return to your work.', { exact: false })
+        const lastParagraph = page.getByText('Use Back to work to return to your work.', {
+          exact: false,
+        })
         await lastParagraph.scrollIntoViewIfNeeded()
         await expect(lastParagraph).toBeInViewport()
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
@@ -189,7 +191,7 @@ test.describe('Relay after a touch opening', () => {
         .getByRole('button', { name: /^A favor/ })
         .tap()
       await expect(request(page)).toBeInViewport()
-      await button(page, 'Back').tap()
+      await button(page, 'Back to work').tap()
       expect(
         await alias.evaluate((field: HTMLTextAreaElement) => [
           field.selectionStart,
@@ -211,10 +213,13 @@ test.describe('Relay after a touch opening', () => {
       )
       await expect(complete).not.toBeInViewport({ ratio: 1 })
       await page.screenshot({ path: info.outputPath('incident-start.png') })
-      await button(page, 'Latest output, new milestone').tap()
+      const title = page.locator('.terminal-scenario')
+      const titleWidth = (await title.boundingBox())!.width
+      await button(page, 'View completion').tap()
       await expect(complete).toBeInViewport({ ratio: 1 })
       await expect(button(page, 'The missing notice')).toBeInViewport({ ratio: 1 })
       await expect(button(page, 'Dead Letter')).toBeInViewport({ ratio: 1 })
+      expect((await title.boundingBox())!.width).toBe(titleWidth)
       await page.screenshot({ path: info.outputPath('incident-completion.png') })
       await run(page, 'cat /queue/8c2f.msg')
       await expect(incident).toHaveCount(2)
@@ -222,6 +227,42 @@ test.describe('Relay after a touch opening', () => {
       await expect(button(page, 'The missing notice')).toHaveCount(1)
     })
   }
+})
+
+test('reveals a fresh completion when the waiting output was collapsed', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 435 })
+  await page.goto('/')
+  await primary(page).press('Enter')
+  await run(page, 'connect relay-07')
+  await expect(page.getByRole('button', { name: /^Session:.*relay-07/ })).toBeVisible()
+  await run(page, 'login 𝐌AINT')
+  const incident = button(page, '/queue/8c2f.msg')
+  await expect(incident).toBeVisible()
+  await log(page).evaluate((element) => {
+    const observer = new MutationObserver(() => {
+      const pending = element.querySelector('.terminal-entry:last-child .output-wait')
+      const toggle = pending
+        ?.closest('.terminal-entry')
+        ?.querySelector<HTMLButtonElement>('.output-toggle')
+      if (!toggle) return
+      observer.disconnect()
+      toggle.click()
+    })
+    observer.observe(element, { childList: true, subtree: true })
+  })
+  await incident.click()
+  const view = button(page, 'View completion')
+  await expect(view).toBeVisible()
+  await expect(page.locator('.collapsed-progress')).toBeVisible()
+  await expect(page.locator('.terminal-frame > .milestone-announcement')).toContainText(
+    'The Relay · Complete',
+  )
+  await view.press('Enter')
+  await expect(page.getByRole('heading', { name: 'The Relay · Complete' })).toBeFocused()
+  await page.reload()
+  await expect(button(page, 'Goal: Complete')).toBeVisible()
+  await expect(view).toHaveCount(0)
+  await expect(page.locator('.terminal-frame > .milestone-announcement')).toBeEmpty()
 })
 
 test('preserves the preference through cancelled and confirmed campaign reset', async ({

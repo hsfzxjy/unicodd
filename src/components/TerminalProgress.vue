@@ -17,7 +17,7 @@ onMounted(() => {
 
 <template>
   <section ref="band" class="progress-band" :data-scope="progress.scope">
-    <h3 :tabindex="progress.scope === 'scenario' ? -1 : undefined">
+    <h3 tabindex="-1">
       <Check v-if="progress.scope === 'scenario'" aria-hidden="true" />
       <Flag v-else aria-hidden="true" />
       <bdi>{{ progress.title }}</bdi>

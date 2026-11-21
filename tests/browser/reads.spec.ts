@@ -15,10 +15,14 @@ async function type(page: Page, command: string) {
   const prompt = page.getByRole('textbox', { name: 'Terminal command', exact: true })
   const last = entries(page).last()
   const previous = (await last.count()) ? (await last.getAttribute('data-entry-id'))! : ''
+  await expect(prompt).toBeEditable()
   await prompt.fill(command)
   await prompt.press('Enter')
   if (command === 'clear') await expect(entries(page)).toHaveCount(0)
-  else await expect(last).not.toHaveAttribute('data-entry-id', previous)
+  else {
+    await expect(last).not.toHaveAttribute('data-entry-id', previous)
+    await expect(last.locator('.output-wait')).toHaveCount(0)
+  }
 }
 
 test.describe('Earlier reads at keyboard height', () => {
@@ -109,9 +113,9 @@ test.describe('Earlier reads at keyboard height', () => {
     await expect(button(page, 'Run')).toBeInViewport({ ratio: 1 })
     await button(page, 'Run').tap()
     await expect(entries(page).last()).toContainText('under delivery hold')
-    await expect(button(page, 'Result')).toBeVisible()
+    await expect(button(page, 'View diagnostic')).toBeVisible()
     await expect.poll(async () => Math.abs((await passageTop()) - before)).toBeLessThanOrEqual(1)
-    await button(page, 'Result').tap()
+    await button(page, 'View diagnostic').tap()
     await expect(
       entries(page)
         .last()
@@ -128,9 +132,42 @@ test.describe('Earlier reads at keyboard height', () => {
       ]),
     ).toEqual([0, 2])
     await page.screenshot({ path: info.outputPath('earlier-passage-390x430.png') })
-    await button(page, 'Back').tap()
+    await button(page, 'Back to work').tap()
     await expect.poll(() => log(page).evaluate((el) => el.scrollTop)).toBe(0)
   })
+})
+
+test('keeps a passage in place while a typed inspection arrives', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 435 })
+  await page.addInitScript(() => localStorage.setItem('unicodd.onboarding.v1', 'seen'))
+  await page.goto('/')
+  await type(page, 'connect relay-07')
+  const path = '/notes/print-samples.txt'
+  await type(page, `cat ${path}`)
+  await type(page, 'whoami')
+  const position = () => log(page).evaluate((el) => el.scrollTop)
+  const work = await position()
+  await button(page, 'Earlier reads').press('Enter')
+  await choice(page, path).press('Enter')
+  const source = log(page).getByRole('region', { name: `File ${path}` })
+  await expect(source).toBeFocused()
+  const passage = await position()
+  await type(page, 'inspect U+01FA')
+  const inspection = log(page).getByRole('region', { name: 'Unicode U+01FA' })
+  await expect(inspection).toHaveCount(1)
+  await expect(button(page, 'View result')).toBeVisible()
+  expect(await position()).toBe(passage)
+  await button(page, 'View result').press('Enter')
+  await expect(inspection).toBeFocused()
+  await expect(inspection.locator('.inspection-summary')).toBeInViewport()
+  await button(page, 'Back to read').press('Enter')
+  await expect(source).toBeFocused()
+  expect(await position()).toBe(passage)
+  await button(page, 'Back to work').press('Enter')
+  await expect(log(page)).toBeFocused()
+  // The original working position was following output, so it now includes the inspection.
+  expect(await position()).toBeGreaterThan(work)
+  await expect(button(page, 'Latest output')).toHaveCount(0)
 })
 
 test('retains only authorized read snapshots beyond scrollback and drops them on session reset', async ({

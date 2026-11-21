@@ -1,16 +1,13 @@
 <script setup lang="ts">
-import { ArrowUp, BookCheck } from '@lucide/vue'
+import { BookCheck } from '@lucide/vue'
 import { nextTick, onMounted, onUnmounted, ref, useId } from 'vue'
 import type { EarlierRead } from '../composables/useTerminalReads'
 
 defineProps<{
   reads: EarlierRead[]
-  canGoBack: boolean
-  result?: { milestone: boolean }
-  canReturnToRead: boolean
   triggerTarget?: HTMLElement
 }>()
-const emit = defineEmits<{ open: [EarlierRead, boolean]; back: []; result: [boolean] }>()
+const emit = defineEmits<{ open: [EarlierRead, boolean] }>()
 const trigger = ref<HTMLButtonElement>()
 const menu = ref<HTMLElement>()
 const opened = ref(false)
@@ -80,11 +77,6 @@ function choose(read: EarlierRead, event: MouseEvent) {
   emit('open', read, event.detail === 0)
 }
 
-function back(event: MouseEvent) {
-  emit('back')
-  if (event.detail === 0) trigger.value?.focus({ preventScroll: true })
-}
-
 defineExpose({ close })
 </script>
 
@@ -127,26 +119,6 @@ defineExpose({ close })
       <p v-else class="reads-empty transcript-detail">Open a file or message to see it here.</p>
     </div>
   </Teleport>
-  <button
-    v-if="canGoBack"
-    type="button"
-    title="Return to the working position before opening earlier reads"
-    @mousedown="keepEditing"
-    @click="back"
-  >
-    Back
-  </button>
-  <button
-    v-if="canReturnToRead || result"
-    type="button"
-    :class="{ 'result-milestone': !canReturnToRead && result?.milestone }"
-    :title="canReturnToRead ? 'Return to the reading position' : 'Go to the latest command result'"
-    @mousedown="keepEditing"
-    @click="emit('result', $event.detail === 0)"
-  >
-    {{ canReturnToRead ? 'Back to read' : result?.milestone ? 'Milestone' : 'Result' }}
-    <ArrowUp v-if="!canReturnToRead" aria-hidden="true" />
-  </button>
 </template>
 
 <style scoped>
@@ -192,10 +164,6 @@ defineExpose({ close })
 }
 .reads-empty {
   padding: 5px 7px;
-}
-.result-milestone {
-  --shortcut-border: var(--accent);
-  color: var(--accent);
 }
 @media (max-width: 600px), (pointer: coarse) {
   .reads-menu .read-choice {

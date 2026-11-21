@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import {
-  ArrowDownToLine,
   Check,
   Flag,
   History,
@@ -33,14 +32,11 @@ const props = defineProps<{
   busy: boolean
   newHosts: number
   unreadMail?: number
-  following: boolean
-  unseenProgress: boolean
 }>()
 const emit = defineEmits<{
   scenario: [string]
   panel: [TerminalPanel]
   list: ['hosts' | 'mail']
-  latest: [MouseEvent]
 }>()
 
 const checks = computed(() =>
@@ -62,6 +58,7 @@ const titleStatus = computed(() => {
   return [
     {
       key: 'goal',
+      label: 'Goal',
       name: 'Goal: ' + props.goalStatus,
       detail: 'Goal: ' + props.goalStatus,
       icon: completed ? Check : props.caseComplete ? History : Target,
@@ -69,6 +66,7 @@ const titleStatus = computed(() => {
     },
     {
       key: 'session',
+      label: 'Session',
       name: `Session: ${location} ${props.permissionLabel}`,
       detail: `${host ? 'Connected to ' + host.id : 'Local console'}. Signed in as ${identity.user}. Permissions: ${props.permissionLabel}.`,
       icon: host ? TerminalIcon : Monitor,
@@ -76,6 +74,7 @@ const titleStatus = computed(() => {
     },
     {
       key: 'progress',
+      label: 'Progress',
       name: 'Progress: ' + progress.value,
       detail: [
         'Progress: ' + progress.value,
@@ -128,18 +127,6 @@ watch(titleStatus, (current, previous) => {
     </select>
     <div class="title-actions">
       <button
-        v-if="!following"
-        type="button"
-        class="icon-button latest-output"
-        :class="{ 'latest-progress': unseenProgress }"
-        :aria-label="unseenProgress ? 'Latest output, new milestone' : 'Latest output'"
-        :title="unseenProgress ? 'Latest output, new milestone' : 'Latest output'"
-        @click="emit('latest', $event)"
-      >
-        <Flag v-if="unseenProgress" aria-hidden="true" />
-        <ArrowDownToLine v-else aria-hidden="true" />
-      </button>
-      <button
         v-for="item in titleStatus"
         :key="item.key"
         type="button"
@@ -156,6 +143,7 @@ watch(titleStatus, (current, previous) => {
         @click="emit('panel', item.key)"
       >
         <component :is="item.icon" :key="item.detail" class="status-mark" aria-hidden="true" />
+        <span class="title-action-label" aria-hidden="true">{{ item.label }}</span>
         <span
           v-if="item.key === 'progress' && checks.length && !campaignFinished"
           class="check-meter"
@@ -174,6 +162,7 @@ watch(titleStatus, (current, previous) => {
         @click="emit('list', 'hosts')"
       >
         <Server aria-hidden="true" />
+        <span class="title-action-label" aria-hidden="true">Hosts</span>
         <span v-if="newHosts" class="notification-count" aria-hidden="true">{{ newHosts }}</span>
       </button>
       <button
@@ -188,6 +177,7 @@ watch(titleStatus, (current, previous) => {
       >
         <Mail v-if="unreadMail" aria-hidden="true" />
         <MailOpen v-else aria-hidden="true" />
+        <span class="title-action-label" aria-hidden="true">Mail</span>
         <span v-if="unreadMail" class="notification-count" aria-hidden="true">{{
           unreadMail
         }}</span>
@@ -244,18 +234,17 @@ h1.terminal-scenario {
   margin-inline-start: auto;
   color: var(--muted);
 }
-.frame-title .latest-progress,
 .frame-title .has-notification,
 .title-actions .status-reached,
 .title-actions [aria-expanded='true'] {
   color: var(--accent);
 }
-.frame-title .latest-progress {
-  background: #22382f;
-}
 .title-status,
 .title-notification {
   position: relative;
+}
+.title-action-label {
+  display: none;
 }
 .frame-title .title-status[aria-expanded='true'] {
   background: var(--raised);
@@ -324,6 +313,38 @@ h1.terminal-scenario {
   }
   select.terminal-scenario {
     padding-inline: 5px;
+  }
+}
+@media (min-width: 720px) {
+  .frame-title .icon-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding-inline: 7px;
+    font: 12px/1.25 var(--sans);
+  }
+  .title-action-label {
+    display: inline;
+  }
+  .notification-count {
+    position: static;
+  }
+  .check-meter {
+    inset-inline: 7px auto;
+    inline-size: 16px;
+  }
+}
+@media (max-width: 379px) {
+  .wordmark {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  h1.terminal-scenario {
+    padding-inline-start: 0;
+    border-inline-start: 0;
   }
 }
 @media (max-width: 360px) {

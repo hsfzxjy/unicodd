@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronDown, Play, SquareTerminal } from '@lucide/vue'
+import { ChevronDown, Play } from '@lucide/vue'
 import {
   computed,
   nextTick,
@@ -504,6 +504,7 @@ defineExpose({
   canInsertCommand,
   saveComposer,
   resetComposer,
+  revealFocusedArgument: () => activeEditor.value?.revealEditor(),
 })
 </script>
 
@@ -583,7 +584,7 @@ defineExpose({
           @keydown.down.prevent="toggleMenu"
           @keydown.up.prevent="toggleMenu"
         >
-          <SquareTerminal aria-hidden="true" />
+          Commands
           <ChevronDown class="disclosure-icon" aria-hidden="true" />
         </button>
         <div ref="promptTools" class="prompt-tools"></div>
@@ -784,7 +785,9 @@ defineExpose({
   display: none;
 }
 .composer-arguments {
-  max-height: min(calc(var(--app-height, 100dvh) * 0.32), 240px);
+  --argument-size-limit: min(calc(var(--app-height, 100dvh) * 0.32), 240px);
+  --argument-body-limit: var(--argument-size-limit);
+  max-height: var(--argument-body-limit);
   overflow: auto;
   overscroll-behavior: contain;
   padding-inline-end: 4px;
@@ -842,19 +845,14 @@ defineExpose({
   grid-row: 2;
 }
 .short-viewport .composer-arguments {
-  max-height: min(150px, calc(var(--app-height, 100dvh) * 0.32));
-}
-.short-viewport.session-expanded .composer-arguments {
-  max-height: min(142px, calc(var(--app-height, 100dvh) * 0.26));
+  --argument-size-limit: min(150px, calc(var(--app-height, 100dvh) * 0.32));
+  --argument-body-limit: min(var(--argument-size-limit), var(--composer-detail-budget, 100dvh));
 }
 .composer-arguments:has(.resized-editor) {
-  max-height: min(420px, calc(var(--app-height, 100dvh) * 0.54));
+  --argument-size-limit: min(420px, calc(var(--app-height, 100dvh) * 0.54));
 }
 .short-viewport .composer-arguments:has(.resized-editor) {
-  max-height: calc(var(--app-height, 100dvh) * 0.42);
-}
-.short-viewport.session-expanded .composer-arguments:has(.resized-editor) {
-  max-height: calc(var(--app-height, 100dvh) * 0.35);
+  --argument-size-limit: calc(var(--app-height, 100dvh) * 0.42);
 }
 @media (max-width: 600px) {
   .prompt.single-argument {
@@ -863,9 +861,6 @@ defineExpose({
   .single-argument .prompt-line {
     display: flex;
     grid-column: 1 / -1;
-  }
-  .prompt .run-command {
-    margin-inline-start: unset;
   }
 }
 @media (max-width: 830px) {
@@ -876,7 +871,7 @@ defineExpose({
     gap: var(--compact-tight);
     padding-inline: var(--compact-gap);
     color: var(--muted);
-    font: 600 var(--compact-meta) / var(--compact-leading) var(--sans);
+    font: 600 12px / var(--compact-leading) var(--sans);
   }
   .prompt .command-picker[aria-expanded='true'] {
     color: var(--accent);
@@ -902,8 +897,14 @@ defineExpose({
     padding-block: var(--compact-inset);
   }
   .prompt .run-command,
+  .prompt .command-picker,
   .prompt-tools :deep(> button) {
     min-inline-size: var(--touch-height);
+    min-block-size: var(--touch-height);
+  }
+  .prompt .run-command {
+    margin-inline-start: 0;
+    padding-inline: 6px;
   }
   .prompt-tools {
     display: flex;
@@ -933,6 +934,21 @@ defineExpose({
   .composer-fixed {
     font-size: var(--compact-meta);
     line-height: var(--compact-leading);
+  }
+}
+@media (max-width: 360px) {
+  .prompt:not(.structured) .prompt-host {
+    max-width: 24%;
+  }
+  .prompt:not(.structured) .prompt-line {
+    gap: 2px;
+  }
+  .prompt .command-picker {
+    gap: 0;
+    padding-inline: 2px;
+  }
+  .command-picker .disclosure-icon {
+    --icon-size: 10px;
   }
 }
 </style>

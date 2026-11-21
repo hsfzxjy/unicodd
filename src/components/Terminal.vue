@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { nextTick, onMounted, onUnmounted, ref, useId } from 'vue'
+import { ArrowDownToLine, ArrowUp, Flag } from '@lucide/vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from 'vue'
 import CommandComposer from './CommandComposer.vue'
 import TerminalEntry from './TerminalEntry.vue'
 import TerminalReads from './TerminalReads.vue'
@@ -16,6 +17,8 @@ const props = defineProps<{
   live: boolean
   prompt: string
   connected: boolean
+  shortViewport: boolean
+  panelOpen: boolean
   shortcuts: Link[]
   suggestions: string[]
   busy: boolean
@@ -25,18 +28,19 @@ const props = defineProps<{
   initialComposer?: ComposerSave
   execute: (action: Action, echo?: string) => Promise<Response | undefined>
 }>()
-const emit = defineEmits<{ action: [Action, string?]; change: [] }>()
+const emit = defineEmits<{ action: [Action, string?]; change: []; dismissPanel: [] }>()
 const outputPrefix = useId() + '-output-'
 const scroll = ref<HTMLDivElement>()
 const frame = ref<HTMLElement>()
+const dock = ref<HTMLElement>()
 const composer = ref<InstanceType<typeof CommandComposer>>()
 const readsControls = ref<InstanceType<typeof TerminalReads>>()
 const compactLayout = window.matchMedia('(max-width: 830px)')
 const compact = ref(compactLayout.matches)
 const updateCompact = () => (compact.value = compactLayout.matches)
 const {
-  following,
-  unseenProgress,
+  awayFromEnd,
+  offscreenProgress,
   collapsedAnnouncement,
   selectedScalar,
   collapsed,
@@ -47,7 +51,9 @@ const {
   resultReturn,
   openRead,
   back,
+  backToRead,
   showResult,
+  showProgress,
   latest,
   toggleOutput,
   trackScroll,
@@ -63,8 +69,120 @@ const {
   change: () => emit('change'),
 })
 
-onMounted(() => compactLayout.addEventListener('change', updateCompact))
-onUnmounted(() => compactLayout.removeEventListener('change', updateCompact))
+const outcome = computed(() => (reading.value ? result.value : offscreenProgress.value))
+const viewLabel = computed(() => {
+  switch (outcome.value?.kind) {
+    case 'completion':
+      return 'View completion'
+    case 'milestone':
+      return reading.value ? 'View result' : 'View milestone'
+    case 'diagnostic':
+      return 'View diagnostic'
+    default:
+      return 'View result'
+  }
+})
+
+let layoutFrame = 0
+function fitDetails() {
+  const shell = frame.value
+  const controls = dock.value
+  if (!shell || !controls) return
+  if (props.shortViewport) {
+    const title = shell.querySelector<HTMLElement>('.frame-title')!
+    const panel =
+      props.panelOpen && compact.value ? shell.querySelector('.title-panel:not([hidden])') : null
+    const editor = controls.querySelector<HTMLElement>('.command-composer')!
+    const prompt = editor.querySelector<HTMLElement>('.prompt-line')!
+    const inline = getComputedStyle(prompt).display === 'contents'
+    const field = editor.querySelector<HTMLTextAreaElement>('.inline-argument textarea')
+    const fixedPrompt = inline
+      ? Math.max(
+          Number.parseFloat(getComputedStyle(field!).minHeight),
+          editor.querySelector<HTMLElement>('.run-command')!.offsetHeight,
+        )
+      : prompt.offsetHeight
+    const floor = shell.clientHeight < 400 ? 72 : 100
+    const available =
+      shell.clientHeight -
+      title.offsetHeight -
+      (controls.offsetHeight - editor.offsetHeight + fixedPrompt) -
+      floor
+    const panelMinimum = panel ? (panel.id === 'session-details' ? 62 : 52) : 0
+    const body = Math.max(0, available - panelMinimum)
+    shell.style.setProperty('--transcript-floor', `${floor}px`)
+    shell.style.setProperty('--composer-detail-budget', `${body}px`)
+    shell.style.setProperty(
+      '--title-detail-budget',
+      `${Math.max(panelMinimum, available - (editor.offsetHeight - fixedPrompt))}px`,
+    )
+    if (field) {
+      const fieldContext = editor.querySelector<HTMLElement>('.composer-fixed')?.offsetHeight ?? 0
+      const inspectorHeader =
+        editor.querySelector<HTMLElement>('.inspector-title')?.offsetHeight ?? 0
+      const tools = editor.querySelector<HTMLElement>('.point-actions')?.offsetHeight ?? 0
+      const firstGroup = editor.querySelector<HTMLElement>('.point')?.offsetHeight ?? 0
+      const fieldInset = inline
+        ? 0
+        : Number.parseFloat(getComputedStyle(field.parentElement!).marginTop)
+      const fixedDetails = fieldContext + inspectorHeader + tools + fieldInset
+      const sharedRow = inline ? fixedPrompt : 0
+      shell.style.setProperty(
+        '--inline-editor-budget',
+        `${Math.max(0, body + sharedRow - fixedDetails - (firstGroup ? firstGroup + 9 : 0))}px`,
+      )
+      shell.style.setProperty(
+        '--inline-inspector-budget',
+        `${Math.max(0, body - fixedDetails - (field.offsetHeight - sharedRow) - 1)}px`,
+      )
+    }
+  }
+  composer.value?.revealFocusedArgument()
+}
+
+function scheduleLayout() {
+  cancelAnimationFrame(layoutFrame)
+  layoutFrame = requestAnimationFrame(fitDetails)
+}
+
+const layoutObserver = new ResizeObserver(scheduleLayout)
+watch(() => [props.shortViewport, props.panelOpen, compact.value], scheduleLayout)
+onMounted(() => {
+  compactLayout.addEventListener('change', updateCompact)
+  if (frame.value) layoutObserver.observe(frame.value)
+  if (dock.value) layoutObserver.observe(dock.value)
+})
+onUnmounted(() => {
+  compactLayout.removeEventListener('change', updateCompact)
+  layoutObserver.disconnect()
+  cancelAnimationFrame(layoutFrame)
+})
+
+function revealFocusedTranscript(event: FocusEvent) {
+  const target = event.target
+  if (
+    !props.panelOpen ||
+    compact.value ||
+    !(target instanceof HTMLElement) ||
+    target === scroll.value ||
+    !target.matches(':focus-visible')
+  )
+    return
+  void nextTick(() => {
+    if (document.activeElement !== target) return
+    const panel = frame.value?.querySelector('.title-panel:not([hidden])')
+    const overlay = panel?.getBoundingClientRect()
+    const focus = target.getBoundingClientRect()
+    if (
+      overlay &&
+      focus.left < overlay.right &&
+      focus.right > overlay.left &&
+      focus.top < overlay.bottom &&
+      focus.bottom > overlay.top
+    )
+      emit('dismissPanel')
+  })
+}
 
 async function openTitleList(type: 'hosts' | 'mail') {
   const response = await props.execute({ type, scope: 'local' })
@@ -74,14 +192,15 @@ async function openTitleList(type: 'hosts' | 'mail') {
   }
 }
 
-async function showLatest(event: MouseEvent) {
-  await latest()
-  if (event.detail !== 0) return
-  const heading = scroll.value?.lastElementChild?.querySelector<HTMLElement>(
-    '.progress-band[data-scope="scenario"] h3',
-  )
-  if (heading?.getClientRects().length) heading.focus({ preventScroll: true })
-  else focusTranscript()
+function keepEditing(event: MouseEvent) {
+  if (document.activeElement?.matches('.command-composer input, .command-composer textarea'))
+    event.preventDefault()
+}
+
+function viewOutcome(event: MouseEvent) {
+  const keyboard = event.detail === 0
+  if (reading.value) void showResult(keyboard)
+  else void showProgress(keyboard)
 }
 
 function selectCommand(name: CommandName) {
@@ -103,7 +222,7 @@ defineExpose({
 
 <template>
   <section ref="frame" class="terminal-frame" aria-label="Terminal">
-    <slot name="title" v-bind="{ following, unseenProgress, openTitleList, showLatest }" />
+    <slot name="title" v-bind="{ openTitleList }" />
     <p class="milestone-announcement" role="status" dir="auto">{{ collapsedAnnouncement }}</p>
     <div
       ref="scroll"
@@ -114,6 +233,7 @@ defineExpose({
       aria-label="Terminal transcript"
       tabindex="0"
       @scroll="trackScroll"
+      @focusin="revealFocusedTranscript"
     >
       <section
         v-if="archived"
@@ -149,18 +269,48 @@ defineExpose({
         @reuse="composer?.reuseCommand($event)"
       />
     </div>
-    <div class="terminal-controls">
+    <div ref="dock" class="terminal-controls">
+      <div
+        v-if="reading || outcome || awayFromEnd"
+        class="transcript-navigation"
+        role="group"
+        aria-label="Transcript navigation"
+        @mousedown="keepEditing"
+      >
+        <button v-if="resultReturn" type="button" @click="backToRead($event.detail === 0)">
+          Back to read
+        </button>
+        <button v-if="reading" type="button" @click="back($event.detail === 0)">
+          Back to work
+        </button>
+        <button
+          v-if="outcome && !resultReturn"
+          type="button"
+          class="view-outcome"
+          @click="viewOutcome"
+        >
+          <Flag
+            v-if="outcome.kind === 'completion' || outcome.kind === 'milestone'"
+            aria-hidden="true"
+          />
+          <ArrowUp v-else aria-hidden="true" />
+          {{ viewLabel }}
+        </button>
+        <button
+          v-if="awayFromEnd && (reading || !outcome)"
+          type="button"
+          class="latest-output"
+          @click="latest($event.detail === 0)"
+        >
+          <ArrowDownToLine aria-hidden="true" /> Latest output
+        </button>
+      </div>
       <div class="toolbar shortcuts" aria-label="Quick actions" role="group">
         <TerminalReads
           ref="readsControls"
           :reads="reads"
-          :can-go-back="reading && !resultReturn"
-          :result="result"
-          :can-return-to-read="Boolean(resultReturn)"
           :trigger-target="compact ? composer?.promptTools : undefined"
           @open="openRead"
-          @back="back"
-          @result="showResult"
         >
           <button
             v-if="compact && connected && composer?.structured"
@@ -228,7 +378,7 @@ defineExpose({
   background: var(--inset);
 }
 .short-viewport .terminal-frame {
-  grid-template-rows: max-content minmax(72px, 1fr) auto;
+  grid-template-rows: max-content minmax(var(--transcript-floor, 72px), 1fr) auto;
 }
 /* Shared patterns span child components. Keep their specificity low for local overrides. */
 :where(.terminal-frame) :deep(.prompt-host) {
@@ -323,6 +473,33 @@ defineExpose({
   /* padding: 0 var(--space-2); */
   background: var(--surface);
 }
+.transcript-navigation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 4px;
+  padding-inline: var(--space-1);
+  border-bottom: 1px solid var(--line);
+}
+.transcript-navigation button {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  min-height: 26px;
+  padding: 2px 6px;
+  border-color: transparent;
+  background: transparent;
+  font: 12px/1.25 var(--sans);
+}
+.transcript-navigation button:hover {
+  background: var(--raised);
+}
+.transcript-navigation .view-outcome {
+  color: var(--accent);
+}
+.transcript-navigation .lucide {
+  --icon-size: 13px;
+  flex: none;
+}
 .shortcuts {
   gap: 0 2px;
   margin-bottom: var(--space-1);
@@ -345,6 +522,17 @@ defineExpose({
 @media (pointer: coarse) {
   .shortcuts :deep(> button) {
     min-height: 34px;
+  }
+}
+@media (max-width: 830px), (pointer: coarse) {
+  .transcript-navigation button {
+    min-height: 32px;
+    min-width: 32px;
+  }
+}
+@media (max-width: 380px) {
+  .transcript-navigation .latest-output .lucide {
+    display: none;
   }
 }
 @media (max-width: 600px), (pointer: coarse) {

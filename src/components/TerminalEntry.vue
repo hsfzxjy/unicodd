@@ -50,6 +50,7 @@ function echoText(value: string) {
   <article
     :data-entry-id="entry.id"
     class="terminal-entry"
+    tabindex="-1"
     :class="{ 'has-command': entry.echo !== undefined, 'remote-entry': entry.connected }"
   >
     <div
@@ -194,9 +195,14 @@ function echoText(value: string) {
           />
           <p
             v-else
+            :tabindex="row.kind === 'error' || index === 0 ? -1 : undefined"
             :class="[
               'terminal-line',
               row.kind,
+              row.kind === 'message' &&
+                index === 0 &&
+                entry.output.some(({ kind }) => kind === 'report') &&
+                'report-lead',
               row.kind === 'message' && row.narrative && 'transcript-prose',
             ]"
             dir="auto"
@@ -293,6 +299,10 @@ function echoText(value: string) {
 }
 .terminal-line.transcript-prose {
   max-inline-size: 76ch;
+}
+.terminal-line.report-lead {
+  font: 550 14px/1.45 var(--sans);
+  margin-block-end: 4px;
 }
 .terminal-line + .terminal-line {
   margin-top: var(--space-1);

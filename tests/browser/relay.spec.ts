@@ -744,7 +744,11 @@ for (const [width, height] of [
         await expect(control).toBeInViewport({ ratio: 1 })
         expect(boxes[index]!.y).toBe(boxes[0]!.y)
         if (index) expect(boxes[index]!.x).toBeGreaterThan(boxes[index - 1]!.x)
-        if (index < 3) await expect(control).toBeEmpty()
+        const label = control.getByText(['Goal', 'Session', 'Progress', 'Hosts', 'Mail'][index], {
+          exact: true,
+        })
+        if (width >= 720) await expect(label).toBeVisible()
+        else await expect(label).toBeHidden()
       }
       await act(goalToggle)
       const goal = frame.getByRole('region', { name: 'Goal', exact: true })

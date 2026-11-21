@@ -65,30 +65,46 @@ export function useArgumentEditor(
     field.style.height = Math.min(96, Math.max(36, field.scrollHeight)) + 'px'
   }
 
-  function positionCaret(reveal = false) {
-    const field = control.value
+  function caretRect(field: HTMLTextAreaElement, start: number, value: string) {
     const layout = mirror.value
-    const caret = drawnCaret.value
-    const text = layout?.firstChild
-    if (!field || !layout || !caret || !text) return
+    if (!layout) return
+    const measurable = !value || value.endsWith('\n') ? value + '\u200b' : value
+    if (layout.textContent !== measurable) layout.textContent = measurable
     layout.style.width = field.clientWidth + 'px'
     layout.style.direction = getComputedStyle(field).direction
     const range = document.createRange()
-    range.setStart(text, editorText(props.modelValue.slice(0, selection.value.start)).length)
+    range.setStart(layout.firstChild!, start)
     range.collapse(true)
     const rect = range.getBoundingClientRect()
     const origin = layout.getBoundingClientRect()
-    const left = rect.left - origin.left
-    const top = rect.top - origin.top
-    if (reveal) {
-      const x = left - field.scrollLeft
-      const y = top - field.scrollTop
-      if (x < 1) field.scrollLeft += x - 1
-      else if (x > field.clientWidth - 2) field.scrollLeft += x - field.clientWidth + 2
-      if (y < 0) field.scrollTop += y
-      else if (y + rect.height > field.clientHeight)
-        field.scrollTop += y + rect.height - field.clientHeight
-    }
+    return { left: rect.left - origin.left, top: rect.top - origin.top, height: rect.height }
+  }
+
+  function scrollCaret(
+    field: HTMLTextAreaElement,
+    { left, top, height }: NonNullable<ReturnType<typeof caretRect>>,
+  ) {
+    const x = left - field.scrollLeft
+    const y = top - field.scrollTop
+    if (x < 1) field.scrollLeft += x - 1
+    else if (x > field.clientWidth - 2) field.scrollLeft += x - field.clientWidth + 2
+    if (y < 0) field.scrollTop += y
+    else if (y + height > field.clientHeight) field.scrollTop += y + height - field.clientHeight
+  }
+
+  function positionCaret(reveal = false) {
+    const field = control.value
+    const caret = drawnCaret.value
+    if (!field || !caret || focused.value) return
+    const value = editorText(props.modelValue)
+    const rect = caretRect(
+      field,
+      editorText(props.modelValue.slice(0, selection.value.start)).length,
+      value,
+    )
+    if (!rect) return
+    if (reveal) scrollCaret(field, rect)
+    const { left, top } = rect
     const x = left - field.scrollLeft
     const y = top - field.scrollTop
     caret.hidden =
@@ -103,14 +119,48 @@ export function useArgumentEditor(
   }
   watchPostEffect(() => positionCaret())
 
+  function revealEditor() {
+    const field = control.value
+    if (!field || document.activeElement !== field) return
+    const start =
+      field.selectionDirection === 'backward' ? field.selectionStart : field.selectionEnd
+    const caret = caretRect(field, start, field.value)
+    if (caret) scrollCaret(field, caret)
+    const list = field.closest<HTMLElement>('.composer-arguments')
+    if (!list?.clientHeight || list.scrollHeight <= list.clientHeight) return
+    const bounds = list.getBoundingClientRect()
+    const editor = field.getBoundingClientRect()
+    const label = props.inline
+      ? undefined
+      : field.closest('.composer-argument')?.querySelector('label')?.getBoundingClientRect()
+    const top = Math.min(editor.top, label?.top ?? editor.top)
+    const caretTop = editor.top + (caret?.top ?? 0) - field.scrollTop + field.clientTop
+    const targetTop =
+      editor.bottom - top <= list.clientHeight
+        ? top
+        : editor.height <= list.clientHeight
+          ? editor.top
+          : caretTop
+    const targetBottom =
+      editor.height <= list.clientHeight ? editor.bottom : caretTop + (caret?.height ?? 0)
+    if (targetTop < bounds.top) list.scrollTop += targetTop - bounds.top
+    else if (targetBottom > bounds.top + list.clientHeight)
+      list.scrollTop += targetBottom - (bounds.top + list.clientHeight)
+  }
+
   let lastWidth = 0
+  let editorFrame = 0
   const resizeObserver = new ResizeObserver((entries) => {
     const width = entries[0]?.contentRect.width ?? 0
-    if (width !== lastWidth) {
-      lastWidth = width
-      resize()
-    }
-    positionCaret()
+    cancelAnimationFrame(editorFrame)
+    editorFrame = requestAnimationFrame(() => {
+      if (width !== lastWidth) {
+        lastWidth = width
+        resize()
+      }
+      positionCaret()
+      revealEditor()
+    })
   })
   onMounted(() => {
     syncControl()
@@ -118,6 +168,7 @@ export function useArgumentEditor(
   })
   onUnmounted(() => {
     resizeObserver.disconnect()
+    cancelAnimationFrame(editorFrame)
   })
   watch(() => props.modelValue, syncControl)
   watch(height, resize)
@@ -141,6 +192,7 @@ export function useArgumentEditor(
   function onFocus() {
     focused.value = true
     activate()
+    void nextTick(revealEditor)
   }
 
   function onBlur() {
@@ -185,22 +237,11 @@ export function useArgumentEditor(
     const raw = props.modelValue
     const start = editorText(raw.slice(0, span.start)).length
     const end = editorText(raw.slice(0, span.end)).length
-    if (focus) {
-      field.focus({ preventScroll: true })
-      const list = field.closest<HTMLElement>('.composer-arguments')
-      if (list && list.clientHeight && list.scrollHeight > list.clientHeight) {
-        const bounds = list.getBoundingClientRect()
-        const editor = field.getBoundingClientRect()
-        const label = field.closest('.composer-argument')?.getBoundingClientRect()
-        const top = label?.top ?? editor.top
-        if (top < bounds.top) list.scrollTop -= bounds.top - top
-        else if (editor.bottom > bounds.bottom) list.scrollTop += editor.bottom - bounds.bottom
-      }
-    }
+    if (focus) field.focus({ preventScroll: true })
     field.setSelectionRange(start, end)
     projection = { raw, start, end }
     selection.value = span
-    if (!focus) void nextTick(() => positionCaret(true))
+    void nextTick(focus ? revealEditor : () => positionCaret(true))
   }
 
   function apply(span: Span, text: string, focus = true) {
@@ -249,6 +290,7 @@ export function useArgumentEditor(
     captureSelection,
     readSelection,
     positionCaret,
+    revealEditor,
     onFocus,
     onBlur,
     remember,

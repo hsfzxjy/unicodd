@@ -41,6 +41,7 @@ const {
   captureSelection,
   readSelection,
   positionCaret,
+  revealEditor,
   onFocus,
   onBlur,
   remember,
@@ -63,6 +64,7 @@ const {
 defineExpose({
   apply,
   focusAt,
+  revealEditor,
   captureSelection,
   context: () => ({ ...selection.value }),
   saveView: () => inspector.value?.saveView(),
@@ -114,9 +116,9 @@ defineExpose({
         @lostpointercapture="resize.end"
         @keydown="resize.keydown"
       ></button>
-      <div v-if="active && !focused" class="argument-overlay" aria-hidden="true">
+      <div v-if="active" class="argument-overlay" aria-hidden="true">
         <div ref="mirror" class="argument-mirror" v-text="mirroredText"></div>
-        <span ref="drawnCaret" class="argument-caret"></span>
+        <span v-if="!focused" ref="drawnCaret" class="argument-caret"></span>
       </div>
     </div>
     <ArgumentInspector
@@ -291,6 +293,9 @@ defineExpose({
   --inspector-scroll-height: max(44px, calc(var(--app-height, 100dvh) * 0.12));
 }
 @media (max-width: 600px) {
+  .composer-argument:not(.inline-argument) {
+    --argument-label-space: 18px;
+  }
   .inline-argument .argument-editor {
     grid-column: 1 / -1;
     grid-row: 3;
@@ -349,8 +354,22 @@ defineExpose({
   }
 }
 .composer-argument .argument-editor.resized-editor textarea {
-  max-height: min(220px, calc(var(--app-height, 100dvh) * 0.28));
+  max-height: min(
+    220px,
+    calc(var(--app-height, 100dvh) * 0.28),
+    calc(var(--argument-body-limit, 220px) - var(--argument-label-space, 0px))
+  );
   scrollbar-width: thin;
+}
+.short-viewport .inline-argument .resized-editor textarea {
+  max-height: min(
+    220px,
+    calc(var(--app-height, 100dvh) * 0.28),
+    var(--inline-editor-budget, 220px)
+  );
+}
+.short-viewport .inline-argument .argument-inspector :deep(.point-scroll) {
+  max-height: min(var(--inspector-scroll-height), var(--inline-inspector-budget, 300px));
 }
 .argument-editor.resized-editor .argument-mirror {
   white-space: pre-wrap;

@@ -465,7 +465,7 @@ async function dispatch(action: Action, command?: string) {
           ? !fromEditor && (focused === focusAtSubmission || focused === document.body)
           : command === undefined &&
             (!delayed || focused === focusBeforePause || focused === document.body)
-      terminal.value?.revealOutput(readable.kind, focus, delayed)
+      terminal.value?.revealOutput(readable.kind, focus, delayed, command !== undefined)
     }
   }
   return response
@@ -485,6 +485,8 @@ async function dispatch(action: Action, command?: string) {
         :live="transcriptLive"
         :prompt="prompt"
         :connected="Boolean(session.host)"
+        :short-viewport="shortViewport"
+        :panel-open="Boolean(openPanel)"
         :shortcuts="shortcuts"
         :suggestions="suggestions"
         :busy="busy"
@@ -495,8 +497,9 @@ async function dispatch(action: Action, command?: string) {
         :execute="dispatch"
         @action="dispatch"
         @change="scheduleSave"
+        @dismiss-panel="openPanel = undefined"
       >
-        <template #title="{ following, unseenProgress, openTitleList, showLatest }">
+        <template #title="{ openTitleList }">
           <header class="terminal-header" @keydown.esc="closePanelWithEscape">
             <TerminalTitle
               :scenario-id="scenarioId"
@@ -514,12 +517,9 @@ async function dispatch(action: Action, command?: string) {
               :busy="busy"
               :new-hosts="newHosts"
               :unread-mail="unreadMail"
-              :following="following"
-              :unseen-progress="unseenProgress"
               @scenario="dispatch({ type: 'scenario', id: $event, scope: 'local' })"
               @panel="togglePanel"
               @list="openTitleList"
-              @latest="showLatest"
             />
             <TerminalSession
               :open-panel="openPanel"

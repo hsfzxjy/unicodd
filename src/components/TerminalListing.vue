@@ -5,6 +5,7 @@ import { linkStatus, type Action, type Output, type Session } from '../lib/runti
 
 const props = defineProps<{
   row: Extract<Output, { kind: 'listing' }>
+  closeout?: 'mail' | 'case'
   activity: Pick<Session, 'visitedHosts' | 'readMail' | 'readResources'>
   prompt: string
   connected: boolean
@@ -39,7 +40,7 @@ function listingIcon(action: Action) {
 </script>
 
 <template>
-  <div class="terminal-list" tabindex="-1">
+  <div class="terminal-list" :data-closeout="closeout" tabindex="-1">
     <p :id="listId" class="transcript-label">
       <code v-if="row.path"
         ><bdi>{{ row.path }}</bdi></code
@@ -157,6 +158,38 @@ function listingIcon(action: Action) {
 .transcript-list-row[data-tracking='resource'][data-status='Unread'] .listing-link {
   font-weight: 650;
 }
+.terminal-list[data-closeout] {
+  max-inline-size: 48rem;
+  margin-block-start: 0;
+  padding-inline-start: calc(4px + var(--space-3));
+}
+.terminal-list[data-closeout='mail'] {
+  border-block-start: 1px solid #62584a;
+  padding-block-start: var(--space-1);
+}
+[data-closeout='mail'] .transcript-list {
+  --list-label-width: 60%;
+}
+[data-closeout='mail'] .listing-title {
+  font-weight: 700;
+}
+[data-closeout='case'] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-2);
+}
+[data-closeout='case'] > .transcript-label {
+  flex: none;
+}
+[data-closeout='case'] > .transcript-list {
+  flex: 1 1 24ch;
+}
+@media (max-width: 830px) {
+  .terminal-list[data-closeout] {
+    padding-inline-start: calc(4px + var(--space-2));
+  }
+}
 @media (max-width: 600px) {
   .terminal-list .transcript-list {
     grid-template-columns: minmax(0, 1fr);
@@ -168,6 +201,19 @@ function listingIcon(action: Action) {
   }
   .listing-detail {
     flex: 1 1 12ch;
+  }
+  .terminal-list[data-closeout='mail'] :is(.transcript-list, .transcript-list-row) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) max-content;
+  }
+  [data-closeout='mail'] .listing-detail {
+    grid-row: 2;
+    padding-inline-start: calc(13px + var(--space-2));
+    padding-block-end: 3px;
+  }
+  [data-closeout='mail'] .listing-status {
+    grid-column: 2;
+    grid-row: 1;
   }
 }
 </style>

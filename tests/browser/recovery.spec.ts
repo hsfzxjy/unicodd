@@ -268,12 +268,28 @@ for (const [width, height] of [
       await expect(last(page)).toContainText('0001842Mira')
       await expect(last(page)).toContainText('0002917Mіra')
       await expect(last(page).getByRole('button', { name: 'U+0456', exact: true })).toBeVisible()
+      const replies = last(page).getByRole('list', { name: 'New mail' })
+      await expect(replies.getByRole('button')).toHaveText([
+        'It worked',
+        'Thank you',
+        'Local recovery closed',
+      ])
+      await expect(replies.getByRole('button', { name: 'It worked' })).toHaveAccessibleDescription(
+        'Mira / Registration 0002917 Unread',
+      )
+      await expect(last(page).getByRole('list', { name: 'Next case' })).toContainText(
+        'The Other Side',
+      )
+      await last(page)
+        .getByRole('heading', { name: 'The Release · Complete' })
+        .scrollIntoViewIfNeeded()
+      await capture('03-release-closeout')
       await last(page).getByRole('button', { name: 'U+0456', exact: true }).scrollIntoViewIfNeeded()
       await capture('03-restored-identities')
 
-      await act(page.getByRole('button', { name: /^Open local inbox/ }))
-      await act(link(page, 'It worked'))
+      await act(replies.getByRole('button', { name: 'It worked' }))
       await expect(last(page)).toContainText('Only mine.')
+      await expect(page.getByRole('button', { name: /^Session: @audit-06/ })).toBeVisible()
       await act(page.getByRole('button', { name: /^Open local inbox/ }))
       await act(link(page, 'Thank you'))
       await expect(last(page)).toContainText('Please tell Support both cases can close.')

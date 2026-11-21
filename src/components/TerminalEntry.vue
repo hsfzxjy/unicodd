@@ -45,6 +45,31 @@ const collapsedProgress = computed(() => {
   return scope
 })
 
+const closeout = computed(() => {
+  const lists = new Map<Output, 'mail' | 'case'>()
+  const rows = props.entry.output
+  const completion = rows.findIndex(
+    (row) => row.kind === 'objective' && row.progress?.scope === 'scenario',
+  )
+  if (completion < 0) return lists
+  for (const row of rows.slice(completion + 1)) {
+    if (row.kind !== 'listing' || !row.links.length) break
+    if (
+      row.links.every(
+        ({ action, tracking }) =>
+          action.type === 'mail' &&
+          action.scope === 'local' &&
+          tracking?.kind === 'mail' &&
+          tracking.key === action.id,
+      )
+    )
+      lists.set(row, 'mail')
+    else if (row.links.every(({ action }) => action.type === 'scenario')) lists.set(row, 'case')
+    else break
+  }
+  return lists
+})
+
 function helpCommand(name: CommandName, referenceConnected: boolean) {
   // Local help prints console command names without the prefix.
   if (props.connected && !referenceConnected)
@@ -131,6 +156,7 @@ function echoText(value: string) {
           <TerminalListing
             v-else-if="row.kind === 'listing'"
             :row="row"
+            :closeout="closeout.get(row)"
             :activity="activity"
             :prompt="prompt"
             :connected="connected"

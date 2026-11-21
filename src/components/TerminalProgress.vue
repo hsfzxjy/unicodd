@@ -57,6 +57,9 @@ onMounted(() => {
   padding: 6px var(--space-3);
   border-inline-start-width: 4px;
 }
+.progress-band:has(+ [data-closeout]) {
+  margin-block-end: var(--space-1);
+}
 .progress-band[data-scope='scenario'] h3 {
   font-size: 17px;
   line-height: 1.3;

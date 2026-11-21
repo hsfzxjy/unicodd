@@ -131,6 +131,7 @@ test('continues from the Dead Letter completion by keyboard at 390 × 430', asyn
   })
   await openCampaign(page)
   await expect(session(page)).toHaveAccessibleName(/@postbox-03/)
+  await expect(transcript(page).locator('.arrival')).toHaveText('@postbox-03 · guest')
   await recoverNotice(page, (target) => target.click())
   const letter = transcript(page).getByRole('region', { name: 'Mail /delivered/2917.msg' })
   const complete = transcript(page).getByRole('heading', { name: 'Dead Letter · Complete' })
@@ -146,6 +147,10 @@ test('continues from the Dead Letter completion by keyboard at 390 × 430', asyn
   await page.keyboard.press('Tab')
   const reply = link(page, 'Re: The missing notice')
   await expect(reply).toBeFocused()
+  await expect(reply).toHaveAccessibleDescription(/Unread$/u)
+  await expect(
+    transcript(page).locator('.progress-band + [data-closeout="mail"] + [data-closeout="case"]'),
+  ).toContainText('The Index')
   await expect(reply).toBeInViewport({ ratio: 1 })
   expect(await scrollTop()).toBe(end)
   await page.keyboard.press('Tab')

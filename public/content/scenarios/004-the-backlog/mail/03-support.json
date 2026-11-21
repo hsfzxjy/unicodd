@@ -6,7 +6,7 @@
       "to": "MONONYM operations",
       "subject": "RE: Missing appeals",
       "date": "2026-08-25",
-      "body": "Could you check the registration IDs against intake? Two people filed separate appeals. The migration test cases look like ours in the queue, so the reviewers need the rows that match the original registrations."
+      "body": "Could you check the queue against intake by registration ID? Both people filed separately. The test rows look like appeals in that view, so we need the two from intake.\n\nLeave the callbacks with me."
     }
   ]
 }

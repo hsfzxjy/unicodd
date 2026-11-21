@@ -6,7 +6,7 @@
       "to": "MONONYM operations",
       "subject": "What is the key?",
       "date": "2026-08-27",
-      "body": "The verified owner records carry stable registration IDs. The labels are for finding channels on the old broker.\n\nOnce you retrieve a receipt, check the owner metadata and bind it against the original case. If we depend on the spelling of a label for that step, we've kept the old problem."
+      "body": "Once we have the receipts, I can check the registration ID and verified owner on each against the original cases. That’s what I’d attach to the split request. The broker still needs the channel label for lookup."
     }
   ]
 }

@@ -6,7 +6,7 @@
       "to": "MONONYM operations",
       "subject": "Cursor review",
       "date": "2026-08-25",
-      "body": "The cursor stores the last displayed sort key. The next page starts strictly after it. If two titles compare equal, one can sit on the wrong side of that boundary.\n\nStable sorting keeps the order of ties in a batch. It still leaves the cursor unable to name a record. The comparison tool can help show where they tie."
+      "body": "I checked where the appeals drop out. The next page starts strictly after the last displayed sort key. A row that ties with it can be skipped even with stable sorting.\n\nWe need the cursor to identify the row we stopped on. The comparison tool can show which titles tie."
     }
   ]
 }

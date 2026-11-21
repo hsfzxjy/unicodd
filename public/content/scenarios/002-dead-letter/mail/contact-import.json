@@ -5,7 +5,7 @@
       "from": "Eli / Client Integration",
       "to": "Nia / Messaging",
       "subject": "Recipient import cleanup",
-      "body": "The old mobile client sometimes inserts an invisible separator when copying names. Release 2.8.0 strips that one separator in the header resolver. Joiners are meaningful in names and stay in the text.\n\nSample 14 under /samples is the shortest reproduction. This change applies to the header resolver only.",
+      "body": "I can reproduce it with a contact copied on the old mobile client. There’s an invisible separator in the header. Sample 14 under /samples is the smallest example I have.\n\nIn 2.8.0 I changed the header resolver only. It drops that separator. I left the joiners alone. They belong to the names.",
       "date": "2026-08-19"
     }
   ]

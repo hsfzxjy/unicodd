@@ -97,7 +97,7 @@ test('recovers Dead Letter by graphical actions from the development entry', asy
   const goal = page.getByRole('button', { name: 'Goal: In progress' })
   await goal.click()
   await expect(
-    panel(page, 'Goal').getByText('Recover and read Mira’s missing delivery notice', {
+    panel(page, 'Goal').getByText('Release and read notice 2917.', {
       exact: false,
     }),
   ).toBeInViewport({ ratio: 1 })
@@ -176,16 +176,16 @@ async function openIndexGraphically(page: Page, act: Activate) {
   await act(link(page, 'queue/'))
   await act(link(page, '8c2f.msg'))
   await act(link(page, 'The missing notice'))
-  await expect(transcript(page)).toContainText('The relay record says postbox-03 is holding it.')
+  await expect(transcript(page)).toContainText('I keep wondering who sent it.')
   await act(page.getByRole('button', { name: 'Open local hosts, 1 new', exact: true }))
   await expect(link(page, 'Dead Letter')).toHaveAccessibleDescription('postbox-03 New')
   await act(link(page, 'Dead Letter'))
   await recoverNotice(page, act)
   await act(link(page, 'Re: The missing notice'))
-  await expect(transcript(page)).toContainText('points to index-09')
+  await expect(transcript(page)).toContainText('lists index-09 for the merge record')
   await act(link(page, 'The Index'))
   await act(link(page, 'I spoke to her'))
-  await expect(transcript(page)).toContainText('original forms we filled in')
+  await expect(transcript(page)).toContainText('forms we each filled in')
 }
 
 async function beginIndex(page: Page, act: Activate) {
@@ -329,7 +329,7 @@ test('completes and replays the recovery and archive arcs across reloads', async
   await run(page, 'login \u{1D40C}AINT')
   await run(page, 'cat /queue/8c2f.msg')
   await run(page, 'local mail missing-notice')
-  await expect(transcript(page)).toContainText('The relay record says postbox-03 is holding it.')
+  await expect(transcript(page)).toContainText('I keep wondering who sent it.')
   await page.reload()
   await expect(goalButton(page, 'Complete')).toBeVisible()
   await run(page, 'local scenario 002-dead-letter')
@@ -507,7 +507,7 @@ test('starts a tall briefing at its first line and follows the first command', a
   await page.setViewportSize({ width: 390, height: 400 })
   await openCampaign(page, '/?debug=1&scenario=003-the-index')
   await expect(
-    transcript(page).getByText('Two owners share one account.', { exact: false }),
+    transcript(page).getByText('Two verified registrations share one account.', { exact: false }),
   ).toBeInViewport({ ratio: 1 })
   await commandControl(page, 'ls', undefined, true)
   await expect(link(page, 'exports/')).toBeInViewport()

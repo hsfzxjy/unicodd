@@ -1,1 +1,8 @@
-Start with the approved assets and the receiver notes. Reproduce the filename failures, then verify a bundle whose file references survive every reader. Sandbox samples are independent fixtures and cannot join the public parcel.
+DELIVERY SANDBOX / CLIENT CORPUS
+
+assets all               Approved public inventory
+/tools/targets.txt       Receiver comparisons and bounds
+/tools/mapping.txt       Extraction and manifest readback
+/logs/trial-fixtures.txt  Independent sandbox samples
+
+Sandbox samples belong to local trials only.

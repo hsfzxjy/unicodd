@@ -5,7 +5,7 @@
       "from": "Nia / Relay Administration",
       "to": "Relay Operators",
       "subject": "Maintenance access policy",
-      "body": "MAINT is the message queue’s account. Relay replacement is still pending, so leave the account in the directory.\n\nDirect sign-in using the literal identifier is disabled at the gateway.\n\n— Nia"
+      "body": "The relay replacement is still pending. Until cutover, leave MAINT in the directory. We need it to maintain the message queue.\n\nThe gateway rejects direct sign-in with the literal name.\n\n— Nia"
     }
   ]
 }

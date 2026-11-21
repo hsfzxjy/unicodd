@@ -6,7 +6,7 @@
       "to": "MONONYM operations",
       "subject": "RE: Regional casing",
       "date": "2026-08-26",
-      "body": "Run the full collision suite before any production change. The trial gave us separate lookups for one pair. The broker has to keep approvals independent across the whole batch."
+      "body": "Leave the labels as received. That result is good for the Support pair. I’ll need the full collision run before we change the broker profile. The other approvals have to stay separate too."
     }
   ]
 }

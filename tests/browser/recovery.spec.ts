@@ -49,13 +49,13 @@ test('keeps the Release briefing visible in a short viewport', async ({ page }) 
   await page.setViewportSize({ width: 390, height: 420 })
   await page.goto('/?debug=1&scenario=006-the-release')
   await log(page).waitFor({ timeout: 20_000 })
-  await expect(
-    log(page).getByText('Both owners approved the split.', { exact: false }),
-  ).toBeInViewport({ ratio: 1 })
+  await expect(log(page).getByText('Both owners gave consent.', { exact: false })).toBeInViewport({
+    ratio: 1,
+  })
   await page.setViewportSize({ width: 390, height: 400 })
-  await expect(
-    log(page).getByText('Both owners approved the split.', { exact: false }),
-  ).toBeInViewport({ ratio: 1 })
+  await expect(log(page).getByText('Both owners gave consent.', { exact: false })).toBeInViewport({
+    ratio: 1,
+  })
   const checks = page.getByRole('button', { name: /^Progress:/ })
   await expect(checks).toBeInViewport()
   await checks.click()
@@ -107,7 +107,7 @@ for (const [width, height] of [
       await act(link(page, 'The Backlog'))
       await act(link(page, 'I reopened both cases'))
       await expect(last(page)).toContainText(
-        'The queue team confirmed both rows are still there. The review queue shows one.',
+        'The queue team has both rows. I can only see one in review.',
       )
       await commandControl(page, 'collate', act)
       await submit()
@@ -147,7 +147,7 @@ for (const [width, height] of [
       ).toBeVisible()
       await act(link(page, 'The Handshake'))
       await act(link(page, 'Both cases are open'))
-      await expect(last(page)).toContainText('The owners sent their confirmations separately.')
+      await expect(last(page)).toContainText('The owners sent them separately')
 
       await commandControl(page, 'lookup', act)
       await submit()
@@ -187,7 +187,7 @@ for (const [width, height] of [
       await act(link(page, 'The Release'))
       await act(link(page, 'Before you run the split'))
       await expect(last(page)).toContainText(
-        'The audit preview put an account number beside the wrong label.',
+        'the preview put an account number beside the wrong label.',
       )
 
       await commandControl(page, 'ls', act, true)

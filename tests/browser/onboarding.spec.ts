@@ -91,7 +91,7 @@ for (const [width, height] of [
       }
       await expect(request(page)).toBeFocused()
       await expect(request(page)).toHaveCount(1)
-      await expect(request(page)).toContainText('Can you retrieve it?')
+      await expect(request(page)).toContainText('Could you see if the original’s there?')
       await expect(
         log(page).locator('.command-line').filter({ hasText: 'mail favor' }),
       ).toHaveCount(1)
@@ -174,7 +174,7 @@ test.describe('Relay after a touch opening', () => {
       await page.emulateMedia({ reducedMotion })
       await page.goto('/')
       await primary(page).tap()
-      await expect(request(page)).toContainText('I gave them 8C2F')
+      await expect(request(page)).toContainText('I gave Support 8C2F')
       await button(page, 'Open local hosts, 1 new').tap()
       await log(page).getByRole('button', { name: 'relay-07', exact: true }).last().tap()
       await run(page, 'cat /queue/8c2f.msg')

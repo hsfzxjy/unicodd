@@ -6,7 +6,7 @@
       "to": "Local operator",
       "subject": "Five records in scope",
       "date": "2026-08-30",
-      "body": "Please verify the full exchange batch before we put the legacy reader back on the schedule. The ingestion report has the evidence for the first two rows."
+      "body": "I’ve left the legacy reader off the schedule until we can clear the five-record batch. The first two rows came from ingestion. I have that report to check their owner records against."
     },
     {
       "id": "archive-item-closed",
@@ -14,7 +14,7 @@
       "to": "Local operator",
       "subject": "Archive work item closed",
       "date": "2026-08-31",
-      "body": "Mara signed off on the exchange. The archive desks can open the same records now. I filed the two 8C2F confirmations with Support and closed the item."
+      "body": "I filed the two 8C2F confirmations with the Support cases. Mara’s sign-off is in the exchange record. I’ve closed the archive item on my side."
     }
   ]
 }

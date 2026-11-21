@@ -5,7 +5,7 @@
       "from": "Nia / MONONYM",
       "to": "Local operator",
       "subject": "Receiver checks for the approved corpus",
-      "body": "Mara has approved the public projection. The receiving teams’ filename checks differ. Can you run the delivery sandbox at bundle-17 before I close the handoff?",
+      "body": "I have Mara’s approval. The client teams can take the same batch if it opens on all their readers. I’ll keep the handoff open until we have all three readbacks from bundle-17.",
       "date": "2026-09-04"
     },
     {
@@ -13,7 +13,7 @@
       "from": "Nia / MONONYM",
       "to": "Local operator",
       "subject": "The client team restored the batch",
-      "body": "All eight files opened on each receiver. The source references matched. I filed Mara’s approval and closed the delivery item. Eli is looking at adding the portability check to the usual release jobs.",
+      "body": "All eight opened on every receiver. The source references match too. I filed Mara’s approval and closed delivery.\n\nEli’s looking at putting the portability check on the regular release list.",
       "date": "2026-09-05"
     }
   ]

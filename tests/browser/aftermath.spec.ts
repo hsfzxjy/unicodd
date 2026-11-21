@@ -108,7 +108,7 @@ for (const [width, height] of [
       await act(link(page, '/reports/gateway.txt'))
       await expect(gatewayComplete).toBeVisible()
       await expect(last(page)).toContainText(
-        'Vault delivery verified. Application ingestion is still pending.',
+        'Gateway reconciliation filed. Application ingestion is still pending.',
       )
       await act(link(page, 'The Fragments'))
       await expect(scenario(page)).toHaveValue('008-the-fragments')

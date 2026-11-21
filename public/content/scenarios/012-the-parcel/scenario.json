@@ -1,7 +1,7 @@
 {
   "version": 1,
   "title": "The Parcel",
-  "introduction": "Mara approved the public corpus. The receiving teams get different results when they unpack the same filenames.",
+  "introduction": "The public copy is approved. The receivers get different results from the same filenames.",
   "roles": ["delivery-operator"],
   "flags": ["delivery_verified"],
   "local": {
@@ -21,7 +21,7 @@
         "user": "delivery-operator",
         "role": "delivery-operator"
       },
-      "welcome": "Virtual delivery desk. Each trial uses the approved public files in an isolated tree.",
+      "welcome": "Delivery sandbox. Trials use the approved assets in isolated trees.",
       "status": [
         {
           "label": "Receiver checks",
@@ -223,7 +223,7 @@
     }
   ],
   "objective": {
-    "text": "Verify that all three receivers can unpack and open the approved files, then read the delivery report.",
+    "text": "Verify all approved files on all three receivers, then read the delivery report.",
     "read": "final-report",
     "dossier": "bundle",
     "message": "Delivery logged. The approved dossier is with the client team.",

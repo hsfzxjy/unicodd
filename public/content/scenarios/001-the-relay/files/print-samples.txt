@@ -1,7 +1,5 @@
 OPERATOR HANDBOOK / TYPE PROOF 6
-These styled letters were used in the first operator PDF and appear in copied console records.
+Retained from the first operator PDF.
 
 𝐁𝐄𝐌𝐑𝐓
 𝐀𝐈𝐍
-
-The print file preserves the original code points. Compare the proof against the older keypad card.

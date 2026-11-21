@@ -6,7 +6,7 @@
       "to": "Local operator",
       "subject": "Two assignments on the register",
       "date": "2026-08-29",
-      "body": "The registry has two verified assignments. I need a vault confirmation for each receipt with the endpoint, owner and exact resource it received. The evidence so far accounts for one receipt. I can sign off once both confirmations match the registry."
+      "body": "One receipt is accounted for. The registry has two verified assignments. I need a confirmation from each vault, with the endpoint, owner and exact resource, before I can sign."
     }
   ]
 }

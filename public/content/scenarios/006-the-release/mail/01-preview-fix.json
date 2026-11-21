@@ -6,7 +6,7 @@
       "to": "MONONYM operations",
       "subject": "Preview patch for surrogate pairs",
       "date": "2026-08-26",
-      "body": "I replaced the UTF-16 substring routine in the candidate. The emoji sample no longer splits a surrogate pair. I’d like a second check on the other samples before we use it for release."
+      "body": "I replaced the candidate’s UTF-16 substring with a scalar cut. The emoji sample is past the split-surrogate error now. Can someone run the other samples before I put this in release review?"
     }
   ]
 }

@@ -6,7 +6,7 @@
       "to": "MONONYM operations",
       "subject": "Sort migration",
       "date": "2026-08-24",
-      "body": "The old Swedish client had its own sort rules. When we moved the regional queues to shared search, we used the default profile.\n\nI treated Support’s missing-case reports as a separate issue. They came in after the move."
+      "body": "Support’s missing-case reports came in after we put the regional queues on shared search. I treated them as a separate issue at first.\n\nThe old Swedish client had its own sort rules. On shared search I left it on the default profile."
     }
   ]
 }

@@ -6,7 +6,7 @@
       "to": "Local operator",
       "subject": "Use the captured link offsets",
       "date": "2026-08-29",
-      "body": "I matched the capture to the gateway report. The application counted its line offsets after the legacy decoder changed the buffer. Use the captured link offsets when you compare it with the sender’s ledger."
+      "body": "The gateway report and the capture line up. The application’s offsets don’t. It started counting after the old decoder changed the buffer. I’m using the link offsets to compare with the sender’s ledger."
     },
     {
       "id": "bridge-import-review",
@@ -14,7 +14,7 @@
       "to": "Local operator",
       "subject": "Legacy archive import review",
       "date": "2026-08-30",
-      "body": "Ingestion is signed off. The next job combines these records with three other verified sources. The legacy archive refused some identifiers. Its batch and the import trace are at bridge-14."
+      "body": "I’ve signed off ingestion. The bridge desk is putting our two records into a batch with three other verified sources.\n\nThe legacy reader refused some identifiers. I have its import trace with the batch at bridge-14."
     }
   ]
 }

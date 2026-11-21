@@ -44,7 +44,7 @@
         "user": "guest",
         "role": "guest"
       },
-      "welcome": "Relay queue online. Incident 8C2F requires maintenance access.",
+      "welcome": "Relay queue online.",
       "status": [
         {
           "label": "Incident 8C2F",
@@ -147,7 +147,7 @@
             "milestone": {
               "id": "maintenance-access",
               "title": "Maintenance access granted",
-              "text": "The incident message is readable in the maintenance session."
+              "text": "Access applies to this session."
             }
           },
           {
@@ -167,11 +167,11 @@
           },
           {
             "check": "decoded_count",
-            "message": "Login rejected. Decoded character count differs from the captured frame."
+            "message": "Login rejected. Invalid decoded character count."
           },
           {
             "check": "legacy_units",
-            "message": "Login rejected. Legacy UTF-16 field length differs from the captured frame."
+            "message": "Login rejected. Invalid legacy UTF-16 field length."
           },
           {
             "check": "transport_capacity",
@@ -186,9 +186,9 @@
     }
   ],
   "objective": {
-    "text": "Retrieve incident record 8C2F so Mira can take it back to MONONYM Support.",
+    "text": "Read the original record for incident 8C2F.",
     "read": "incident",
-    "message": "Incident 8C2F retrieved for Mira. The record identifies a notice still held at the Postbox.",
+    "message": "Incident 8C2F retrieved.",
     "completionBand": true,
     "onComplete": [
       {

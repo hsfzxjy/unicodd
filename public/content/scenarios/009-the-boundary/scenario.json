@@ -1,7 +1,7 @@
 {
   "version": 1,
   "title": "The Boundary",
-  "introduction": "The two verified receipts join three other records in the archive batch. The legacy reader rejects labels the newer reader accepts.",
+  "introduction": "The archive batch has five verified records, including both receipts from 8C2F. The legacy reader rejected two of its labels.",
   "roles": ["bridge-reviewer"],
   "flags": ["mirror_verified"],
   "local": {
@@ -111,7 +111,7 @@
           "access": {
             "flag": "mirror_verified"
           },
-          "denied": "Verify the full batch on both readers before reading the reconciliation."
+          "denied": "Reconciliation report unavailable until both readers verify the full batch."
         }
       ],
       "recovery": [
@@ -220,10 +220,10 @@
     }
   ],
   "objective": {
-    "text": "Verify that both archive readers can find all five records, then read the archive report.",
+    "text": "Check all five records on both readers and open the reconciliation report.",
     "read": "final-report",
     "handoff": "mirror",
-    "message": "Reconciliation filed for both archive readers. Archive work item closed.",
+    "message": "Archive reconciliation filed. Work item closed.",
     "onComplete": [
       {
         "type": "deliverMail",

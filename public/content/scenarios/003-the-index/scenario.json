@@ -1,7 +1,7 @@
 {
   "version": 1,
   "title": "The Index",
-  "introduction": "Two owners share one account. Notice 2917 traces it to merge 8C2F on index-09.",
+  "introduction": "Notice 2917 points to merge 8C2F at index-09. Two verified registrations share one account.",
   "outputTiming": {
     "reconcile": [
       {
@@ -33,7 +33,7 @@
         "user": "auditor",
         "role": "auditor"
       },
-      "welcome": "Read-only auditor access. The directory keeps evidence from both original registrations separately from the shared account.",
+      "welcome": "Read-only audit session. The directory still holds each original registration.",
       "status": [
         {
           "label": "Incident",
@@ -282,9 +282,9 @@
     }
   ],
   "objective": {
-    "text": "Verify both original registrations, then read the export for Support.",
+    "text": "Verify both original registrations and read the export for Support.",
     "read": "originals",
-    "message": "Both original registrations are verified. The two records give Support evidence to keep the cases separate.",
+    "message": "Original registration export opened for Support.",
     "completionBand": true,
     "onComplete": [
       {

@@ -7,16 +7,12 @@ const emit = defineEmits<{ readRequest: [] }>()
 <template>
   <section class="access-console" aria-labelledby="access-title">
     <h1 id="access-title">MONONYM access console</h1>
-    <p dir="auto">
-      MONONYM runs account and messaging services. From the local console, you can open guest
-      sessions on its systems.
-    </p>
-    <p dir="auto">Mira needs a record that Support can’t find.</p>
+    <p dir="auto">Guest access to MONONYM account and messaging services.</p>
     <button type="button" class="read-request" @click="emit('readRequest')">
       Read Mira’s request
     </button>
     <p class="guidance" dir="auto">
-      Select items in the transcript or run a command at the prompt.
+      You can open files and messages from the transcript. If you prefer to type, use the prompt.
     </p>
     <ConsoleControls />
   </section>

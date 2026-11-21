@@ -5,7 +5,7 @@
       "from": "Helena",
       "to": "Catalog review",
       "subject": "A small corpus for the client team",
-      "body": "The client team needs a small regression corpus for multilingual reports. Nia picked the French summer-duty batch. Can you check catalog-15 against the signed weeks before we send the selection to Mara?",
+      "body": "The client team asked for a few real reports they can rerun when multilingual output changes. Nia pulled the French summer-duty weeks from the registry.\n\nLet’s use the signed weeks. Mara will want to see the original lines before anything goes out.",
       "date": "2026-09-03"
     }
   ]

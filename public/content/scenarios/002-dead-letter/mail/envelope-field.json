@@ -6,7 +6,7 @@
       "to": "Nia / Messaging",
       "subject": "Envelope field on a manual route",
       "date": "2026-08-21",
-      "body": "On a manual release the envelope goes through its own gateway. It rejects the canonical alias before lookup. The slot is six UTF-8 bytes. Lookup still accepts compatible spellings from old route sheets. I left the address card under /samples.\n\nThe body stays held if the resolved header and envelope point to different accounts."
+      "body": "I left the address card under /samples. The envelope has its own gateway. It rejects the canonical alias up front, and the transport slot is six UTF-8 bytes. Lookup still takes compatible forms from the old route sheets.\n\nIf the resolved header and envelope disagree, the body stays held."
     }
   ]
 }

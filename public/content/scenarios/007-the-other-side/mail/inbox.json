@@ -6,7 +6,7 @@
       "to": "Local operator",
       "subject": "One empty destination slot",
       "date": "2026-08-29",
-      "body": "I have two 202 Accepted responses from the overnight sweep and one vault confirmation. Leave the archive item open while we check the trace against the registry. The account split was confirmed yesterday."
+      "body": "I’ve got two 202 Accepted responses from last night and one vault confirmation. I’m leaving the archive item open while we check the trace against the registry. The account split was confirmed yesterday."
     },
     {
       "id": "receiver-capture",
@@ -14,7 +14,7 @@
       "to": "Local operator",
       "subject": "Transport capture at spool-13",
       "date": "2026-08-29",
-      "body": "I have the bytes from the corrected dispatch. The application log doesn’t account for them yet. I left the receiver capture and its parser history at spool-13."
+      "body": "I have the bytes from the corrected dispatch on spool-13. The application still hasn’t accounted for them. I left the parser history with the capture."
     }
   ]
 }

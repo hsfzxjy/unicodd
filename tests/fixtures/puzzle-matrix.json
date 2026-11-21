@@ -76,7 +76,7 @@
       }
     },
     "solved": false,
-    "feedback": "Login rejected. Legacy UTF-16 field length differs from the captured frame.",
+    "feedback": "Login rejected. Invalid legacy UTF-16 field length.",
     "principle": "Compatibility resolution alone misses both frame length and capacity."
   },
   {
@@ -236,7 +236,7 @@
       }
     },
     "solved": false,
-    "feedback": "Login rejected. Decoded character count differs from the captured frame.",
+    "feedback": "Login rejected. Invalid decoded character count.",
     "principle": "The decoder counts scalars before the frame reader checks units."
   },
   {
@@ -316,7 +316,7 @@
       }
     },
     "solved": false,
-    "feedback": "Login rejected. Decoded character count differs from the captured frame.",
+    "feedback": "Login rejected. Invalid decoded character count.",
     "principle": "A visually combined mark counts as a separate scalar."
   },
   {

@@ -5,14 +5,14 @@
       "from": "Rowan / Directory Team",
       "to": "Mara / Security",
       "subject": "Login compatibility",
-      "body": "The new resolver converts legacy compatibility forms before directory lookup. The gateway still checks reserved names after canonical normalization, before the alias reaches the resolver.\n\nI saved the last maintenance capture at /notes/maintenance-frame.txt for your review. The alias didn’t survive the capture. The decoder’s character count, the frame reader’s UTF-16 length and the transport’s byte capacity did.\n\n- Rowan"
+      "body": "Did the gateway change make this window?\n\nThe new resolver handles the old compatibility forms at directory lookup. The gateway still checks reserved names after canonical normalization, before the alias gets that far.\n\nI put the last good maintenance capture in /notes/maintenance-frame.txt. It kept the field lengths. The alias wasn’t retained.\n\n- Rowan"
     },
     {
       "id": "security-reply",
       "from": "Mara / Security",
       "to": "Rowan / Directory Team",
       "subject": "RE: Login compatibility",
-      "body": "The change request moved to the next maintenance window. The reason I was given is that nobody has reported a successful unauthorized login.\n\nKeep the capture. We’ll need those field lengths when we review the change.\n\n— Mara"
+      "body": "Next window. I was told there was no confirmed unauthorized sign-in.\n\nKeep the capture. I’ll want it in front of me when we review the change.\n\n— Mara"
     }
   ]
 }

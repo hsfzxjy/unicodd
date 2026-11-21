@@ -1,7 +1,7 @@
 {
   "version": 1,
   "title": "The Mask",
-  "introduction": "The catalog selection is filed. Mara needs a public copy that keeps the technical examples and removes protected staff details.",
+  "introduction": "The catalog selection is filed. The client copy can carry the technical samples. Staff details stay with the review desk.",
   "roles": ["release-reviewer"],
   "flags": ["publication_verified"],
   "local": {
@@ -270,10 +270,10 @@
     }
   ],
   "objective": {
-    "text": "Verify a public copy against the disclosure rules, then read the publication report.",
+    "text": "Audit the client copy against the disclosure rules and read the publication report.",
     "read": "final-report",
     "dossier": "publication",
-    "message": "Mara has approved the public regression corpus for delivery.",
+    "message": "Publication approval filed for delivery.",
     "onComplete": [
       {
         "type": "discover",

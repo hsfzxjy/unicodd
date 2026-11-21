@@ -71,7 +71,7 @@ for (const [width, height] of [
 
       await goal.click()
       await expect(page.getByRole('region', { name: 'Goal', exact: true })).toContainText(
-        'Recover and read',
+        'Release and read',
       )
       const kind = page.getByRole('combobox', { name: 'Header recipient inspector type' })
       await kind.selectOption('utf-8')

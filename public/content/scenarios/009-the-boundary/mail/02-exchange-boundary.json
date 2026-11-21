@@ -6,7 +6,7 @@
       "to": "Local operator",
       "subject": "What the readers actually share",
       "date": "2026-08-30",
-      "body": "The old node can carry UTF-8 label fields. Its constraint is on the reference it uses for lookup. I’m fine with the new search returning two rows for one spelling. The record reference needs to resolve to exactly one owner every time."
+      "body": "The old node can carry the original UTF-8 label. The limit is on the lookup reference.\n\nI’m fine with two results in search. When an archive desk opens a record by reference, it needs to get the same owner every time."
     }
   ]
 }

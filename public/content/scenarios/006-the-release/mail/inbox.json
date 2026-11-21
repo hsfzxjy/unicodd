@@ -20,7 +20,7 @@
       "to": "Local operator",
       "subject": "Local recovery closed",
       "date": "2026-08-28",
-      "body": "Both confirmations came back. I’ve closed the two support cases.\n\nAudit queued a receipt for each account. The gateway will pick those up on its normal archival run."
+      "body": "Both confirmations are back. I’ve closed the two Support cases.\n\nThe outbox has a receipt for each account. Those can go on the gateway’s regular archival run."
     }
   ]
 }

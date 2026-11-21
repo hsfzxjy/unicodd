@@ -1,7 +1,7 @@
 {
   "version": 1,
   "title": "The Needle",
-  "introduction": "The archive exchange is closed. Catalog review is assembling the French summer-duty corpus for the client team’s regression tests.",
+  "introduction": "The archive exchange is closed. The client team needs French summer-duty reports it can use in regression tests.",
   "roles": ["catalog-reviewer"],
   "flags": ["selection_verified"],
   "local": {
@@ -20,7 +20,7 @@
         "user": "catalog-reviewer",
         "role": "catalog-reviewer"
       },
-      "welcome": "Read-only catalog review. The current search falls short of the signed duty ledger.",
+      "welcome": "Catalog review. The deployed search returns fewer reports than the signed ledger lists.",
       "status": [
         {
           "label": "Source selection",
@@ -100,7 +100,7 @@
           "access": {
             "flag": "selection_verified"
           },
-          "denied": "Reconcile the staged search before reading the selection report."
+          "denied": "Selection report unavailable until the staged search passes review."
         },
         {
           "id": "01-gap",
@@ -222,10 +222,10 @@
     }
   ],
   "objective": {
-    "text": "Verify the catalog search against the signed duty ledger, then read the selection report.",
+    "text": "Reconcile the search with the signed duty ledger and read the selection report.",
     "read": "final-report",
     "dossier": "selection",
-    "message": "The summer-duty source selection is filed for disclosure review.",
+    "message": "Source selection filed for disclosure review.",
     "onComplete": [
       {
         "type": "discover",

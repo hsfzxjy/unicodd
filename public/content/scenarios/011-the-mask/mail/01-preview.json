@@ -5,7 +5,7 @@
       "from": "Eli / MONONYM",
       "to": "Local operator",
       "subject": "The preview looked right",
-      "body": "The replacement shows up in the body. Can you check the copy that the client would actually get? I noticed the export worker can still see the cache from before the preview ran.",
+      "body": "The replacement’s on the screen. I checked the export job and it can still read the old cache. Can we see what that job would send before we clear the copy?",
       "date": "2026-09-04"
     }
   ]

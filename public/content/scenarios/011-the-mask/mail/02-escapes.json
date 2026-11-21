@@ -5,7 +5,7 @@
       "from": "Rowan / MONONYM",
       "to": "Local operator",
       "subject": "Offsets from two readers",
-      "body": "The old adapter passed a UTF-16 offset to the byte slicer. That worked on the early samples. One record has a supplementary character before the contact. Another writes the accent as a JSON escape. Check the span against the sealed source.",
+      "body": "The old adapter passed a UTF-16 offset to the byte slicer. It worked on the early samples. There’s a supplementary character before one contact, and the accent in another is written as a JSON escape.\n\nI’d check the ranges against the sealed source.",
       "date": "2026-09-04"
     }
   ]

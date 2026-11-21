@@ -1,7 +1,7 @@
 {
   "version": 1,
   "title": "The Other Side",
-  "introduction": "The local split is closed. The gateway accepted both archival submissions, but one vault has no record of its receipt.",
+  "introduction": "The local split is complete. The gateway accepted two archival receipts overnight. Only one vault has confirmed its receipt.",
   "roles": ["gateway-reviewer"],
   "flags": ["dispatch_verified"],
   "local": {
@@ -23,7 +23,7 @@
         "user": "gateway-reviewer",
         "role": "gateway-reviewer"
       },
-      "welcome": "Gateway review. The registry assigns each receipt to a verified vault.",
+      "welcome": "Gateway audit. The current registry holds two vault assignments.",
       "status": [
         {
           "label": "Vault confirmations",
@@ -117,7 +117,7 @@
           "access": {
             "flag": "dispatch_verified"
           },
-          "denied": "Confirm both source-bound destinations before reading the gateway reconciliation."
+          "denied": "Gateway report unavailable until both vault and resource bindings are verified."
         }
       ],
       "recovery": [
@@ -226,10 +226,10 @@
     }
   ],
   "objective": {
-    "text": "Verify that each receipt reached its registered vault, then read the gateway report.",
+    "text": "Confirm both vault deliveries and read the gateway report.",
     "read": "final-report",
     "handoff": "dispatch",
-    "message": "Vault delivery verified. Application ingestion is still pending.",
+    "message": "Gateway reconciliation filed. Application ingestion is still pending.",
     "onComplete": [
       {
         "type": "deliverMail",

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "title": "The Fragments",
-  "introduction": "Gateway delivery is confirmed. The receiver kept the full capture, but its application recorded no acknowledgments.",
+  "introduction": "The receiver kept the whole capture. Its application recorded no acknowledgments.",
   "roles": ["spool-reviewer"],
   "flags": ["ingestion_verified"],
   "local": {
@@ -23,7 +23,7 @@
         "user": "spool-reviewer",
         "role": "spool-reviewer"
       },
-      "welcome": "Receiver replay. The capture is read-only and the sender kept an independent acknowledgment ledger.",
+      "welcome": "Receiver replay. The capture is read-only. The sender’s ledger is available for comparison.",
       "status": [
         {
           "label": "Application acknowledgments",
@@ -234,10 +234,10 @@
     }
   ],
   "objective": {
-    "text": "Verify both application acknowledgments against the capture, then read the ingestion report.",
+    "text": "Verify both acknowledgments against the capture and read the ingestion report.",
     "read": "final-report",
     "handoff": "ingestion",
-    "message": "Both application records are stored with their original payload bytes.",
+    "message": "Ingestion recorded for both receipts.",
     "onComplete": [
       {
         "type": "deliverMail",

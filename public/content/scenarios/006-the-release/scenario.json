@@ -1,7 +1,7 @@
 {
   "version": 1,
   "title": "The Release",
-  "introduction": "Both owners approved the split. Release is paused for an audit readback.",
+  "introduction": "Both owners gave consent. Audit paused release over the printout.",
   "outputTiming": {
     "verify": [
       {
@@ -44,7 +44,7 @@
         "user": "recovery-operator",
         "role": "recovery-operator"
       },
-      "welcome": "Restricted recovery operator. Only the two approved registrations are in scope.",
+      "welcome": "Restricted release session. Two registrations in scope.",
       "status": [
         {
           "label": "Incident",
@@ -477,9 +477,9 @@
     }
   ],
   "objective": {
-    "text": "Verify and apply the account split while preserving both original registrations and approvals.",
+    "text": "Verify and apply the split while keeping both original registrations and approvals.",
     "action": "commit",
-    "message": "Incident 8C2F resolved. Both original registrations have independent accounts.",
+    "message": "Both accounts are back in service under their original registrations.",
     "onComplete": [
       {
         "type": "deliverMail",

@@ -5,7 +5,7 @@
       "from": "Eli / MONONYM",
       "to": "Local operator",
       "subject": "Three extracts, three results",
-      "body": "I ran the approved names through the sandbox. One receiver restored every file. One reported an existing name. The third refused a basename even with .txt.\n\nI expected a normalization pass to settle it. I’m logging the refusal separately from the collision.",
+      "body": "I tried the approved names in the sandbox. One receiver opened everything. Another said a name already existed. The third wouldn’t take a basename even with .txt on it.\n\nI thought a normalization pass would cover it. I’ve logged that refusal separately from the collision.",
       "date": "2026-09-04"
     }
   ]

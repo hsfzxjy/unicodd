@@ -1,7 +1,7 @@
 {
   "version": 1,
   "title": "The Backlog",
-  "introduction": "Support reopened both appeals using the original registration records. The review queue is still missing entries.",
+  "introduction": "Both appeals are in the database. The reviewers’ queue leaves rows out.",
   "outputTiming": {
     "replay": [
       {
@@ -30,7 +30,7 @@
         "user": "support-auditor",
         "role": "support-auditor"
       },
-      "welcome": "Read-only queue audit. The database still holds the full set of rows.",
+      "welcome": "Queue audit. The captured database snapshot is read-only.",
       "status": [
         {
           "label": "Incident",
@@ -314,9 +314,9 @@
     }
   ],
   "objective": {
-    "text": "Recover both owners’ appeals and read the report for the reviewers.",
+    "text": "Recover both appeals and read the review handoff.",
     "read": "review-handoff",
-    "message": "Both appeals are open for independent review.",
+    "message": "Both appeals are open for review.",
     "onComplete": [
       {
         "type": "deliverMail",

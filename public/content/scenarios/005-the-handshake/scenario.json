@@ -1,7 +1,7 @@
 {
   "version": 1,
   "title": "The Handshake",
-  "introduction": "Support has both cases open. Each owner sent a confirmation, but the broker groups them under one channel.",
+  "introduction": "Two separate approvals came in. The broker shows them under one channel.",
   "outputTiming": {
     "lookup": [
       {
@@ -31,7 +31,7 @@
         "user": "recovery-auditor",
         "role": "recovery-auditor"
       },
-      "welcome": "Recovery auditor. The repair requires separate consent for each original registration.",
+      "welcome": "Broker audit. The owner slots come from the Support handoff.",
       "status": [
         {
           "label": "Incident",
@@ -293,9 +293,9 @@
     }
   ],
   "objective": {
-    "text": "Verify both owners’ approvals and read the authorization report for the repair.",
+    "text": "Link each approval to its owner and read the authorization.",
     "read": "authorization",
-    "message": "Both approvals are tied to their original owners. The authorization covers a repair of those two records.",
+    "message": "Two-record repair authorized. Release remains on hold.",
     "onComplete": [
       {
         "type": "deliverMail",

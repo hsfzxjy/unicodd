@@ -5,7 +5,7 @@
       "from": "Helena / Identity Architecture",
       "to": "Directory Team",
       "subject": "Duplicate-looking accounts",
-      "body": "Registration still reviews every collision the duplicate detector flags. Support is waiting on those reviews while the queue grows.\n\nI propose one index entry per display similarity key. The detector already groups names that look alike across scripts. That would let each group go through review together. Keep all the original registrations."
+      "body": "Registration still holds every collision for its own review. Support is waiting on those decisions, and the queue’s still growing.\n\nI’d try one index entry per display similarity key. The detector already groups names that look alike across scripts. Review can take a whole group at once. Keep the original registrations."
     }
   ]
 }

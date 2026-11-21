@@ -6,7 +6,7 @@
       "to": "MONONYM operations",
       "subject": "Cursor review",
       "date": "2026-08-25",
-      "body": "I checked where the appeals drop out. The next page starts strictly after the last displayed sort key. A row that ties with it can be skipped even with stable sorting.\n\nWe need the cursor to identify the row we stopped on. The comparison tool can show which titles tie."
+      "body": "I checked where the appeals drop out. The next page starts strictly after the last sort key. A tied row can disappear there even under a stable sort.\n\nThe cursor needs to name the last row. The comparison tool can show the ties."
     }
   ]
 }

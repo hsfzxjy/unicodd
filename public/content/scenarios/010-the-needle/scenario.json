@@ -1,7 +1,7 @@
 {
   "version": 1,
   "title": "The Needle",
-  "introduction": "The archive exchange is closed. The next assignment is the French summer-duty corpus.",
+  "introduction": "The archive exchange is closed. Catalog review is assembling the French summer-duty corpus for the client team’s regression tests.",
   "roles": ["catalog-reviewer"],
   "flags": ["selection_verified"],
   "local": {

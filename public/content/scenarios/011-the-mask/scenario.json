@@ -218,7 +218,7 @@
           "success": [
             {
               "type": "message",
-              "text": "Candidate projection staged. Publication audit is pending."
+              "text": "Draft public copy staged for audit."
             }
           ],
           "failure": "The current attempt did not pass review.",

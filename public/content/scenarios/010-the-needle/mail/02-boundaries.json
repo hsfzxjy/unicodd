@@ -5,7 +5,7 @@
       "from": "Rowan",
       "to": "Catalog review",
       "subject": "Apostrophes in the export",
-      "body": "Compare the scheduling row to the notification row. The duty desk typed a straight apostrophe, and the notification writer used the curved one. Both use French elision. Keep the field text intact when you mark a match.",
+      "body": "The scheduling row has a straight apostrophe. The notification row uses the curved one. Both are French elisions. Keep the original punctuation in the excerpts so I can find the same lines during review.",
       "date": "2026-09-03"
     }
   ]

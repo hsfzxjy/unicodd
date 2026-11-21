@@ -226,7 +226,7 @@
     "text": "Verify that all three receivers can unpack and open the approved files, then read the delivery report.",
     "read": "final-report",
     "dossier": "bundle",
-    "message": "The receivers verified every approved file and its source reference. The client dossier is delivered.",
+    "message": "Delivery logged. The approved dossier is with the client team.",
     "onComplete": [
       {
         "type": "deliverMail",

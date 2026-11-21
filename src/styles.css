@@ -40,6 +40,26 @@
   font: 14px/1.5 var(--sans);
 }
 
+@property --edit-cue-opacity {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+[data-edit-cue]::after {
+  position: absolute;
+  z-index: 1;
+  inset: 2px;
+  border: 2px solid var(--evidence);
+  opacity: var(--edit-cue-opacity);
+  pointer-events: none;
+  content: '';
+}
+@media (forced-colors: active) {
+  [data-edit-cue]::after {
+    border-color: Highlight;
+  }
+}
+
 *,
 *::before,
 *::after {

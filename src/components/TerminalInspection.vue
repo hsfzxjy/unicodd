@@ -48,13 +48,13 @@ const normalization = computed(() => {
     const sameForms: string[] = []
     if (matching) matching.push(form)
     else seen.set(result.value, sameForms)
-    const offerInsert =
-      Boolean(result.value) && result.value !== props.row.point.scalar && !matching
+    const changed = result.value !== props.row.point.scalar
     return {
       form,
       points: inspect(result.value),
       text: result.value,
-      offerInsert,
+      changed,
+      offerInsert: Boolean(result.value) && changed && !matching,
       sameForms,
       repeated: Boolean(matching),
     }
@@ -65,17 +65,35 @@ const normalization = computed(() => {
 <template>
   <section class="inspection" :aria-label="'Unicode ' + row.point.notation" tabindex="-1">
     <div class="inspection-summary">
-      <button
-        type="button"
-        class="terminal-link inspection-point"
-        :aria-label="'Inspect ' + row.point.notation + ', ' + row.point.glyph"
-        :aria-disabled="busy || undefined"
-        @click="emit('action', { type: 'inspect', character: row.point.scalar })"
-      >
-        <bdi>{{ row.point.glyph }}</bdi>
-        <code>{{ row.point.notation }}</code>
-      </button>
-      <span v-if="row.category" class="inspection-category">{{ row.category }}</span>
+      <div class="inspection-identity">
+        <button
+          type="button"
+          class="terminal-link inspection-point"
+          :aria-label="'Inspect ' + row.point.notation + ', ' + row.point.glyph"
+          :aria-disabled="busy || undefined"
+          @click="emit('action', { type: 'inspect', character: row.point.scalar })"
+        >
+          <bdi>{{ row.point.glyph }}</bdi>
+          <code>{{ row.point.notation }}</code>
+        </button>
+        <p v-if="row.details.ok || row.category" class="inspection-metadata meta">
+          <bdi v-if="row.details.ok && row.details.value.name" class="inspection-name">{{
+            row.details.value.name
+          }}</bdi>
+          <span v-if="row.category">{{ row.category }}</span>
+          <span v-if="row.details.ok"
+            >{{ row.details.value.script.replaceAll('_', ' ') }} script</span
+          >
+        </p>
+        <p class="inspection-encoding meta">
+          <span
+            ><span class="transcript-label">UTF-8</span> <code>{{ utf8 }}</code></span
+          >
+          <span
+            ><span class="transcript-label">UTF-16</span> <code>{{ utf16 }}</code></span
+          >
+        </p>
+      </div>
       <div class="inspection-actions">
         <button
           type="button"
@@ -118,26 +136,18 @@ const normalization = computed(() => {
         </button>
       </div>
     </div>
-    <p v-if="row.details.ok || row.category" class="inspection-metadata meta">
-      <span v-if="row.category" class="inspection-category compact-category">{{
-        row.category
-      }}</span>
-      <template v-if="row.details.ok">
-        <bdi v-if="row.details.value.name">{{ row.details.value.name }}</bdi>
-        <span>{{ row.details.value.script.replaceAll('_', ' ') }} script</span>
-      </template>
-    </p>
-    <p class="inspection-encoding meta">
-      <span
-        ><span class="transcript-label">UTF-8</span> <code>{{ utf8 }}</code></span
-      >
-      <span
-        ><span class="transcript-label">UTF-16</span> <code>{{ utf16 }}</code></span
-      >
-    </p>
     <dl class="inspection-normalization" aria-label="Normalization">
       <div
-        v-for="{ form, points, text, offerInsert, error, repeated, sameForms } in normalization"
+        v-for="{
+          form,
+          points,
+          text,
+          changed,
+          offerInsert,
+          error,
+          repeated,
+          sameForms,
+        } in normalization"
         :key="form"
         class="inspection-form transcript-list-row"
         :class="{ 'inspection-form-repeat': repeated }"
@@ -150,7 +160,7 @@ const normalization = computed(() => {
         </dt>
         <dd>
           <template v-if="points">
-            <span class="inspection-sequence">
+            <span class="inspection-sequence" :class="{ 'changed-sequence': changed }">
               <button
                 v-for="point in points"
                 :key="point.start"
@@ -164,6 +174,7 @@ const normalization = computed(() => {
                 <code>{{ point.notation }}</code>
               </button>
               <span v-if="!points.length" class="meta">Empty</span>
+              <span v-if="changed" class="normalization-change">Changed</span>
             </span>
             <button
               v-if="offerInsert && text !== undefined"
@@ -212,13 +223,13 @@ const normalization = computed(() => {
 details[open] > summary .disclosure-icon {
   rotate: 90deg;
 }
-.inspection-metadata {
+.inspection-metadata,
+.inspection-encoding {
   display: flex;
   flex-wrap: wrap;
-  column-gap: 12px;
-  margin: 4px 0;
+  gap: 2px 12px;
 }
-.inspection-metadata bdi,
+.inspection-name,
 .inspection-encoding code {
   color: var(--text);
   font-weight: 550;
@@ -258,14 +269,14 @@ details[open] > summary .disclosure-icon {
   outline-offset: 3px;
 }
 .inspection-summary {
+  align-items: flex-start;
   column-gap: 12px;
+}
+.inspection-identity {
+  min-width: 0;
 }
 .inspection-actions {
   column-gap: var(--space-1);
-}
-.inspection-category {
-  color: var(--muted);
-  font-size: 12px;
 }
 .inspection .inspection-point {
   display: inline-flex;
@@ -277,7 +288,7 @@ details[open] > summary .disclosure-icon {
 .inspection-point bdi {
   overflow-wrap: anywhere;
 }
-.inspection-summary > .inspection-point bdi {
+.inspection-identity > .inspection-point bdi {
   font-size: 20px;
   line-height: 1.2;
 }
@@ -304,9 +315,7 @@ details[open] > summary .disclosure-icon {
   align-self: start;
   color: var(--muted);
 }
-.inspection-form-equivalent,
-.inspection .compact-category,
-.inspection-metadata:not(:has(bdi, span:not(.compact-category))) {
+.inspection-form-equivalent {
   display: none;
 }
 .inspection-form dd {
@@ -321,17 +330,24 @@ details[open] > summary .disclosure-icon {
 .inspection-sequence {
   min-width: 0;
 }
+.changed-sequence {
+  border-inline-start: 2px solid var(--evidence);
+  padding-inline-start: var(--space-1);
+}
+.normalization-change {
+  color: var(--evidence);
+  font: 650 12px/1.25 var(--sans);
+}
+@media (forced-colors: active) {
+  .changed-sequence {
+    border-inline-start-color: Highlight;
+  }
+}
 @media (max-width: 600px), (pointer: coarse) {
   .inspection-confusables summary,
   .inspection button:not(.terminal-link, .icon-button) {
     min-block-size: var(--touch-height);
   }
-}
-.inspection-encoding {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px 12px;
-  margin: 4px 0;
 }
 @media (max-width: 830px) {
   .inspection {
@@ -339,18 +355,16 @@ details[open] > summary .disclosure-icon {
     gap: var(--compact-tight);
     margin: 0;
   }
-  .inspection :is(.inspection-category, .inspection-metadata, .inspection-encoding) {
+  .inspection :is(.inspection-metadata, .inspection-encoding) {
     font-size: var(--compact-meta);
   }
   .inspection :is(.inspection-metadata, .inspection-encoding) {
     margin: 0;
     line-height: var(--compact-leading);
   }
-  .inspection-summary > .inspection-category {
-    display: none;
-  }
-  .inspection .compact-category {
-    display: inline;
+  .inspection-summary {
+    display: grid;
+    gap: var(--compact-tight);
   }
   .inspection .inspection-metadata {
     display: block;

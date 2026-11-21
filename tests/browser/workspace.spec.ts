@@ -13,6 +13,24 @@ async function fixture(page: Page) {
   await expect(page.getByRole('textbox', { name: 'Account alias' })).toBeVisible()
 }
 
+async function watchEditCues(page: Page) {
+  await page.addInitScript(() => {
+    const cues: { target: string; duration: number }[] = []
+    const animate = Element.prototype.animate
+    Element.prototype.animate = function (frames, options) {
+      if (this.hasAttribute('data-edit-cue')) {
+        cues.push({
+          target: this.getAttribute('aria-label') ?? this.className,
+          duration: Number(typeof options === 'number' ? options : options?.duration),
+        })
+        document.documentElement.dataset.editCues = JSON.stringify(cues)
+      }
+      return animate.call(this, frames, options)
+    }
+  })
+  return () => page.evaluate(() => JSON.parse(document.documentElement.dataset.editCues ?? '[]'))
+}
+
 test('inspects a selected scalar and reuses earlier results at the active selection and caret', async ({
   page,
   context,
@@ -79,6 +97,7 @@ test('inspects a selected scalar and reuses earlier results at the active select
 test('inserts an inspected character into the command selection without submitting', async ({
   page,
 }) => {
+  const cues = await watchEditCues(page)
   await page.goto('/')
   const command = page.getByRole('textbox', { name: 'Terminal command' })
   const log = page.getByRole('log')
@@ -92,9 +111,56 @@ test('inserts an inspected character into the command selection without submitti
   await result.getByRole('button', { name: 'Insert', exact: true }).click()
   await expect(command).toHaveValue('inspect \\u000020')
   await expect(command).toBeFocused()
+  expect(await cues()).toEqual([{ target: 'free-field', duration: 180 }])
   await expect(result).toHaveCount(1)
   await command.press('Enter')
   await expect(result).toHaveCount(2)
+})
+
+test('cues the exact transfer groups or the field when the range is clipped', async ({
+  page,
+}, info) => {
+  await page.emulateMedia({ forcedColors: 'active', reducedMotion: 'reduce' })
+  const cues = await watchEditCues(page)
+  await fixture(page)
+  const input = page.getByRole('textbox', { name: 'Account alias' })
+  await input.press('Escape')
+  const command = page.getByRole('textbox', { name: 'Terminal command' })
+  await command.fill('inspect U+00E9')
+  await command.press('Enter')
+  const result = page.getByRole('region', { name: 'Unicode U+00E9' })
+  await expect(result.getByText('Changed', { exact: true })).toHaveCount(2)
+  await commandControl(page, 'login')
+  await input.fill('🧪')
+  await page.getByRole('combobox', { name: 'Account alias inspector type' }).selectOption('utf-16')
+  const insert = result.getByRole('button', { name: 'Insert NFD' })
+  await insert.press('Enter')
+  await expect(input).toHaveValue('🧪e\u0301')
+  expect(await cues()).toEqual([
+    { target: 'Unit offset 0x0002, 0065, U+0065', duration: 500 },
+    { target: 'Unit offset 0x0003, 0301, U+0301', duration: 500 },
+  ])
+  expect(await input.evaluate((field: HTMLTextAreaElement) => field.selectionStart)).toBe(4)
+  await page.screenshot({ path: info.outputPath('transfer-utf16.png') })
+
+  const replace = result.getByRole('button', { name: 'Replace', exact: true })
+  await input.fill('é')
+  await input.press('Home')
+  await input.press('Shift+ArrowRight')
+  await replace.press('Enter')
+  await expect(input).toHaveValue('é')
+  expect(await input.evaluate((field: HTMLTextAreaElement) => field.selectionStart)).toBe(1)
+  expect(await cues()).toHaveLength(2)
+
+  const prefix = 'x'.repeat(100)
+  await input.fill(prefix)
+  const scroll = page.locator('.point-scroll')
+  await scroll.evaluate((element) => (element.scrollTop = 0))
+  await insert.press('Enter')
+  await expect(input).toHaveValue(prefix + 'e\u0301')
+  expect(await cues()).toHaveLength(3)
+  expect((await cues()).at(-1)).toEqual({ target: 'argument-editor', duration: 500 })
+  expect(await scroll.evaluate((element) => element.scrollTop)).toBe(0)
 })
 
 test('preserves composition and raw line endings and exposes repairable surrogate errors', async ({

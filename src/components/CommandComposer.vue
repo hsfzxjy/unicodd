@@ -13,6 +13,7 @@ import {
 } from 'vue'
 import ComposerArgument from './ComposerArgument.vue'
 import ComposerMenu from './ComposerMenu.vue'
+import { paintEditCue } from '../composables/edit-cue'
 import {
   composerAction,
   composerCommand,
@@ -45,6 +46,7 @@ const emit = defineEmits<{ action: [Action]; change: [] }>()
 const id = useId()
 const root = ref<HTMLElement>()
 const input = ref<HTMLInputElement>()
+const freeField = ref<HTMLElement>()
 const tag = ref<HTMLButtonElement>()
 const commandPicker = ref<HTMLButtonElement>()
 const promptTools = ref<HTMLElement>()
@@ -63,6 +65,8 @@ const drafts = new Map<CommandName, Draft>()
 const history: Draft[] = []
 let historyIndex = 0
 let scratch: Draft | undefined
+let editRequest = 0
+let clearEditCue: (() => void) | undefined
 const fields = computed(() =>
   selected.value ? composerArguments(selected.value, props.operations) : [],
 )
@@ -192,6 +196,7 @@ async function focusField(index = activeIndex.value, span?: Span) {
   else tag.value?.focus({ preventScroll: true })
 }
 async function restore(draft: Draft, focus = true) {
+  cancelEditCue()
   selected.value = draft.name
   text.value = draft.text
   values.value = [...draft.values]
@@ -443,20 +448,37 @@ function outside(event: PointerEvent) {
 window.addEventListener('pointerdown', outside)
 onBeforeUnmount(() => {
   window.removeEventListener('pointerdown', outside)
+  cancelEditCue()
 })
-function applyText(mode: 'insert' | 'replace', value: string) {
+function cancelEditCue() {
+  editRequest++
+  clearEditCue?.()
+  clearEditCue = undefined
+}
+watch([() => props.context, selected, activeEditor, composing], cancelEditCue, { flush: 'sync' })
+
+async function applyText(mode: 'insert' | 'replace', value: string) {
   if (!canInsert.value) return
-  const span = activeEditor.value?.context()
-  if (span && (mode === 'insert' || span.start < span.end))
-    activeEditor.value?.apply(
-      mode === 'insert' ? { start: span.start, end: span.start } : span,
-      value,
-      false,
-    )
+  cancelEditCue()
+  const request = editRequest
+  const editor = activeEditor.value
+  if (!editor) return
+  const span = editor.context()
+  if (mode === 'replace' && span.start === span.end) return
+  const applied = editor.apply(
+    mode === 'insert' ? { start: span.start, end: span.start } : span,
+    value,
+    false,
+  )
+  if (!applied) return
+  await nextTick()
+  if (request === editRequest) clearEditCue = paintEditCue(editor.cueTargets(applied))
 }
 function insertCommand(value: string) {
   if (!canInsertCommand.value || !input.value) return
+  cancelEditCue()
   const field = input.value
+  const raw = text.value
   const span = scalarSpan(text.value, {
     start: field.selectionStart ?? text.value.length,
     end: field.selectionEnd ?? text.value.length,
@@ -464,6 +486,7 @@ function insertCommand(value: string) {
   field.setRangeText(commandInsertion(value), span.start, span.end, 'end')
   text.value = field.value
   field.focus({ preventScroll: true })
+  if (text.value !== raw && freeField.value) clearEditCue = paintEditCue([freeField.value])
 }
 async function reuseCommand(value: string) {
   if (!canReuse.value) return
@@ -512,6 +535,7 @@ defineExpose({
   <div
     ref="root"
     class="command-composer"
+    @input.capture="cancelEditCue"
     @focusin="focused = true"
     @focusout="
       (event) => {
@@ -548,27 +572,28 @@ defineExpose({
         >
           {{ selected }} <ChevronDown class="disclosure-icon" aria-hidden="true" />
         </button>
-        <input
-          v-else
-          :id="id"
-          ref="input"
-          v-model="text"
-          aria-label="Terminal command"
-          enterkeyhint="go"
-          autocomplete="off"
-          autocapitalize="off"
-          autocorrect="off"
-          spellcheck="false"
-          dir="auto"
-          :readonly="busy"
-          @input="freeInput"
-          @select="emit('change')"
-          @keyup="emit('change')"
-          @pointerup="emit('change')"
-          @keydown="freeKey"
-          @compositionstart="composing = true"
-          @compositionend="endFreeComposition"
-        />
+        <div v-else ref="freeField" class="free-field">
+          <input
+            :id="id"
+            ref="input"
+            v-model="text"
+            aria-label="Terminal command"
+            enterkeyhint="go"
+            autocomplete="off"
+            autocapitalize="off"
+            autocorrect="off"
+            spellcheck="false"
+            dir="auto"
+            :readonly="busy"
+            @input="freeInput"
+            @select="emit('change')"
+            @keyup="emit('change')"
+            @pointerup="emit('change')"
+            @keydown="freeKey"
+            @compositionstart="composing = true"
+            @compositionend="endFreeComposition"
+          />
+        </div>
         <button
           v-if="!selected"
           ref="commandPicker"
@@ -620,6 +645,7 @@ defineExpose({
           @update:model-value="updateValue(index, $event)"
           @activate="activeIndex = index"
           @composition="composing = $event"
+          @inspector-change="cancelEditCue"
           @key="argumentKey($event, index)"
           @inspect="emit('action', { type: 'inspect', character: $event })"
           @copy="emit('action', { type: 'copy', text: $event })"
@@ -693,6 +719,12 @@ defineExpose({
   border-radius: 0;
   background: transparent;
   caret-color: var(--accent);
+}
+.free-field {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-inline-size: 0;
 }
 .prompt input:focus {
   outline: none;

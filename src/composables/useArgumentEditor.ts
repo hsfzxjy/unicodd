@@ -246,13 +246,16 @@ export function useArgumentEditor(
 
   function apply(span: Span, text: string, focus = true) {
     if (composing) return
-    update(props.modelValue.slice(0, span.start) + text + props.modelValue.slice(span.end))
+    const raw = props.modelValue
+    const draft = raw.slice(0, span.start) + text + raw.slice(span.end)
+    update(draft)
     const caret = span.start + text.length
     void nextTick(() => {
       const position = scalarSpan(props.modelValue, { start: caret, end: caret })
       focusAt(position, focus)
       readSelection()
     })
+    if (draft !== raw) return { start: span.start, end: caret }
   }
 
   function paste(event: ClipboardEvent) {

@@ -4,6 +4,7 @@ import ArgumentInspector from './ArgumentInspector.vue'
 import { useArgumentEditor } from '../composables/useArgumentEditor'
 import { useArgumentResize } from '../composables/useArgumentResize'
 import type { ArgumentInspector as InspectorType } from '../lib/argument-inspectors'
+import type { Span } from '../lib/unicode'
 import type { ArgumentView } from '../lib/workspace'
 
 const props = defineProps<{
@@ -24,9 +25,11 @@ const emit = defineEmits<{
   composition: [boolean]
   activate: []
   key: [KeyboardEvent]
+  inspectorChange: []
 }>()
 const id = useId()
 const inspector = ref<InstanceType<typeof ArgumentInspector>>()
+const editor = ref<HTMLElement>()
 const control = ref<HTMLTextAreaElement>()
 const mirror = ref<HTMLDivElement>()
 const drawnCaret = ref<HTMLSpanElement>()
@@ -63,6 +66,8 @@ const {
 
 defineExpose({
   apply,
+  cueTargets: (span: Span) =>
+    inspector.value?.visibleGroups(span) ?? (editor.value ? [editor.value] : []),
   focusAt,
   revealEditor,
   captureSelection,
@@ -75,7 +80,7 @@ defineExpose({
 <template>
   <div class="composer-argument" :class="{ 'active-argument': active, 'inline-argument': inline }">
     <label :for="id">{{ label }}</label>
-    <div class="argument-editor" :class="{ 'resized-editor': height !== undefined }">
+    <div ref="editor" class="argument-editor" :class="{ 'resized-editor': height !== undefined }">
       <textarea
         :id="id"
         ref="control"
@@ -135,6 +140,7 @@ defineExpose({
       @remove="apply($event, '')"
       @inspect="emit('inspect', $event)"
       @copy="emit('copy', $event)"
+      @view-change="emit('inspectorChange')"
     />
   </div>
 </template>

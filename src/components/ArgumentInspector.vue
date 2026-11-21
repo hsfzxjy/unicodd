@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ChevronRight, Search } from '@lucide/vue'
-import { computed, nextTick, ref, useId } from 'vue'
+import { computed, nextTick, ref, useId, watch } from 'vue'
 import { useInspectorDrag } from '../composables/useInspectorDrag'
 import {
   argumentInspectors,
@@ -25,6 +25,7 @@ const emit = defineEmits<{
   remove: [Span]
   inspect: [string]
   copy: [string]
+  viewChange: []
 }>()
 const id = useId()
 const panel = ref<HTMLElement>()
@@ -34,6 +35,7 @@ const expanded = ref(false)
 const kind = computed(() =>
   chosen.value && props.types.includes(chosen.value) ? chosen.value : props.types[0],
 )
+watch([expanded, kind], () => emit('viewChange'), { flush: 'sync' })
 const label = computed(() => argumentInspectors[kind.value].label)
 const projection = computed(() => inspectArgument(props.source, props.literal))
 const view = computed(() => encodeArgument(kind.value, projection.value))
@@ -99,6 +101,44 @@ function restoreView(view: ArgumentView) {
   expanded.value = view.expanded === true
 }
 
+function visibleGroups({ start, end }: Span) {
+  const region = scroll.value
+  const { groups, error } = view.value
+  if (!expanded.value || !region || error || start >= end) return
+  const first = groups.findIndex(({ point }) => point.end > start)
+  if (first < 0 || groups[first].point.start > start) return
+  const cells = Array.from(region.querySelectorAll<HTMLButtonElement>('.point'))
+  const affected: HTMLButtonElement[] = []
+  const viewport = window.visualViewport
+  let left = viewport?.offsetLeft ?? 0
+  let top = viewport?.offsetTop ?? 0
+  let right = left + (viewport?.width ?? document.documentElement.clientWidth)
+  let bottom = top + (viewport?.height ?? document.documentElement.clientHeight)
+  for (let parent: HTMLElement | null = region; parent; parent = parent.parentElement) {
+    const style = getComputedStyle(parent)
+    if (style.display === 'contents') continue
+    const bounds = parent.getBoundingClientRect()
+    if (style.overflowX !== 'visible') {
+      const edge = bounds.left + parent.clientLeft
+      left = Math.max(left, edge)
+      right = Math.min(right, edge + parent.clientWidth)
+    }
+    if (style.overflowY !== 'visible') {
+      const edge = bounds.top + parent.clientTop
+      top = Math.max(top, edge)
+      bottom = Math.min(bottom, edge + parent.clientHeight)
+    }
+  }
+  for (let index = first; index < groups.length; index++) {
+    const cell = cells[index]
+    const box = cell?.getBoundingClientRect()
+    if (!box?.width || box.left < left || box.right > right || box.top < top || box.bottom > bottom)
+      return
+    affected.push(cell)
+    if (groups[index].point.end >= end) return affected
+  }
+}
+
 defineExpose({
   saveView: () => ({
     expanded: expanded.value,
@@ -106,6 +146,7 @@ defineExpose({
     bytes: kind.value === 'utf-8' || undefined,
   }),
   restoreView,
+  visibleGroups,
 })
 </script>
 

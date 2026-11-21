@@ -6,7 +6,7 @@
       "to": "Local operator",
       "subject": "One empty destination slot",
       "date": "2026-08-29",
-      "body": "The gateway logged two 202 Accepted responses overnight. Only one vault can confirm its own receipt. Compare the registry with the trace before we close the archival item. The split itself was confirmed yesterday."
+      "body": "I have two 202 Accepted responses from the overnight sweep and one vault confirmation. Leave the archive item open while we check the trace against the registry. The account split was confirmed yesterday."
     },
     {
       "id": "receiver-capture",

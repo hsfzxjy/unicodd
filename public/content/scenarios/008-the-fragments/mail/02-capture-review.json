@@ -6,7 +6,7 @@
       "to": "Local operator",
       "subject": "Keep the wire capture",
       "date": "2026-08-29",
-      "body": "The link recorded the original bytes before the text buffer touched them. One invalid payload has ordinary ASCII after the bad sequence. If a bounded frame is bad, keep its exact bytes for review and check the next prefix."
+      "body": "The link recorded the bytes before the text buffer touched them. One bad payload has ordinary ASCII after the invalid sequence. Keep the exact payload in quarantine so I can check it against the capture. If the length gives you a complete bounded frame, carry on at the next prefix."
     }
   ]
 }

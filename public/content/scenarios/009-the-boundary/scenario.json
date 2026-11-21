@@ -223,7 +223,7 @@
     "text": "Verify that both archive readers can find all five records, then read the archive report.",
     "read": "final-report",
     "handoff": "mirror",
-    "message": "Both archive readers can resolve the same verified records. The archival work item is closed.",
+    "message": "Reconciliation filed for both archive readers. Archive work item closed.",
     "onComplete": [
       {
         "type": "deliverMail",

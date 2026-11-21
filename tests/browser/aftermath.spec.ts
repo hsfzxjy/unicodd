@@ -129,7 +129,7 @@ for (const [width, height] of [
       }
       await readIngestion()
       await expect(last(page)).toContainText(
-        'Verify both application ACKs and isolate malformed frames before reading this report.',
+        'Ingestion report unavailable until both application acknowledgments and malformed-frame handling pass verification.',
       )
       await expect(ingestion).toHaveCount(0)
       await expect(fragmentsComplete).toHaveCount(0)

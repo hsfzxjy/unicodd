@@ -116,7 +116,7 @@
           "access": {
             "flag": "ingestion_verified"
           },
-          "denied": "Verify both application ACKs and isolate malformed frames before reading this report."
+          "denied": "Ingestion report unavailable until both application acknowledgments and malformed-frame handling pass verification."
         }
       ],
       "recovery": [

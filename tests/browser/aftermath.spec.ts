@@ -229,6 +229,9 @@ for (const [width, height] of [
       await field(page, 'Legacy handle policy').fill('suffix')
       await submit()
       await expect(last(page)).toContainText('Handle collision')
+      await expect(
+        last(page).getByRole('listitem').filter({ hasText: 'AR-4101' }).first(),
+      ).toContainText('Handle XID 15.1 ✓')
       await expect(last(page)).toContainText('AR-EU-1842')
       await expect(field(page, 'Legacy handle policy')).toHaveValue('suffix')
       await field(page, 'Legacy handle policy').fill('prefix:case_')

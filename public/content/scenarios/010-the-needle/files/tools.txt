@@ -2,4 +2,5 @@ Search profile syntax: boundary/form/case. An optional /form/case suffix overrid
 Boundary: default (Unicode word breaks), fr (French apostrophe breaks), substring, ascii (ASCII word edges).
 Form: raw, nfc, nfd, nfkc, strip (remove non-starters), skeleton (whole segments only). Case: exact or fold.
 Scope: approved, all, or a field name from /archive/fields.txt.
-Use tokens with a ledger record and field to see where the source was cut. Coordinates are zero-based and end-exclusive.
+tokens <record> <field> <profile>
+Shows where the selected profile cuts the original field. Coordinates are zero-based and end-exclusive.

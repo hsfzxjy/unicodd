@@ -351,7 +351,9 @@
       "command": "mirror",
       "args": ["opaque", "labels", "18.0"],
       "failed": ["legacy-queryable"],
-      "rows": [["AR-4101", "Ᲊora", "Ᲊora", "owner-4101", "15.1 XID rejected", "18.0 XID ✓"]]
+      "rows": [
+        ["AR-4101", "Ᲊora", "Ᲊora", "owner-4101", "Handle XID 15.1 rejected", "Handle XID 18.0 ✓"]
+      ]
     },
     {
       "id": "replacement-storage",
@@ -425,6 +427,7 @@
       "args": ["opaque", "id", "18.0"],
       "failed": [],
       "rows": [
+        ["AR-4101", "Ᲊora", "AR_4101", "owner-4101", "Handle XID 15.1 ✓", "Handle XID 18.0 ✓"],
         ["18.0.0 search collision", "ᲊora", "AR-4101", "AR-4102"],
         ["Archive reconciliation", "5 verified and queryable records"]
       ]

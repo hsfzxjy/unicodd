@@ -312,14 +312,14 @@ pub(super) fn mirror(
                     &handle,
                     original.owner,
                     if candidate_legacy {
-                        "15.1 XID ✓"
+                        "Handle XID 15.1 ✓"
                     } else {
-                        "15.1 XID rejected"
+                        "Handle XID 15.1 rejected"
                     },
                     if candidate_modern {
-                        "18.0 XID ✓"
+                        "Handle XID 18.0 ✓"
                     } else {
-                        "18.0 XID rejected"
+                        "Handle XID 18.0 rejected"
                     },
                 ],
             )

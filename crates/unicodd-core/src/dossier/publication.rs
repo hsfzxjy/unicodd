@@ -519,7 +519,13 @@ fn build(policy: &Policy, options: &Options<'_>) -> (Publication, Vec<Finding>) 
                 payload,
             };
             if name != rule.name {
-                note("filenames", "export filename · private contact association");
+                note(
+                    "filenames",
+                    &format!(
+                        "{} · export filename · private contact association",
+                        asset.id
+                    ),
+                );
             }
             let manifest_digest = if options.pipeline == Pipeline::PrivateDigest {
                 &original_digest
@@ -529,7 +535,10 @@ fn build(policy: &Policy, options: &Options<'_>) -> (Publication, Vec<Finding>) 
             if manifest_digest != &asset.digest {
                 note(
                     "manifest",
-                    "published digest refers to the protected original",
+                    &format!(
+                        "{} · published digest refers to the protected original",
+                        asset.id
+                    ),
                 );
             }
             manifest.push(json_text(&(

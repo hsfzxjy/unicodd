@@ -145,16 +145,26 @@ export interface JournalFrame {
 
 export const scrollbackLimit = 80
 
+// The catalog reference gained its missing command argument. Both published
+// catalogs replay the same actions. Keep their secure and plain-HTTP journals.
+const compatibleContent: Readonly<Record<string, string>> = {
+  b950a5e7fe990a5f7c38a5664f6bb004f9099cc6a63bf86f815288df0894be8b:
+    '5b28d0898ad5e51ad67d9f1cd7823aa87dce7994e20cb7f596f2e03cf24e3d67',
+  'fnv64:d27bc6d284ff2773': 'fnv64:78951a9d6c3c3fd1',
+}
+
 export async function historyRevision(logic: string, content: unknown) {
   const bytes = new TextEncoder().encode(JSON.stringify(content))
   if (globalThis.crypto?.subtle) {
     const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))
-    return logic + ':' + Array.from(digest, (byte) => byte.toString(16).padStart(2, '0')).join('')
+    const key = Array.from(digest, (byte) => byte.toString(16).padStart(2, '0')).join('')
+    return logic + ':' + (compatibleContent[key] ?? key)
   }
   // Web Crypto is unavailable on plain HTTP development origins.
   let hash = 0xcbf29ce484222325n
   for (const byte of bytes) hash = BigInt.asUintN(64, (hash ^ BigInt(byte)) * 0x100000001b3n)
-  return logic + ':fnv64:' + hash.toString(16)
+  const key = 'fnv64:' + hash.toString(16)
+  return logic + ':' + (compatibleContent[key] ?? key)
 }
 
 export async function replayJournal(

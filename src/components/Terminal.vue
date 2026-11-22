@@ -77,6 +77,8 @@ const {
   archived,
   result,
   resultReturn,
+  readingResource,
+  openEntry,
   openRead,
   back,
   backToRead,
@@ -352,7 +354,7 @@ defineExpose({
         @mousedown="keepEditing"
       >
         <button v-if="resultReturn" type="button" @click="backToRead($event.detail === 0)">
-          Back to read
+          {{ readingResource ? 'Back to read' : 'Back to output' }}
         </button>
         <button v-if="reading" type="button" @click="back($event.detail === 0)">
           Back to work
@@ -384,8 +386,10 @@ defineExpose({
         <TerminalReads
           ref="readsControls"
           :reads="reads"
+          :entries="transcript"
           :trigger-target="compact ? composer?.promptTools : undefined"
           @open="openRead"
+          @jump="openEntry"
         >
           <button
             v-if="compact && connected && composer?.structured"

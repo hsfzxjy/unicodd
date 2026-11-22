@@ -7,9 +7,9 @@ import TerminalListing from './TerminalListing.vue'
 import TerminalProgress from './TerminalProgress.vue'
 import TerminalReport from './TerminalReport.vue'
 import TerminalResource from './TerminalResource.vue'
-import type { TerminalEntryView } from '../composables/terminal-presentation'
+import { displayedCommand, type TerminalEntryView } from '../composables/terminal-presentation'
 import type { TranscriptResult } from '../composables/useTerminalReads'
-import { commandDefinition, commandEcho, commandRegistry, type CommandName } from '../lib/commands'
+import { commandDefinition, commandRegistry, type CommandName } from '../lib/commands'
 import type { Action, Output, ProgressTransition, Session } from '../lib/runtime'
 
 const props = defineProps<{
@@ -98,13 +98,6 @@ function helpCommand(name: CommandName, referenceConnected: boolean) {
     return commandDefinition(`local ${name}`)?.name ?? name
   return name
 }
-
-function echoText(value: string) {
-  if (value.length <= 512) return value
-  const limit =
-    /[\uD800-\uDBFF]/u.test(value[511]) && /[\uDC00-\uDFFF]/u.test(value[512]) ? 511 : 512
-  return value.slice(0, limit) + '…'
-}
 </script>
 
 <template>
@@ -124,11 +117,7 @@ function echoText(value: string) {
         <span class="prompt-host" :class="{ remote: entry.connected }"
           >{{ entry.connected ? '@' : '' }}{{ entry.prompt }} ›</span
         >
-        <bdi>{{
-          echoText(
-            commandEcho(entry.localScope ? entry.echo.replace(/^\s*local\s+/u, '') : entry.echo),
-          )
-        }}</bdi>
+        <bdi>{{ displayedCommand(entry) }}</bdi>
       </p>
       <div class="entry-actions">
         <button

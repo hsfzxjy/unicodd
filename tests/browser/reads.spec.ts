@@ -170,6 +170,60 @@ test('keeps a passage in place while a typed inspection arrives', async ({ page 
   await expect(button(page, 'Latest output')).toHaveCount(0)
 })
 
+test('jumps to the original command output and returns without submitting or editing', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 430 })
+  await page.addInitScript(() => localStorage.setItem('unicodd.onboarding.v1', 'seen'))
+  await page.goto('/')
+  await type(page, 'connect relay-07')
+  await type(page, 'inspect U+01FA')
+  const earlier = entries(page).last()
+  const id = await earlier.getAttribute('data-entry-id')
+  await earlier.getByRole('button', { name: 'Toggle command output' }).click()
+  await type(page, 'help')
+  await type(page, 'whoami')
+  await type(page, 'login wrong')
+  const alias = page.getByRole('textbox', { name: 'Account alias' })
+  await alias.fill('X🧪e\u0301')
+  await alias.evaluate((el: HTMLTextAreaElement) => el.setSelectionRange(1, 3))
+  const snapshot = () =>
+    page.evaluate(
+      () => JSON.parse(localStorage.getItem('unicodd.campaign')!).levels['001-the-relay'].journal,
+    )
+  const journal = await snapshot()
+  const count = await entries(page).count()
+  const original = log(page).locator(`[data-entry-id="${id}"]`)
+  await log(page).evaluate((el) => {
+    el.scrollTop = 10
+  })
+  await expect(button(page, 'Latest output')).toBeVisible()
+  const choose = async (keyboard: boolean) => {
+    const activate = (el: ReturnType<typeof button>) => (keyboard ? el.press('Enter') : el.click())
+    await activate(button(page, 'Earlier reads'))
+    await activate(picker(page).getByRole('button', { name: 'Command output', exact: true }))
+    const list = picker(page).getByRole('list', { name: 'Command output, newest first' })
+    await activate(list.getByRole('button', { name: /inspect U\+01FA.*relay-07/ }))
+  }
+  await choose(false)
+  await expect(alias).toBeFocused()
+  expect(
+    await alias.evaluate((el: HTMLTextAreaElement) => [el.selectionStart, el.selectionEnd]),
+  ).toEqual([1, 3])
+  await expect(original.getByRole('button', { name: 'Toggle command output' })).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  )
+  await expect(original.locator('.command-line')).toBeInViewport({ ratio: 1 })
+  await button(page, 'Back to work').click()
+  await expect.poll(() => log(page).evaluate((el) => el.scrollTop)).toBe(10)
+  await choose(true)
+  await expect(original).toBeFocused()
+  await expect(entries(page)).toHaveCount(count)
+  expect(await snapshot()).toEqual(journal)
+  await expect(alias).toHaveValue('X🧪e\u0301')
+})
+
 test('retains only authorized read snapshots beyond scrollback and drops them on session reset', async ({
   page,
 }, info) => {
@@ -185,6 +239,14 @@ test('retains only authorized read snapshots beyond scrollback and drops them on
   await reads.click()
   await expect(choice(page, sealed)).toHaveCount(0)
   await expect(picker(page).getByRole('combobox')).toHaveCount(0)
+  await picker(page).getByRole('button', { name: 'Command output', exact: true }).click()
+  await picker(page)
+    .getByRole('button', { name: /cat \/exhibit\/sealed/ })
+    .click()
+  await expect(entries(page).last()).toContainText('Permission denied')
+  await expect(log(page).getByRole('region', { name: `Mail ${sealed}` })).toHaveCount(0)
+  await button(page, 'Back to work').click()
+  await reads.click()
   await page.keyboard.press('Escape')
   const command = page.getByRole('textbox', { name: 'Terminal command', exact: true })
   const rejectedPath = page.getByRole('textbox', { name: 'path', exact: true })
@@ -208,6 +270,11 @@ test('retains only authorized read snapshots beyond scrollback and drops them on
   const journal = await savedCommands()
   await reads.click()
   await expect(picker(page).getByRole('list', { name: 'Earlier reads' })).toBeVisible()
+  await picker(page).getByRole('button', { name: 'Command output', exact: true }).click()
+  const commands = picker(page).getByRole('list', { name: 'Command output, newest first' })
+  await expect(commands.getByRole('button')).toHaveCount(80)
+  await expect(commands.getByRole('button', { name: /cat/ })).toHaveCount(0)
+  await picker(page).getByRole('button', { name: 'Back to earlier reads' }).click()
   await page.screenshot({ path: info.outputPath('reads-desktop.png') })
   await choice(page, sealed).click()
   await expect(log(page).getByRole('region', { name: 'Earlier read' }).locator('pre')).toHaveText(

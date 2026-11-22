@@ -1,16 +1,23 @@
 <script setup lang="ts">
 import { BookCheck } from '@lucide/vue'
-import { nextTick, onMounted, onUnmounted, ref, useId } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, useId } from 'vue'
+import { displayedCommand } from '../composables/terminal-presentation'
 import type { EarlierRead } from '../composables/useTerminalReads'
+import type { Entry } from '../lib/workspace'
 
-defineProps<{
+const props = defineProps<{
   reads: EarlierRead[]
+  entries: Entry[]
   triggerTarget?: HTMLElement
 }>()
-const emit = defineEmits<{ open: [EarlierRead, boolean] }>()
+const emit = defineEmits<{ open: [EarlierRead, boolean]; jump: [number, boolean] }>()
 const trigger = ref<HTMLButtonElement>()
 const menu = ref<HTMLElement>()
 const opened = ref(false)
+const showCommands = ref(false)
+const commands = computed(() =>
+  props.entries.filter((entry) => entry.echo !== undefined && !entry.waiting).reverse(),
+)
 const menuId = useId()
 const viewport = window.visualViewport
 
@@ -63,18 +70,35 @@ function keepEditing(event: MouseEvent) {
     event.preventDefault()
 }
 
-function toggle(event: MouseEvent) {
+async function toggle(event: MouseEvent) {
   if (!menu.value) return
   if (menu.value.matches(':popover-open') || opened.value) return close()
+  showCommands.value = false
+  await nextTick()
+  if (!menu.value) return
   positionMenu()
   menu.value.showPopover()
+  menu.value.scrollTop = 0
   if (event.detail === 0)
     (menu.value.querySelector('button') ?? menu.value).focus({ preventScroll: true })
+}
+
+async function switchList(event: MouseEvent) {
+  showCommands.value = !showCommands.value
+  await nextTick()
+  if (!menu.value) return
+  menu.value.scrollTop = 0
+  if (event.detail === 0) menu.value.querySelector('button')?.focus({ preventScroll: true })
 }
 
 function choose(read: EarlierRead, event: MouseEvent) {
   close()
   emit('open', read, event.detail === 0)
+}
+
+function chooseCommand(id: number, event: MouseEvent) {
+  close()
+  emit('jump', id, event.detail === 0)
 }
 
 defineExpose({ close })
@@ -89,7 +113,8 @@ defineExpose({ close })
       :aria-controls="menuId"
       :aria-expanded="opened"
       aria-label="Earlier reads"
-      title="Earlier reads"
+      aria-description="Browse previously read resources and command output"
+      title="Earlier reads and command output"
       @mousedown="keepEditing"
       @click="toggle"
     >
@@ -103,7 +128,20 @@ defineExpose({ close })
       tabindex="-1"
       @toggle="opened = ($event as ToggleEvent).newState === 'open'"
     >
-      <ul v-if="reads.length" aria-label="Earlier reads">
+      <ul v-if="opened && showCommands" aria-label="Command output, newest first">
+        <li v-for="entry in commands" :key="entry.id">
+          <button
+            type="button"
+            class="read-choice command-choice"
+            @mousedown="keepEditing"
+            @click="chooseCommand(entry.id, $event)"
+          >
+            <bdi>{{ displayedCommand(entry) }}</bdi>
+            <bdi class="transcript-detail">{{ entry.connected ? '@' : '' }}{{ entry.prompt }}</bdi>
+          </button>
+        </li>
+      </ul>
+      <ul v-else-if="reads.length" aria-label="Earlier reads">
         <li v-for="read in reads" :key="read.key">
           <button
             type="button"
@@ -117,6 +155,15 @@ defineExpose({ close })
         </li>
       </ul>
       <p v-else class="reads-empty transcript-detail">Open a file or message to see it here.</p>
+      <button
+        v-if="commands.length"
+        type="button"
+        class="switch-list"
+        @mousedown="keepEditing"
+        @click="switchList"
+      >
+        {{ showCommands ? 'Back to earlier reads' : 'Command output' }}
+      </button>
     </div>
   </Teleport>
 </template>
@@ -163,11 +210,27 @@ defineExpose({ close })
 .reads-menu .read-choice:hover {
   background: var(--raised);
 }
+.command-choice bdi:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.command-choice .transcript-detail {
+  flex-shrink: 0;
+}
+.reads-menu .switch-list {
+  position: sticky;
+  bottom: 0;
+  width: 100%;
+  min-height: var(--control-height);
+  background: var(--surface);
+  color: var(--accent);
+}
 .reads-empty {
   padding: 5px 7px;
 }
 @media (max-width: 600px), (pointer: coarse) {
-  .reads-menu .read-choice {
+  .reads-menu :is(.read-choice, .switch-list) {
     min-height: 44px;
   }
 }

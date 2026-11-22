@@ -205,7 +205,7 @@ export function useTerminalReads({
     { immediate: true },
   )
 
-  async function openRead(read: EarlierRead, keyboard: boolean) {
+  function beginVisit(read?: EarlierRead) {
     const request = ++navigation
     remember()
     if (!origin.value) {
@@ -217,6 +217,24 @@ export function useTerminalReads({
     resultReturn.value = undefined
     selected.value = read
     following.value = false
+    return request
+  }
+
+  async function openEntry(id: number, keyboard: boolean) {
+    if (!entries().some((entry) => entry.id === id && !entry.waiting && entry.echo !== undefined))
+      return
+    const request = beginVisit()
+    expand(id)
+    await nextTick()
+    const entry = findEntry(id)
+    if (request !== navigation || !entry) return
+    moveTo(entry, inset)
+    if (keyboard) entry.focus({ preventScroll: true })
+    change()
+  }
+
+  async function openRead(read: EarlierRead, keyboard: boolean) {
+    const request = beginVisit(read)
     expand(read.entry)
     await nextTick()
     if (request !== navigation) return
@@ -308,6 +326,8 @@ export function useTerminalReads({
     archived,
     result,
     resultReturn,
+    readingResource: computed(() => Boolean(selected.value)),
+    openEntry,
     openRead,
     remember,
     back,

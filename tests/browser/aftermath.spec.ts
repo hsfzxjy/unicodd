@@ -256,6 +256,22 @@ for (const [width, height] of [
       await expect(scenario(page)).toHaveValue('009-the-boundary')
       await commandControl(page, 'local campaign', act, true)
       await expect(last(page)).toContainText('The Needle')
+
+      const path = '/reports/reconciliation.txt'
+      await prompt.fill('cat ' + path)
+      await prompt.press('Enter')
+      const report = last(page).getByRole('list', { name: 'Report' })
+      const evidenceText = await report.innerText()
+      for (let index = 0; index < 81; index++) {
+        await prompt.fill('whoami')
+        await prompt.press('Enter')
+      }
+      await expect(transcript(page).getByRole('region', { name: 'File ' + path })).toHaveCount(0)
+      await act(page.getByRole('button', { name: 'Earlier reads', exact: true }))
+      await act(page.getByRole('button', { name: path + ' @bridge-14', exact: true }))
+      const recalled = page.getByRole('region', { name: 'Earlier read', exact: true })
+      expect(await recalled.getByRole('list', { name: 'Report' }).innerText()).toBe(evidenceText)
+      await expect(recalled.getByRole('heading')).toHaveCount(0)
     })
   })
 }

@@ -4,6 +4,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from 'v
 import CommandComposer from './CommandComposer.vue'
 import TerminalEntry from './TerminalEntry.vue'
 import TerminalReads from './TerminalReads.vue'
+import TerminalReport from './TerminalReport.vue'
 import TerminalResource from './TerminalResource.vue'
 import type { TerminalEntryView } from '../composables/terminal-presentation'
 import { sameResult, useTerminalTranscript } from '../composables/useTerminalTranscript'
@@ -305,6 +306,14 @@ defineExpose({
           Earlier read · <bdi>{{ archived.source }}</bdi>
         </p>
         <TerminalResource :output="archived.output" :busy="busy" @action="emit('action', $event)" />
+        <TerminalReport
+          v-if="archived.report"
+          :rows="archived.report.rows"
+          :busy="busy"
+          :can-insert="Boolean(composer?.canInsert)"
+          :can-replace="Boolean(composer?.canReplace)"
+          @action="emit('action', $event)"
+        />
       </section>
       <TerminalEntry
         v-for="entry in transcript"

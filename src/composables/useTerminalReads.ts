@@ -10,6 +10,7 @@ export interface EarlierRead {
   source: string
   label: string
   output: ReadOutput
+  report?: Extract<Output, { kind: 'report' }>
   offset: number
 }
 
@@ -106,7 +107,9 @@ export function useTerminalReads({
           output.path ?? (output.kind === 'mail' ? (output.messages[0]?.subject ?? '') : '')
         const key = JSON.stringify([source, output.kind, resource])
         bySource.delete(key)
-        bySource.set(key, { key, entry: entry.id, source, label, output, offset: 0 })
+        const report =
+          output.kind === 'file' ? entry.output.find((row) => row.kind === 'report') : undefined
+        bySource.set(key, { key, entry: entry.id, source, label, output, report, offset: 0 })
         changed = true
       }
     }

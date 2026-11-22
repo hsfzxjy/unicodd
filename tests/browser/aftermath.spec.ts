@@ -188,13 +188,14 @@ for (const [width, height] of [
           'The source receipts and dispatch evidence are attached to the archival batch.',
       )
       await snap('03-ingestion-start')
-      if (width < 600) {
-        await expect(fragmentsComplete).not.toBeInViewport()
-        await act(page.getByRole('button', { name: 'View completion', exact: true }))
-      }
       await expect(fragmentsComplete).toBeInViewport({ ratio: 1 })
-      await expect(link(page, 'Legacy archive import review')).toBeInViewport({ ratio: 1 })
+      const filed = last(page)
+      const evidence = filed.getByRole('list', { name: 'Report' })
+      await expect(evidence).toContainText('Quarantined frame')
+      expect(await filed.locator('[data-closeout="case"] + .terminal-report').count()).toBe(1)
+      await link(page, 'The Boundary').scrollIntoViewIfNeeded()
       await expect(link(page, 'The Boundary')).toBeInViewport({ ratio: 1 })
+      await expect(link(page, 'Legacy archive import review')).toBeInViewport({ ratio: 1 })
       await snap('04-ingestion-completion')
       await readIngestion()
       await expect(ingestion).toHaveCount(2)

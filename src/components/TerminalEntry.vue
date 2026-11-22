@@ -71,10 +71,22 @@ const closeout = computed(() => {
   }
   return lists
 })
+// A filed report opens with its cover text. Keep the filing outcome and
+// correspondence together above the attached records in reading and tab order.
+const displayRows = computed(() => {
+  const rows = props.entry.output
+  if (rows[0]?.kind !== 'file') return rows
+  const index = rows.findIndex((row) => row.kind === 'report')
+  const band = rows[index + 1]
+  if (index < 0 || band?.kind !== 'objective' || band.progress?.scope !== 'scenario') return rows
+  let end = index + 2
+  while (end < rows.length && closeout.value.has(rows[end])) end++
+  return [...rows.slice(0, index), ...rows.slice(index + 1, end), rows[index], ...rows.slice(end)]
+})
 const presentedBand = computed(() => {
-  if (!props.progressCue) return -1
+  if (!props.progressCue) return
   const scope = props.progressCue === 'completion' ? 'scenario' : 'subobjective'
-  return props.entry.output.findIndex(
+  return props.entry.output.find(
     (row) =>
       (row.kind === 'objective' || row.kind === 'milestone') && row.progress?.scope === scope,
   )
@@ -161,7 +173,7 @@ function echoText(value: string) {
           <bdi class="arrival-host">@{{ entry.arrival.host }}</bdi> ·
           <bdi>{{ entry.arrival.role }}</bdi>
         </p>
-        <template v-for="(row, index) in entry.output" :key="index">
+        <template v-for="(row, index) in displayRows" :key="index">
           <template v-if="row === omitRow"></template>
           <TerminalListing
             v-else-if="row.kind === 'listing'"
@@ -248,7 +260,7 @@ function echoText(value: string) {
           <TerminalProgress
             v-else-if="(row.kind === 'milestone' || row.kind === 'objective') && row.progress"
             :progress="row.progress"
-            :present="index === presentedBand"
+            :present="row === presentedBand"
           />
           <p
             v-else

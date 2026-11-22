@@ -271,6 +271,10 @@ function structuredAction(): Action | undefined {
   if (!selected.value) return
   return composerAction(selected.value, values.value, props.operations)
 }
+function keepFieldFocus(event: MouseEvent) {
+  const field = document.activeElement
+  if (root.value?.contains(field) && field?.matches('input, textarea')) event.preventDefault()
+}
 async function submit() {
   if (composing.value || props.busy || pending.value) return
   const raw = text.value
@@ -293,8 +297,8 @@ async function submit() {
   activeEditor.value?.captureSelection()
   const saved = snapshot()
   const context = props.context
-  const focusedField =
-    document.activeElement?.tagName === 'TEXTAREA' || document.activeElement === input.value
+  const focusedField = document.activeElement
+  const editing = focusedField?.matches('input, textarea') && root.value?.contains(focusedField)
   const echo = selected.value ? composerCommand(selected.value, values.value, fields.value) : raw
   let historyDraft = saved
   if (
@@ -334,14 +338,14 @@ async function submit() {
         const context = commandDraftSelection(raw, oneLineSelection)
         if (context && context.index < fields.value.length)
           await focusField(context.index, context.span)
-      } else if (focusedField && selected.value)
+      } else if (editing && document.activeElement === focusedField && selected.value)
         await focusField(saved.active, saved.spans[saved.active])
       return
     }
     if (response.compose) return
     reset()
     showSuggestions.value = true
-    if (focusedField) {
+    if (editing && document.activeElement === focusedField) {
       await nextTick()
       input.value?.focus({ preventScroll: true })
     }
@@ -619,6 +623,7 @@ defineExpose({
           aria-label="Run"
           title="Run"
           :disabled="busy || composing || pending || (!selected && !text.trim())"
+          @mousedown="keepFieldFocus"
         >
           <Play aria-hidden="true" />
         </button>

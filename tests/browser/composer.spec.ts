@@ -131,6 +131,27 @@ test('shows exact draft lengths and keeps the insertion point visible in the Uni
   expect(await alias.evaluate((element) => element.scrollLeft)).toBeLessThan(8)
 })
 
+test('a pointer Run leaves an active argument ready to revise at its exact selection', async ({
+  page,
+}) => {
+  await relay(page)
+  await commandControl(page, 'login')
+  const alias = field(page, 'Account alias')
+  await alias.fill('X🧪e\u0301')
+  await selection(alias, 1, 3)
+  const count = await log(page).locator('.terminal-entry').count()
+  await run(page).click()
+  await expect(log(page).locator('.terminal-entry')).toHaveCount(count + 1)
+  await expect(log(page).locator('.terminal-entry').last()).toContainText('Login rejected')
+  await expect(alias).toBeFocused()
+  await page.keyboard.insertText('і')
+  await expect(alias).toHaveValue('Xіe\u0301')
+  await run(page).focus()
+  await run(page).press('Enter')
+  await expect(log(page).locator('.terminal-entry')).toHaveCount(count + 2)
+  await expect(alias).not.toBeFocused()
+})
+
 test('keeps the selected source visible when opening and changing a long argument inspection', async ({
   page,
 }) => {

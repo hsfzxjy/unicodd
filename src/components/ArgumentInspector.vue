@@ -72,15 +72,13 @@ function showPreview(revealPanel = true) {
     const region = panel.value
     const box = scroll.value
     if (!region || !box?.clientHeight) return
-    const point =
-      box.querySelector<HTMLElement>('.point[aria-pressed="true"]') ??
-      box.querySelector('.point-caret')?.parentElement
+    const point = box.querySelector<HTMLElement>('.point[aria-pressed="true"]')
     if (point) {
       const cell = point.getBoundingClientRect()
       const bounds = box.getBoundingClientRect()
       if (cell.top < bounds.top || cell.bottom > bounds.bottom)
         box.scrollTop += cell.top - bounds.top
-    }
+    } else box.scrollTop = 0
     if (!revealPanel) return
     const list = region?.closest<HTMLElement>('.composer-arguments')
     if (!list?.clientHeight || list.scrollHeight <= list.clientHeight) return

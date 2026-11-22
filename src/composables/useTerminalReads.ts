@@ -145,7 +145,8 @@ export function useTerminalReads({
     for (const part of ['resource', 'report'] as const) {
       if (part === 'report' && !read.report) continue
       const el = findRead(read, part)
-      const top = el && visibleOffset(el)
+      if (!el) continue
+      const top = visibleOffset(el)
       if (top !== undefined) return { part, offset: top }
     }
   }

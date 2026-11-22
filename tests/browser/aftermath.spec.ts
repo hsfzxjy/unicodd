@@ -275,6 +275,21 @@ for (const [width, height] of [
       const recalled = page.getByRole('region', { name: 'Earlier read', exact: true })
       expect(await recalled.getByRole('list', { name: 'Report' }).innerText()).toBe(evidenceText)
       await expect(recalled.getByRole('heading')).toHaveCount(0)
+      if (width === 390) {
+        await page.setViewportSize({ width, height: 430 })
+        const row = recalled.locator('.report-row').last()
+        await row.evaluate((el) => {
+          const log = el.closest('.transcript')!
+          log.scrollTop += el.getBoundingClientRect().top - log.getBoundingClientRect().top - 12
+        })
+        const position = () => row.evaluate((el) => el.getBoundingClientRect().top)
+        const before = await position()
+        await act(page.getByRole('button', { name: 'Back to work', exact: true }))
+        await act(page.getByRole('button', { name: 'Earlier reads', exact: true }))
+        await page.getByRole('button', { name: path + ' @bridge-14', exact: true }).press('Enter')
+        await expect(recalled.getByRole('list', { name: 'Report' })).toBeFocused()
+        expect(Math.abs((await position()) - before)).toBeLessThanOrEqual(1)
+      }
     })
   })
 }

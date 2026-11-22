@@ -3,6 +3,8 @@ import type { Output } from '../lib/runtime'
 import type { Entry } from '../lib/workspace'
 
 export type ReadOutput = Extract<Output, { kind: 'file' } | { kind: 'mail' }>
+type ReadPart = 'resource' | 'report'
+const partSelector = { resource: '.terminal-file, .terminal-mail', report: '.terminal-report' }
 
 export interface EarlierRead {
   key: string
@@ -11,13 +13,14 @@ export interface EarlierRead {
   label: string
   output: ReadOutput
   report?: Extract<Output, { kind: 'report' }>
+  part?: ReadPart
   offset: number
 }
 
 interface Position {
   top: number
   entry?: string
-  resource?: boolean
+  part?: ReadPart
   offset: number
   following: boolean
 }
@@ -120,8 +123,8 @@ export function useTerminalReads({
     return scroll.value?.querySelector<HTMLElement>(`[data-entry-id="${id}"]`)
   }
 
-  function findRead(read: EarlierRead) {
-    return findEntry(read.entry)?.querySelector<HTMLElement>('.terminal-file, .terminal-mail')
+  function findRead(read: EarlierRead, part: ReadPart = 'resource') {
+    return findEntry(read.entry)?.querySelector<HTMLElement>(partSelector[part])
   }
 
   function offset(el: HTMLElement) {
@@ -138,17 +141,24 @@ export function useTerminalReads({
     if (scroll.value) move(scroll.value.scrollTop + offset(el) - at, hold)
   }
 
+  function visiblePassage(read: EarlierRead) {
+    for (const part of ['resource', 'report'] as const) {
+      if (part === 'report' && !read.report) continue
+      const el = findRead(read, part)
+      const top = el && visibleOffset(el)
+      if (top !== undefined) return { part, offset: top }
+    }
+  }
+
   function capture(read?: EarlierRead): Position {
     const box = scroll.value
     const top = box?.scrollTop ?? 0
-    const resource = read && findRead(read)
-    const resourceTop = resource ? visibleOffset(resource) : undefined
-    if (read && resourceTop !== undefined) {
+    const passage = read && visiblePassage(read)
+    if (read && passage) {
       return {
         top,
         entry: String(read.entry),
-        resource: true,
-        offset: resourceTop,
+        ...passage,
         following: following.value,
       }
     }
@@ -165,9 +175,7 @@ export function useTerminalReads({
 
   function restore(place: Position, hold?: boolean) {
     const entry = place.entry === undefined ? undefined : findEntry(place.entry)
-    const el = place.resource
-      ? entry?.querySelector<HTMLElement>('.terminal-file, .terminal-mail')
-      : entry
+    const el = place.part ? entry?.querySelector<HTMLElement>(partSelector[place.part]) : entry
     if (el) moveTo(el, place.offset, hold)
     else move(place.entry === undefined ? place.top : 0, hold)
   }
@@ -175,29 +183,27 @@ export function useTerminalReads({
   function remember() {
     const read = selected.value
     if (!read || resultReturn.value) return
-    const el = findRead(read)
-    const top = el ? visibleOffset(el) : undefined
-    if (top !== undefined) read.offset = Math.max(0, inset - top)
+    const passage = visiblePassage(read)
+    if (passage) {
+      read.part = passage.part
+      read.offset = Math.max(0, inset - passage.offset)
+    }
   }
 
   watch(
     entries,
     (history, previous = []) => {
       const read = selected.value
-      // Capture the live passage before its original row is replaced by the earlier snapshot.
-      const evicted =
-        read &&
-        previous.some(({ id }) => id === read.entry) &&
-        !history.some(({ id }) => id === read.entry)
-      if (evicted) {
-        const el = findRead(read)
-        const top = el ? visibleOffset(el) : undefined
+      // Trimming a preceding command also moves the passage. Anchor to the same
+      // part through both the trim and the eventual switch to the retained copy.
+      if (read && !resultReturn.value && previous[0]?.id !== history[0]?.id) {
+        const passage = visiblePassage(read)
         const request = navigation
-        if (top !== undefined)
+        if (passage)
           void nextTick(() => {
             if (request !== navigation) return
-            const replacement = findRead(read)
-            if (replacement) moveTo(replacement, top)
+            const replacement = findRead(read, passage.part)
+            if (replacement) moveTo(replacement, passage.offset)
           })
       }
       indexReads(history)
@@ -238,8 +244,9 @@ export function useTerminalReads({
     expand(read.entry)
     await nextTick()
     if (request !== navigation) return
-    const el = findRead(read)
-    const start = archived.value && !read.offset ? findEntry(read.entry) : el
+    const el = findRead(read, read.part)
+    const start =
+      archived.value && !read.offset && read.part !== 'report' ? findEntry(read.entry) : el
     if (start) moveTo(start, inset - read.offset)
     if (keyboard) el?.focus({ preventScroll: true })
     change()
@@ -277,9 +284,8 @@ export function useTerminalReads({
     await nextTick()
     if (request !== navigation) return
     const read = selected.value
-    const resource = read && findRead(read)
-    if (resource && place.resource) moveTo(resource, place.offset)
-    else restore(place)
+    const resource = read && findRead(read, place.part)
+    restore(place)
     if (keyboard) {
       if (resource && visibleOffset(resource) !== undefined) resource.focus({ preventScroll: true })
       else focusTranscript()

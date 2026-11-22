@@ -67,12 +67,24 @@ const drag = useInspectorDrag(scroll, (first, last) => {
   if (head && tail) emit('select', { start: head.start, end: tail.end })
 })
 
-function showPreview() {
+function showPreview(revealPanel = true) {
   void nextTick(() => {
     const region = panel.value
+    const box = scroll.value
+    if (!region || !box?.clientHeight) return
+    const point =
+      box.querySelector<HTMLElement>('.point[aria-pressed="true"]') ??
+      box.querySelector('.point-caret')?.parentElement
+    if (point) {
+      const cell = point.getBoundingClientRect()
+      const bounds = box.getBoundingClientRect()
+      if (cell.top < bounds.top || cell.bottom > bounds.bottom)
+        box.scrollTop += cell.top - bounds.top
+    }
+    if (!revealPanel) return
     const list = region?.closest<HTMLElement>('.composer-arguments')
-    if (!region || !list?.clientHeight || list.scrollHeight <= list.clientHeight) return
-    const first = region.querySelector('.point') ?? region
+    if (!list?.clientHeight || list.scrollHeight <= list.clientHeight) return
+    const first = point ?? region.querySelector('.point') ?? region
     const hidden = first.getBoundingClientRect().bottom - list.getBoundingClientRect().bottom + 2
     if (hidden > 0) list.scrollTop += hidden
   })
@@ -86,7 +98,6 @@ function toggle() {
 function choose(event: Event) {
   chosen.value = (event.target as HTMLSelectElement).value as ArgumentInspector
   expanded.value = true
-  if (scroll.value) scroll.value.scrollTop = 0
   showPreview()
 }
 
@@ -99,6 +110,7 @@ function restoreView(view: ArgumentView) {
   const saved = view.inspector ?? (view.bytes ? 'utf-8' : 'code-points')
   chosen.value = props.types.includes(saved) ? saved : undefined
   expanded.value = view.expanded === true
+  if (expanded.value) showPreview(false)
 }
 
 function visibleGroups({ start, end }: Span) {

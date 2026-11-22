@@ -131,6 +131,34 @@ test('shows exact draft lengths and keeps the insertion point visible in the Uni
   expect(await alias.evaluate((element) => element.scrollLeft)).toBeLessThan(8)
 })
 
+test('keeps the selected source visible when opening and changing a long argument inspection', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 430 })
+  await relay(page)
+  await commandControl(page, 'login')
+  const alias = field(page, 'Account alias')
+  const prefix = 'אe\u0301👩‍💻\u200b'.repeat(24)
+  const draft = prefix + String.raw`\U1F9EA` + 'Z'
+  await alias.fill(draft)
+  await selection(alias, prefix.length, draft.length - 1)
+  const kind = page.getByRole('combobox', { name: 'Account alias inspector type' })
+  const current = page.locator('.point[aria-pressed=true]')
+  await page.getByRole('button', { name: 'Code points', exact: true }).click()
+  await expect(current).toBeInViewport({ ratio: 1 })
+  await kind.focus()
+  await kind.selectOption('utf-8')
+  await expect(current).toHaveAccessibleName(/F0 9F A7 AA, U\+1F9EA/)
+  await expect(current).toBeInViewport({ ratio: 1 })
+  await expect(kind).toBeFocused()
+  await page.reload()
+  await expect(alias).toHaveValue(draft)
+  await expect(current).toBeInViewport({ ratio: 1 })
+  expect(
+    await alias.evaluate((el: HTMLTextAreaElement) => [el.selectionStart, el.selectionEnd]),
+  ).toEqual([prefix.length, draft.length - 1])
+})
+
 test('reveals timed command output at its configured boundaries', async ({ page }) => {
   await page.route('**/001-the-relay/scenario.json', async (route) => {
     const scenario = await (await route.fetch()).json()

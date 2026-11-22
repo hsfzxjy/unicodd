@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, useId } from 'vue'
+import { computed, nextTick, ref, useId } from 'vue'
 import ArgumentInspector from './ArgumentInspector.vue'
-import { useArgumentEditor } from '../composables/useArgumentEditor'
+import { revealArgument, useArgumentEditor } from '../composables/useArgumentEditor'
 import { useArgumentResize } from '../composables/useArgumentResize'
 import type { ArgumentInspector as InspectorType } from '../lib/argument-inspectors'
 import type { Span } from '../lib/unicode'
@@ -13,6 +13,7 @@ const props = defineProps<{
   sizeKey: string
   inline: boolean
   active: boolean
+  choices?: readonly string[]
   inspectors: readonly InspectorType[]
   literal: boolean
   disabled: boolean
@@ -31,6 +32,11 @@ const id = useId()
 const inspector = ref<InstanceType<typeof ArgumentInspector>>()
 const editor = ref<HTMLElement>()
 const control = ref<HTMLTextAreaElement>()
+const select = ref<HTMLSelectElement>()
+const choice = computed({
+  get: () => props.modelValue,
+  set: (value) => emit('update:modelValue', value),
+})
 const mirror = ref<HTMLDivElement>()
 const drawnCaret = ref<HTMLSpanElement>()
 const resize = useArgumentResize(props.sizeKey, control)
@@ -64,12 +70,26 @@ const {
   composition: (active) => emit('composition', active),
 })
 
+function revealFocusedEditor() {
+  if (!select.value) revealEditor()
+  else if (document.activeElement === select.value) revealArgument(select.value, props.inline)
+}
+
+function activateSelect() {
+  emit('activate')
+  void nextTick(revealFocusedEditor)
+}
+
 defineExpose({
   apply,
   cueTargets: (span: Span) =>
     inspector.value?.visibleGroups(span) ?? (editor.value ? [editor.value] : []),
-  focusAt,
-  revealEditor,
+  focusAt: (span: Span, focus = true) => {
+    if (select.value) {
+      if (focus) select.value.focus({ preventScroll: true })
+    } else focusAt(span, focus)
+  },
+  revealEditor: revealFocusedEditor,
   captureSelection,
   context: () => ({ ...selection.value }),
   saveView: () => inspector.value?.saveView(),
@@ -80,7 +100,27 @@ defineExpose({
 <template>
   <div class="composer-argument" :class="{ 'active-argument': active, 'inline-argument': inline }">
     <label :for="id">{{ label }}</label>
-    <div ref="editor" class="argument-editor" :class="{ 'resized-editor': height !== undefined }">
+    <select
+      v-if="choices"
+      :id="id"
+      ref="select"
+      v-model="choice"
+      class="argument-choice"
+      :disabled="disabled"
+      @focus="activateSelect"
+      @keydown.shift.tab="emit('key', $event)"
+    >
+      <option v-if="!choices.includes(modelValue)" :value="modelValue" disabled>
+        {{ modelValue || label }}
+      </option>
+      <option v-for="value in choices" :key="value" :value="value">{{ value }}</option>
+    </select>
+    <div
+      v-else
+      ref="editor"
+      class="argument-editor"
+      :class="{ 'resized-editor': height !== undefined }"
+    >
       <textarea
         :id="id"
         ref="control"
@@ -127,7 +167,7 @@ defineExpose({
       </div>
     </div>
     <ArgumentInspector
-      v-if="inspectors.length"
+      v-if="!choices && inspectors.length"
       v-show="active"
       ref="inspector"
       :label="label"
@@ -166,6 +206,14 @@ defineExpose({
 }
 .composer-argument.active-argument > label {
   color: var(--accent);
+}
+.argument-choice {
+  width: 100%;
+  min-width: 0;
+  padding: 3px 6px;
+  border-radius: 0;
+  background: var(--editor-well);
+  font-size: var(--compact-text, 13px);
 }
 .argument-editor {
   position: relative;
@@ -278,7 +326,7 @@ defineExpose({
   clip-path: inset(50%);
   white-space: nowrap;
 }
-.inline-argument .argument-editor {
+.inline-argument :is(.argument-editor, .argument-choice) {
   grid-column: 3;
   grid-row: 1;
 }
@@ -309,7 +357,7 @@ defineExpose({
   .composer-argument:not(.inline-argument) {
     --argument-label-space: 18px;
   }
-  .inline-argument .argument-editor {
+  .inline-argument :is(.argument-editor, .argument-choice) {
     grid-column: 1 / -1;
     grid-row: 3;
     margin-block-start: var(--compact-inset);

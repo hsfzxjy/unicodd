@@ -1,4 +1,14 @@
-import { nextTick, onMounted, onUnmounted, reactive, ref, shallowRef, watch, type Ref } from 'vue'
+import {
+  computed,
+  nextTick,
+  onMounted,
+  onUnmounted,
+  reactive,
+  ref,
+  shallowRef,
+  watch,
+  type Ref,
+} from 'vue'
 import { progressResult, useTerminalReads, type TranscriptResult } from './useTerminalReads'
 import { unpairedSurrogate } from '../lib/unicode'
 import type { Entry, TerminalView } from '../lib/workspace'
@@ -18,12 +28,14 @@ export function sameResult(a: TranscriptResult | undefined, b: TranscriptResult)
 
 export function useTerminalTranscript({
   entries,
+  live,
   scroll,
   frame,
   closeReads,
   change,
 }: {
   entries: () => Entry[]
+  live: () => boolean
   scroll: Ref<HTMLDivElement | undefined>
   frame: Ref<HTMLElement | undefined>
   closeReads: () => void
@@ -32,6 +44,8 @@ export function useTerminalTranscript({
   const scrollSpace = '--transcript-scroll-space'
   const following = ref(true)
   const awayFromEnd = ref(false)
+  const unseenOutput = reactive(new Map<number, number>())
+  const unreadCount = computed(() => unseenOutput.size)
   const freshProgress = shallowRef<TranscriptResult>()
   const offscreenProgress = shallowRef<TranscriptResult>()
   const presentation = shallowRef<{
@@ -111,6 +125,7 @@ export function useTerminalTranscript({
     following.value = !reading.value
     holdScrollSpace = false
     awayFromEnd.value = false
+    unseenOutput.clear()
     if (keyboard) {
       const last = box?.lastElementChild as HTMLElement | undefined
       if (box && last && last.getBoundingClientRect().top >= box.getBoundingClientRect().top)
@@ -124,6 +139,20 @@ export function useTerminalTranscript({
     return transcript.length === 1 && transcript[0].id === 0 && scroll.value?.scrollTop === 0
   }
 
+  function outputBelowViewport(id: number, from: number) {
+    const box = scroll.value
+    const entry = findEntry(id)
+    if (!box || !entry) return false
+    const anchor = collapsed.has(id)
+      ? entry
+      : Array.from(entry.querySelectorAll<HTMLElement>('.entry-output > [data-output-index]')).find(
+          (row) => Number(row.dataset.outputIndex) >= from,
+        )
+    return Boolean(
+      anchor && anchor.getBoundingClientRect().top >= box.getBoundingClientRect().bottom,
+    )
+  }
+
   function trackScroll() {
     const box = scroll.value
     if (box) {
@@ -135,6 +164,9 @@ export function useTerminalTranscript({
       if (!reserved) holdScrollSpace = false
       awayFromEnd.value = remaining - reserved > 1
       following.value = !reading.value && !holdScrollSpace && remaining < (atOpening() ? 1 : 28)
+    }
+    for (const [id, from] of unseenOutput) {
+      if (!outputBelowViewport(id, from)) unseenOutput.delete(id)
     }
     if (!pendingProgress) measureProgress()
     change()
@@ -153,6 +185,7 @@ export function useTerminalTranscript({
     closeReads()
     resetReads()
     collapsed.clear()
+    unseenOutput.clear()
     holdScrollSpace = false
     cancelAnimationFrame(settlementFrame)
     pendingProgress = presentation.value = undefined
@@ -234,6 +267,20 @@ export function useTerminalTranscript({
       }
       const firstCommand = prior?.id === 0 && last && last.id !== 0 && scroll.value?.scrollTop === 0
       if (following.value || firstCommand) scrollToEnd()
+      else {
+        for (const id of unseenOutput.keys()) {
+          if (!entries.some((entry) => entry.id === id)) unseenOutput.delete(id)
+        }
+        if (live() && last && last.id > 0 && (!prior || last.id >= prior.id)) {
+          const from = last.id === prior?.id ? prior.output.length : 0
+          if (
+            last.output.length > from &&
+            !unseenOutput.has(last.id) &&
+            outputBelowViewport(last.id, from)
+          )
+            unseenOutput.set(last.id, from)
+        }
+      }
       if (last && !last.waiting && (last.id !== prior?.id || prior?.waiting)) {
         freshProgress.value = progressResult(last)
         offscreenProgress.value = undefined
@@ -373,6 +420,7 @@ export function useTerminalTranscript({
 
   return {
     awayFromEnd,
+    unreadCount,
     offscreenProgress,
     presentation,
     progressVisible,

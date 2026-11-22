@@ -74,13 +74,13 @@ const closeout = computed(() => {
 // A filed report opens with its cover text. Keep the filing outcome and
 // correspondence together above the attached records in reading and tab order.
 const displayRows = computed(() => {
-  const rows = props.entry.output
-  if (rows[0]?.kind !== 'file') return rows
-  const index = rows.findIndex((row) => row.kind === 'report')
-  const band = rows[index + 1]
+  const rows = props.entry.output.map((row, outputIndex) => ({ row, outputIndex }))
+  if (rows[0]?.row.kind !== 'file') return rows
+  const index = rows.findIndex(({ row }) => row.kind === 'report')
+  const band = rows[index + 1]?.row
   if (index < 0 || band?.kind !== 'objective' || band.progress?.scope !== 'scenario') return rows
   let end = index + 2
-  while (end < rows.length && closeout.value.has(rows[end])) end++
+  while (end < rows.length && closeout.value.has(rows[end].row)) end++
   return [...rows.slice(0, index), ...rows.slice(index + 1, end), rows[index], ...rows.slice(end)]
 })
 const presentedBand = computed(() => {
@@ -162,10 +162,11 @@ function helpCommand(name: CommandName, referenceConnected: boolean) {
           <bdi class="arrival-host">@{{ entry.arrival.host }}</bdi> ·
           <bdi>{{ entry.arrival.role }}</bdi>
         </p>
-        <template v-for="(row, index) in displayRows" :key="index">
+        <template v-for="({ row, outputIndex }, index) in displayRows" :key="outputIndex">
           <template v-if="row === omitRow"></template>
           <TerminalListing
             v-else-if="row.kind === 'listing'"
+            :data-output-index="outputIndex"
             :row="row"
             :closeout="closeout.get(row)"
             :activity="activity"
@@ -176,6 +177,7 @@ function helpCommand(name: CommandName, referenceConnected: boolean) {
           />
           <TerminalResource
             v-else-if="row.kind === 'file' || row.kind === 'mail'"
+            :data-output-index="outputIndex"
             :output="row"
             :busy="busy"
             @action="emit('action', $event)"
@@ -185,6 +187,7 @@ function helpCommand(name: CommandName, referenceConnected: boolean) {
               v-if="activity.deliveredMail.some((id) => !activity.readMail.includes(id))"
               type="button"
               class="terminal-link mail-notice transcript-label"
+              :data-output-index="outputIndex"
               aria-label="Unread mail, open local inbox"
               :aria-disabled="busy || undefined"
               @click="emit('mail')"
@@ -194,6 +197,7 @@ function helpCommand(name: CommandName, referenceConnected: boolean) {
           </template>
           <TerminalInspection
             v-else-if="row.kind === 'inspection'"
+            :data-output-index="outputIndex"
             :row="row"
             :can-insert-payload="canInsert"
             :can-insert-command="canInsertCommand"
@@ -203,6 +207,7 @@ function helpCommand(name: CommandName, referenceConnected: boolean) {
           />
           <TerminalReport
             v-else-if="row.kind === 'report'"
+            :data-output-index="outputIndex"
             :rows="row.rows"
             :busy="busy"
             :can-insert="canInsert"
@@ -212,6 +217,7 @@ function helpCommand(name: CommandName, referenceConnected: boolean) {
           <section
             v-else-if="row.kind === 'help'"
             class="command-help"
+            :data-output-index="outputIndex"
             aria-label="Command reference"
             tabindex="-1"
           >
@@ -248,11 +254,13 @@ function helpCommand(name: CommandName, referenceConnected: boolean) {
           </section>
           <TerminalProgress
             v-else-if="(row.kind === 'milestone' || row.kind === 'objective') && row.progress"
+            :data-output-index="outputIndex"
             :progress="row.progress"
             :present="row === presentedBand"
           />
           <p
             v-else
+            :data-output-index="outputIndex"
             :tabindex="row.kind === 'error' || index === 0 ? -1 : undefined"
             :class="[
               'terminal-line',

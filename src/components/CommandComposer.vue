@@ -13,6 +13,7 @@ import {
 } from 'vue'
 import ComposerArgument from './ComposerArgument.vue'
 import ComposerMenu from './ComposerMenu.vue'
+import { composerFields } from '../composables/composer-fields'
 import { paintEditCue } from '../composables/edit-cue'
 import {
   composerAction,
@@ -68,7 +69,7 @@ let scratch: Draft | undefined
 let editRequest = 0
 let clearEditCue: (() => void) | undefined
 const fields = computed(() =>
-  selected.value ? composerArguments(selected.value, props.operations) : [],
+  selected.value ? composerFields(selected.value, props.operations) : [],
 )
 const fixedFields = computed(
   () =>
@@ -77,8 +78,9 @@ const fixedFields = computed(
       ?.fields.filter((field) => field.fixed !== undefined) ?? [],
 )
 const activeEditor = computed(() => editors.get(activeIndex.value))
+const activeField = computed(() => fields.value[activeIndex.value])
 const canInsert = computed(
-  () => Boolean(selected.value && fields.value[activeIndex.value]) && !composing.value,
+  () => Boolean(activeField.value && !activeField.value.choices) && !composing.value,
 )
 const canReplace = computed(() => {
   const span = activeEditor.value?.context()
@@ -89,9 +91,10 @@ const canReuse = computed(() => !props.busy && !composing.value && !pending.valu
 const matches = computed(() => {
   if (!focused.value || composing.value || !showSuggestions.value || menuOpen.value) return []
   if (!selected.value) return matchSuggestions(text.value, props.suggestions).slice(0, 5)
-  const field = fields.value[activeIndex.value]
+  const field = activeField.value
   if (
     !field ||
+    field.choices ||
     field.kind === 'payload' ||
     field.kind === 'scalar' ||
     field.kind === 'text' ||
@@ -273,7 +276,8 @@ function structuredAction(): Action | undefined {
 }
 function keepFieldFocus(event: MouseEvent) {
   const field = document.activeElement
-  if (root.value?.contains(field) && field?.matches('input, textarea')) event.preventDefault()
+  if (root.value?.contains(field) && field?.matches('input, textarea, select'))
+    event.preventDefault()
 }
 async function submit() {
   if (composing.value || props.busy || pending.value) return
@@ -351,6 +355,13 @@ async function submit() {
     }
   } finally {
     pending.value = false
+    if (focusedField instanceof HTMLSelectElement && context === props.context) {
+      await nextTick()
+      if (document.activeElement === document.body || document.activeElement === focusedField) {
+        if (selected.value) await focusField(saved.active)
+        else input.value?.focus({ preventScroll: true })
+      }
+    }
   }
 }
 function blocked(event: KeyboardEvent) {
@@ -643,10 +654,11 @@ defineExpose({
           :inline="fields.length === 1"
           :model-value="values[index] ?? ''"
           :active="activeIndex === index"
+          :choices="field.choices"
           :inspectors="field.inspectors ?? []"
           :literal="field.kind === 'json'"
           :last="index === fields.length - 1"
-          :disabled="busy || pending"
+          :disabled="busy || (pending && !field.choices)"
           @update:model-value="updateValue(index, $event)"
           @activate="activeIndex = index"
           @composition="composing = $event"

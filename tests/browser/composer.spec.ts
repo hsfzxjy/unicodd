@@ -51,7 +51,7 @@ test('tags every command, expands required input, leaves unknown text alone and 
     await free(page).fill(definition.name + ' ')
     await expect(tag(page)).toContainText(definition.name)
     await expect(free(page)).toHaveCount(0)
-    await expect(page.locator('.composer-argument textarea')).toHaveCount(
+    await expect(page.locator('.composer-argument :is(textarea, .argument-choice)')).toHaveCount(
       definition.arguments.length,
     )
   }
@@ -180,7 +180,7 @@ test('keeps the selected source visible when opening and changing a long argumen
   ).toEqual([prefix.length, draft.length - 1])
 })
 
-test('reveals timed command output at its configured boundaries', async ({ page }) => {
+async function stageRelayReads(page: Page) {
   await page.route('**/001-the-relay/scenario.json', async (route) => {
     const scenario = await (await route.fetch()).json()
     scenario.outputTiming = {
@@ -199,6 +199,10 @@ test('reveals timed command output at its configured boundaries', async ({ page 
   const now = Date.now()
   await page.clock.install({ time: now })
   await page.clock.pauseAt(now + 1000)
+}
+
+test('reveals timed command output at its configured boundaries', async ({ page }) => {
+  await stageRelayReads(page)
   await typed(page, 'cat /queue/8c2f.msg')
   const entry = log(page).locator('.terminal-entry').last()
   const output = entry.locator('.entry-output')
@@ -228,6 +232,36 @@ test('reveals timed command output at its configured boundaries', async ({ page 
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await typed(page, 'cat /README')
   await expect(entry.getByRole('region', { name: 'File /README' })).toBeVisible()
+})
+
+test('counts timed output once while its command stays below the transcript viewport', async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 390, height: 430 })
+  // The timed scenario starts in follow mode, with enough history to scroll back.
+  await stageRelayReads(page)
+  await typed(page, 'help')
+  await expect(free(page)).toBeEditable()
+  await log(page).evaluate((el) => {
+    el.scrollTop = 0
+    el.dispatchEvent(new Event('scroll'))
+  })
+  const latest = page.getByRole('button', { name: 'Latest output', exact: true })
+  await expect(latest).toHaveText('Latest output')
+  await typed(page, 'cat /queue/8c2f.msg')
+  const entry = log(page).locator('.terminal-entry').last()
+  await expect(entry.getByRole('status', { name: 'Waiting for output' })).toBeAttached()
+  await expect(latest).toHaveText('Latest output')
+  await page.clock.runFor(800)
+  await expect(entry.getByRole('region', { name: 'File /queue/8c2f.msg' })).toBeAttached()
+  await expect(latest).toHaveText('Latest output 1 new')
+  await page.clock.runFor(800)
+  await expect(entry.getByRole('status', { name: 'Waiting for output' })).toHaveCount(0)
+  await expect(latest).toHaveText('Latest output 1 new')
+  expect(await log(page).evaluate((el) => el.scrollTop)).toBe(0)
+  await page.screenshot({ path: info.outputPath('unseen-output-at-keyboard-height.png') })
+  await latest.press('Enter')
+  await expect(latest).toHaveCount(0)
 })
 
 test('inspects UTF-8 byte groups and selects their source scalar', async ({ page }, info) => {

@@ -10,6 +10,33 @@ import {
 } from 'vue'
 import { applyNativeEdit, editorText, rawOffset, scalarSpan, type Span } from '../lib/unicode'
 
+export function revealArgument(
+  field: HTMLTextAreaElement | HTMLSelectElement,
+  inline: boolean,
+  caret?: { top: number; height: number },
+) {
+  const list = field.closest<HTMLElement>('.composer-arguments')
+  if (!list?.clientHeight || list.scrollHeight <= list.clientHeight) return
+  const bounds = list.getBoundingClientRect()
+  const editor = field.getBoundingClientRect()
+  const label = inline
+    ? undefined
+    : field.closest('.composer-argument')?.querySelector('label')?.getBoundingClientRect()
+  const top = Math.min(editor.top, label?.top ?? editor.top)
+  const caretTop = editor.top + (caret?.top ?? 0) - field.scrollTop + field.clientTop
+  const targetTop =
+    editor.bottom - top <= list.clientHeight
+      ? top
+      : editor.height <= list.clientHeight || !caret
+        ? editor.top
+        : caretTop
+  const targetBottom =
+    editor.height <= list.clientHeight || !caret ? editor.bottom : caretTop + caret.height
+  if (targetTop < bounds.top) list.scrollTop += targetTop - bounds.top
+  else if (targetBottom > bounds.top + list.clientHeight)
+    list.scrollTop += targetBottom - (bounds.top + list.clientHeight)
+}
+
 export function useArgumentEditor(
   props: { readonly modelValue: string; readonly inline: boolean },
   {
@@ -126,26 +153,7 @@ export function useArgumentEditor(
       field.selectionDirection === 'backward' ? field.selectionStart : field.selectionEnd
     const caret = caretRect(field, start, field.value)
     if (caret) scrollCaret(field, caret)
-    const list = field.closest<HTMLElement>('.composer-arguments')
-    if (!list?.clientHeight || list.scrollHeight <= list.clientHeight) return
-    const bounds = list.getBoundingClientRect()
-    const editor = field.getBoundingClientRect()
-    const label = props.inline
-      ? undefined
-      : field.closest('.composer-argument')?.querySelector('label')?.getBoundingClientRect()
-    const top = Math.min(editor.top, label?.top ?? editor.top)
-    const caretTop = editor.top + (caret?.top ?? 0) - field.scrollTop + field.clientTop
-    const targetTop =
-      editor.bottom - top <= list.clientHeight
-        ? top
-        : editor.height <= list.clientHeight
-          ? editor.top
-          : caretTop
-    const targetBottom =
-      editor.height <= list.clientHeight ? editor.bottom : caretTop + (caret?.height ?? 0)
-    if (targetTop < bounds.top) list.scrollTop += targetTop - bounds.top
-    else if (targetBottom > bounds.top + list.clientHeight)
-      list.scrollTop += targetBottom - (bounds.top + list.clientHeight)
+    revealArgument(field, props.inline, caret)
   }
 
   let lastWidth = 0

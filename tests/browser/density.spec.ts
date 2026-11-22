@@ -157,9 +157,9 @@ test('compact normalization keeps each form visible and represents only equal re
   ).toHaveCount(2)
 })
 
-test('keeps the focused last parameter inside its scrollport through live resizing', async ({
+test('keeps the focused text parameter inside its scrollport through live resizing', async ({
   page,
-}) => {
+}, info) => {
   test.skip(Boolean(process.env.PLAYWRIGHT_TEST_PREVIEW), 'Requires Release direct entry')
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/?scenario=006-the-release')
@@ -170,7 +170,13 @@ test('keeps the focused last parameter inside its scrollport through live resizi
   const free = page.getByRole('textbox', { name: 'Terminal command' })
   await free.fill('preview')
   await free.press('Space')
-  const field = page.getByRole('textbox', { name: 'Controls', exact: true })
+  const units = page.getByRole('combobox', { name: 'Limit units', exact: true })
+  const field = page.getByRole('textbox', { name: 'Field limit', exact: true })
+  await expect(units).toBeFocused()
+  await expect(units).toHaveValue('utf16')
+  await units.selectOption('grapheme')
+  await units.press('Tab')
+  await expect(field).toBeFocused()
   await field.fill('raw🧪')
   await field.evaluate((el: HTMLTextAreaElement) => el.setSelectionRange(3, 5, 'backward'))
   const log = page.getByRole('log')
@@ -213,6 +219,8 @@ test('keeps the focused last parameter inside its scrollport through live resizi
       ]),
     ).toEqual([3, 5, 'backward'])
   }
+  await expect(units).toHaveValue('grapheme')
+  await page.screenshot({ path: info.outputPath('preview-selects-390x844.png') })
 })
 
 test('labels compact command discovery and leaves room to type at 320px', async ({ page }) => {

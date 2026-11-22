@@ -638,16 +638,30 @@ test('keeps manual scrollback and safely renders raw command echoes', async ({ p
   })
   const latest = page.getByRole('button', { name: /Latest output/ })
   await expect(latest).toBeVisible()
+  await expect(latest).toHaveText('Latest output')
   const text = 'unknown <img> אבג'
   await run(page, text)
   await expect(log).toContainText('Unknown command')
+  await expect(latest).toHaveText('Latest output 1 new')
+  await expect(latest).toHaveAccessibleDescription('1 command has new output')
   await expect(log.locator('img')).toHaveCount(0)
-  const echo = log.locator('.command-echo bdi').last()
+  const echo = log.locator('.command-echo bdi').filter({ hasText: text })
   await expect(echo).toHaveText(text)
   expect(await echo.evaluate((element) => getComputedStyle(element).unicodeBidi)).toBe('isolate')
+  await run(page, 'whoami')
+  await expect(latest).toHaveText('Latest output 2 new')
+  await expect(latest).toHaveAccessibleDescription('2 commands have new output')
   expect(await log.evaluate((element) => element.scrollTop)).toBe(0)
+  await echo.evaluate((element) => {
+    const transcript = element.closest('.transcript')!
+    const output = element.closest('.terminal-entry')!.querySelector('.entry-output')!
+    transcript.scrollTop +=
+      output.getBoundingClientRect().top - transcript.getBoundingClientRect().bottom + 5
+  })
+  await expect(latest).toHaveText('Latest output 1 new')
   await latest.click()
-  await expect(echo).toBeInViewport()
+  await expect(latest).toHaveCount(0)
+  await run(page, 'whoami')
   await expect(latest).toHaveCount(0)
 })
 

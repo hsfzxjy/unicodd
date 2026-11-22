@@ -33,6 +33,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ action: [Action, string?]; change: []; dismissPanel: [] }>()
 const outputPrefix = useId() + '-output-'
+const unreadId = useId()
 const scroll = ref<HTMLDivElement>()
 const frame = ref<HTMLElement>()
 const dock = ref<HTMLElement>()
@@ -65,6 +66,7 @@ const opening = computed(() => {
 })
 const {
   awayFromEnd,
+  unreadCount,
   offscreenProgress,
   presentation,
   progressVisible,
@@ -93,6 +95,7 @@ const {
   focusTranscript,
 } = useTerminalTranscript({
   entries: () => props.transcript,
+  live: () => props.live,
   scroll,
   frame,
   closeReads: () => readsControls.value?.close(),
@@ -100,6 +103,9 @@ const {
 })
 
 const outcome = computed(() => (reading.value ? result.value : offscreenProgress.value))
+const showLatest = computed(
+  () => unreadCount.value > 0 || (awayFromEnd.value && (reading.value || !outcome.value)),
+)
 watch([outcome, resultReturn], ([target, returning]) => {
   const cue = presentation.value
   if (cue?.target === 'jump' && (returning || !sameResult(target, cue.result)))
@@ -156,9 +162,10 @@ function fitDetails() {
     const prompt = editor.querySelector<HTMLElement>('.prompt-line')!
     const inline = getComputedStyle(prompt).display === 'contents'
     const field = editor.querySelector<HTMLTextAreaElement>('.inline-argument textarea')
+    const inlineControl = field ?? editor.querySelector('.inline-argument select')
     const fixedPrompt = inline
       ? Math.max(
-          Number.parseFloat(getComputedStyle(field!).minHeight),
+          Number.parseFloat(getComputedStyle(inlineControl!).minHeight),
           editor.querySelector<HTMLElement>('.run-command')!.offsetHeight,
         )
       : prompt.offsetHeight
@@ -253,7 +260,7 @@ async function openTitleList(type: 'hosts' | 'mail') {
 }
 
 function keepEditing(event: MouseEvent) {
-  if (document.activeElement?.matches('.command-composer input, .command-composer textarea'))
+  if (document.activeElement?.matches('.command-composer :is(input, textarea, select)'))
     event.preventDefault()
 }
 
@@ -285,6 +292,13 @@ defineExpose({
   <section ref="frame" class="terminal-frame" aria-label="Terminal">
     <slot name="title" v-bind="{ openTitleList }" />
     <p class="milestone-announcement" role="status" dir="auto">{{ collapsedAnnouncement }}</p>
+    <p :id="unreadId" class="unread-announcement" role="status">
+      {{
+        unreadCount
+          ? `${unreadCount} ${unreadCount === 1 ? 'command has' : 'commands have'} new output`
+          : ''
+      }}
+    </p>
     <div
       ref="scroll"
       class="transcript"
@@ -347,7 +361,7 @@ defineExpose({
     </div>
     <div ref="dock" class="terminal-controls">
       <div
-        v-if="reading || outcome || awayFromEnd"
+        v-if="reading || outcome || showLatest"
         class="transcript-navigation"
         role="group"
         aria-label="Transcript navigation"
@@ -374,12 +388,16 @@ defineExpose({
           {{ viewLabel }}
         </button>
         <button
-          v-if="awayFromEnd && (reading || !outcome)"
+          v-if="showLatest"
           type="button"
           class="latest-output"
+          :aria-describedby="unreadCount ? unreadId : undefined"
           @click="latest($event.detail === 0)"
         >
           <ArrowDownToLine aria-hidden="true" /> Latest output
+          <span v-if="unreadCount" class="unread-output" aria-hidden="true"
+            >{{ unreadCount }} new</span
+          >
         </button>
       </div>
       <div class="toolbar shortcuts" aria-label="Quick actions" role="group">
@@ -467,7 +485,8 @@ defineExpose({
 :where(.terminal-frame) :deep(.prompt-host.remote) {
   color: var(--accent);
 }
-:where(.terminal-frame) :deep(.milestone-announcement) {
+:where(.terminal-frame) :deep(.milestone-announcement),
+.unread-announcement {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -575,6 +594,13 @@ defineExpose({
 }
 .transcript-navigation .view-outcome {
   color: var(--accent);
+}
+.unread-output {
+  padding: 0 4px;
+  border: 1px solid currentColor;
+  color: var(--focus);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .transcript-navigation .lucide {
   --icon-size: 13px;

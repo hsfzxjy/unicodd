@@ -386,7 +386,8 @@ async function dispatch(action: Action, command?: string) {
   const fromEditor =
     command !== undefined &&
     (focusAtSubmission instanceof HTMLInputElement ||
-      focusAtSubmission instanceof HTMLTextAreaElement)
+      focusAtSubmission instanceof HTMLTextAreaElement ||
+      focusAtSubmission instanceof HTMLSelectElement)
   busy.value = true
   let response
   let clipboard: boolean | undefined

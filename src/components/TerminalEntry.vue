@@ -196,11 +196,11 @@ function echoText(value: string) {
               v-if="activity.deliveredMail.some((id) => !activity.readMail.includes(id))"
               type="button"
               class="terminal-link mail-notice transcript-label"
-              aria-label="New mail, open local inbox"
+              aria-label="Unread mail, open local inbox"
               :aria-disabled="busy || undefined"
               @click="emit('mail')"
             >
-              <Mail aria-hidden="true" /> New mail
+              <Mail aria-hidden="true" /> Unread mail
             </button>
           </template>
           <TerminalInspection

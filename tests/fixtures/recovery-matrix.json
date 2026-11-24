@@ -134,6 +134,7 @@
       "classification": "trap",
       "failed": ["complete-traversal", "cursor-unique"],
       "diagnostic": "Replay skipped records",
+      "notes": [["Page 1", "Resume after all titles tied with “Aterstallning”"]],
       "rows": [
         ["Page 1", "AP-1842"],
         ["Missing records", "AP-2917", "AP-T001", "AP-T002"]
@@ -167,7 +168,7 @@
       "args": ["en-US", "primary", "title", "64", "start"],
       "classification": "trap",
       "failed": ["cursor-unique"],
-      "diagnostic": "Title weights cannot identify a unique boundary",
+      "diagnostic": "Two or more rows share a title sort key",
       "rows": [["Page 1", "AP-1842", "AP-2917", "AP-T001", "AP-T002", "AP-T003"]],
       "points": []
     },
@@ -179,6 +180,7 @@
       "classification": "trap",
       "failed": ["no-duplicates"],
       "diagnostic": "Replay repeated a record",
+      "notes": [["Page 2", "Resume at “Åtkomst” · AP-T003"]],
       "rows": [["Page 2", "AP-T003"]],
       "points": []
     },
@@ -194,6 +196,7 @@
     },
     {
       "id": "composite-sweden",
+      "notes": [["Page 2", "Resume after “Återställning” · AP-T002"]],
       "scenario": "004-the-backlog",
       "command": "replay",
       "args": ["sv-SE", "primary", "composite", "2", "start"],

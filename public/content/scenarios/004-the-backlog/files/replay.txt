@@ -1,12 +1,20 @@
-Replay controls
+Review desk / page replay
 
-Compare titles with collate: en-US or sv-SE, primary / secondary / tertiary.
-Primary comparison can group accents or case. Regional alphabets can keep distinctions that English groups.
+replay runs the review client against the five saved rows. It sorts them, reads a page, then uses the last row’s bookmark (the cursor) to request another page. The report lists the appeal IDs returned on each page. Compare them with /queue/snapshot.txt.
 
-Replay inputs: locale, strength, cursor strategy, page size (1–64), and start cursor.
-  title      advance past the last title weight
-  composite  advance past the last title weight and immutable record ID
-  inclusive  resume at the last record (legacy boundary compatibility)
-Use start to replay from the beginning. A copied or captured cursor resumes after a boundary. It carries its snapshot, collation profile, locale, strength, strategy and page size.
+Deployed run
+  replay en-US primary title 1 start
+This requests one row per page, beginning at the top. Check which ID follows AP-1842.
 
-Support needs a complete, duplicate-free replay with an unambiguous boundary before it can recover the real appeals.
+How titles sort
+  Locale chooses US English (en-US) or Swedish (sv-SE) sorting rules. Strength chooses how finely to compare titles. Primary uses the locale’s base letters. Secondary adds accent differences. Tertiary also considers case.
+  Open collate to compare the two stored appeal titles. Keep primary and switch from en-US to sv-SE. An equal result means the titles occupy the same place in that sort order.
+
+Where the next page begins
+  title      After every title that sorts equal to the last title.
+  composite  After the last title and appeal ID together. The ID orders rows within a tie.
+  inclusive  At the last title and appeal ID again.
+
+Rows per page (1–64) sets how many IDs fit before the next bookmark. Start cursor selects the beginning (start) or a saved page boundary (Copy cursor). A saved cursor requires the same snapshot, sort settings, strategy and page size.
+
+The desk needs every ID once and a bookmark that identifies one place to resume, even when all five rows fit on a single page.

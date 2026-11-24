@@ -150,9 +150,14 @@ pub(super) fn replay(
             record: (strategy != Strategy::Title).then(|| last.id.clone()),
             ..contract.clone()
         });
-        report
-            .row(format!("Page {page}"), records.iter().map(|(_, a)| &a.id))
-            .serialized = Some(serde_json::to_string(&cursor).expect("serializable cursor"));
+        let row = report.row(format!("Page {page}"), records.iter().map(|(_, a)| &a.id));
+        let title = escape_controls(&last.title);
+        row.details.push(match strategy {
+            Strategy::Title => format!("Resume after all titles tied with “{title}”"),
+            Strategy::Composite => format!("Resume after “{title}” · {}", last.id),
+            Strategy::Inclusive => format!("Resume at “{title}” · {}", last.id),
+        });
+        row.serialized = Some(serde_json::to_string(&cursor).expect("serializable cursor"));
         let mut repeat = false;
         for (_, record) in records {
             repeat |= !seen.insert(record.id.as_str());

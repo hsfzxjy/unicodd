@@ -145,9 +145,12 @@ export interface JournalFrame {
 
 export const scrollbackLimit = 80
 
-// These catalog revisions clarify the token reference. Their journal actions replay
+// These catalog revisions clarify case evidence. Their journal actions replay
 // with the same effects on secure and plain-HTTP origins.
 const compatibleContent: Readonly<Record<string, string>> = {
+  e2fc4bfab8fb7fc2cb5479b372d0248f3b55e1225ec37d4231b709a4ee038b29:
+    '5b28d0898ad5e51ad67d9f1cd7823aa87dce7994e20cb7f596f2e03cf24e3d67',
+  'fnv64:28cd55d44a370ea1': 'fnv64:78951a9d6c3c3fd1',
   '98e4d6b2b9b0a6180001e7c72e2d41297d59aacc443b7aed72ade234e79add84':
     '5b28d0898ad5e51ad67d9f1cd7823aa87dce7994e20cb7f596f2e03cf24e3d67',
   'fnv64:b27adbbeb2ede282': 'fnv64:78951a9d6c3c3fd1',

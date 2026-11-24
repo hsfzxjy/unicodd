@@ -117,6 +117,14 @@ for (const [width, height] of [
       await expect(last(page)).toContainText(
         'The queue team has both rows. I can only see one in review.',
       )
+      await commandControl(page, 'ls', act, true)
+      await act(link(page, 'queue/'))
+      await act(link(page, 'snapshot.txt'))
+      const snapshot = last(page).getByRole('region', { name: 'File /queue/snapshot.txt' })
+      for (const point of ['U+0041', 'U+00C5', 'U+0061', 'U+00E4'])
+        await expect(snapshot.getByRole('button', { name: 'Inspect ' + point })).toBeVisible()
+      await act(snapshot.getByRole('button', { name: 'Inspect U+00C5' }))
+      await expect(last(page)).toContainText('U+00C5')
       await commandControl(page, 'collate', act)
       await submit()
       await expect(last(page)).toContainText('equal')

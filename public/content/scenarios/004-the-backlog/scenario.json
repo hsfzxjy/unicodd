@@ -30,7 +30,7 @@
         "user": "support-auditor",
         "role": "support-auditor"
       },
-      "welcome": "Queue audit. The captured database snapshot is read-only.",
+      "welcome": "Five rows are on file. Compare the reviewers’ pages with /queue/snapshot.txt. The replay controls are in /tools/replay.txt.",
       "status": [
         {
           "label": "Incident",
@@ -38,7 +38,7 @@
         },
         {
           "label": "Appeal queue replay",
-          "value": "Traversal not verified",
+          "value": "Page sequence unchecked",
           "after": {
             "flag": "replay_verified",
             "value": "Every row visited once"
@@ -69,7 +69,8 @@
           "id": "snapshot",
           "path": "/queue/snapshot.txt",
           "type": "file",
-          "content": "files/snapshot.txt"
+          "content": "files/snapshot.txt",
+          "inspectNotation": true
         },
         {
           "id": "provenance",
@@ -252,7 +253,7 @@
             {
               "check": "cursor-unique",
               "stage": "key",
-              "message": "Title weights cannot identify a unique boundary across this snapshot."
+              "message": "Two or more rows share a title sort key. That bookmark could refer to any of them."
             }
           ]
         },
@@ -319,7 +320,7 @@
         {
           "host": "appeals-04",
           "status": "Appeal queue replay",
-          "label": "Verify the queue traversal"
+          "label": "Replay all five queue rows once each"
         },
         {
           "host": "appeals-04",
@@ -329,7 +330,7 @@
       ],
       "finish": "Read the review handoff"
     },
-    "text": "Recover both appeals and read the review handoff.",
+    "text": "Replay the review queue so every row appears exactly once. Match the two owner appeals to intake and read the review handoff.",
     "read": "review-handoff",
     "message": "Both appeals are open for review.",
     "onComplete": [

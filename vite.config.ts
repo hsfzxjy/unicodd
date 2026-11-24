@@ -17,8 +17,11 @@ const logicFiles = [
 const logicPaths = logicFiles.map((name) => fileURLToPath(new URL(name, root)))
 // The case progress projection is read-only. This build can replay the preceding build's journals.
 const upgradeLogic = '42b54f4266de91fdaf855344824882d7050f86a6d57a93d441be8d2305042d0f'
-// Only report labels and journal fingerprint compatibility changed in this build.
-const reportLogic = 'f2b7a60c24406258e7ef260fa28d6aa3240e9c4c66798f4bfe0a9553a1cabc8b'
+// These exact builds change diagnostic output while preserving recorded actions and effects.
+const reportLogic = new Set([
+  'f2b7a60c24406258e7ef260fa28d6aa3240e9c4c66798f4bfe0a9553a1cabc8b',
+  'afece4d55f7b99da893b18e932f70d0234f5c80326e27a5db23965d73937de82',
+])
 const previousLogic = '1:ee9e6afa21b7afb1b1e595944d90b15d35b254a3398c2dfbcded0c55ade1eef6'
 
 export default defineConfig({
@@ -35,7 +38,7 @@ export default defineConfig({
           hash.update(logicFiles[index]).update('\0').update(readFileSync(path))
         }
         const digest = hash.digest('hex')
-        const logic = journalVersion === '1' && digest === reportLogic ? upgradeLogic : digest
+        const logic = journalVersion === '1' && reportLogic.has(digest) ? upgradeLogic : digest
         const compatible =
           journalVersion === '1' && logic === upgradeLogic ? previousLogic : undefined
         return `

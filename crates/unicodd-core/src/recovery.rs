@@ -576,7 +576,11 @@ fn routing_audit(
     for (key, records) in groups.iter().filter(|(_, records)| records.len() > 1) {
         report.row(
             "Routing collision",
-            std::iter::once(key.as_str()).chain(records.iter().map(|r| r.id.as_str())),
+            std::iter::once(format!("Key · {key}")).chain(
+                records
+                    .iter()
+                    .map(|receipt| format!("{} · {}", receipt.id, receipt.channel)),
+            ),
         );
     }
     report.check("routing-unique", groups.len() == data.receipts.len());

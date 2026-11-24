@@ -457,7 +457,10 @@
       "classification": "trap",
       "failed": ["routing-unique"],
       "diagnostic": "groups distinct receipt records",
-      "rows": [["Routing collision", "ı", "RC-T001", "RC-T002"]],
+      "rows": [
+        ["Routing collision", "Key · ı", "RC-T001 · I", "RC-T002 · ı"],
+        ["Routing collision", "Key · i", "RC-T003 · İ", "RC-T004 · i", "RC-T008 · İ"]
+      ],
       "points": [
         {
           "text": "ı",
@@ -472,7 +475,7 @@
       "args": ["default-lower"],
       "classification": "trap",
       "failed": ["routing-unique"],
-      "rows": [["Routing collision", "iris", "RC-1842", "RC-2917"]],
+      "rows": [["Routing collision", "Key · iris", "RC-1842 · IRIS", "RC-2917 · iris"]],
       "points": []
     },
     {
@@ -482,7 +485,7 @@
       "args": ["fold"],
       "classification": "trap",
       "failed": ["routing-unique"],
-      "rows": [["Routing collision", "οσ", "RC-T005", "RC-T006", "RC-T007"]],
+      "rows": [["Routing collision", "Key · οσ", "RC-T005 · ΟΣ", "RC-T006 · ος", "RC-T007 · οσ"]],
       "points": [
         {
           "text": "οσ",

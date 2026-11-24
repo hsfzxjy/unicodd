@@ -109,7 +109,6 @@ it('checks permissions, elevates through WASM, and completes only on authorized 
     ...local,
     deliveredMail: ['favor', 'missing-notice'],
     visitedHosts: ['001-the-relay/relay-07'],
-    readResources: ['001-the-relay/relay-07/incident'],
   })
 })
 
@@ -169,6 +168,9 @@ it('uses guards and effects for a differently structured fixture', async () => {
   })
   await runtime.dispatch({ type: 'cat', path: '/document' })
   expect(runtime.state.completed).toBe(true)
+  expect(runtime.state.readResources).toContain('demo/shelf/sealed-mail')
+  await runtime.dispatch({ type: 'reset' })
+  expect(runtime.state.readResources).toEqual([])
 })
 
 it('limits network commands to their console and leaves remote access active during local mail', async () => {

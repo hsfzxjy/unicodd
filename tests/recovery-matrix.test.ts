@@ -239,6 +239,8 @@ it('continues a pre-Recovery save and persists evidence through the atomic relea
   expect(campaign.completed(release.id)).toBe(true)
   const restored = await play(release.id, ['local mail it-worked', 'commit'])
   expect(restored.state.completed).toBe(true)
+  expect(campaign.read).toContain('it-worked')
+  expect(campaign.readResources).not.toHaveLength(0)
   await restored.dispatch({ type: 'reset' })
   expect(restored.state.completed).toBe(true)
   expect(restored.state.flags).toContain('released')
@@ -246,7 +248,9 @@ it('continues a pre-Recovery save and persists evidence through the atomic relea
     'it-worked',
     'thank-you',
   ])
-  expect(createCampaign(all, disk).read).toContain('it-worked')
+  const restarted = createCampaign(all, disk)
+  expect(restarted.read).toEqual([])
+  expect(restarted.readResources).toEqual([])
 })
 
 it('requires real handoffs outside isolated developer entry', async () => {

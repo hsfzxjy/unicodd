@@ -456,7 +456,7 @@ test('completes and replays the recovery and archive arcs across reloads', async
     transcript(page).getByRole('button', { name: 'We have the records', exact: true }),
   ).toHaveCount(1)
   await expect(link(page, 'We have the records')).toHaveAccessibleDescription(
-    'we-have-the-records · Mira / Registration 0002917 Read',
+    'we-have-the-records · Mira / Registration 0002917 Unread',
   )
   await run(page, 'local campaign')
   page.once('dialog', (dialog) => dialog.accept())

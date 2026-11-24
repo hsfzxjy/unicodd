@@ -383,6 +383,23 @@ test('shows host and mail alerts and updates read status in existing lists', asy
   await link(page, 'shelf').click()
   await commandControl(page, 'ls', undefined, true)
   await expect(row('index')).toHaveAttribute('data-status', 'Read')
+
+  await sessionButton(page).click()
+  await page.getByRole('button', { name: 'Restart session' }).click()
+  await expect(unreadMail).toBeVisible()
+  await commandControl(page, 'ls', undefined, true)
+  await expect(row('index')).toHaveAttribute('data-status', 'Unread')
+
+  await page.reload()
+  await unreadMail.click()
+  await expect(row('Fixture delivery')).toHaveAttribute('data-status', 'Unread')
+  await link(page, 'index').click()
+  await expect(row('index')).toHaveAttribute('data-status', 'Read')
+  await hosts().click()
+  await expect(row('annex')).toHaveAttribute('data-status', 'Visited')
+  await link(page, 'annex').click()
+  await commandControl(page, 'ls', undefined, true)
+  await expect(row('document')).toHaveAttribute('data-status', 'Unread')
 })
 
 test('saves level workspaces and drops their command history when a game text changes', async ({

@@ -735,6 +735,7 @@ export function createRuntime(
 
   async function dispatch(action: Action): Promise<Response> {
     if (action.type === 'reset') {
+      campaign.clearReadStatus()
       state = start(false)
       pending = undefined
       return { clear: true, output: welcome() }

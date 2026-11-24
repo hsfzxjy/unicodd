@@ -473,6 +473,11 @@ export function createCampaign(
     markRead(id: string) {
       if (delivered.has(id)) track(read, id)
     },
+    clearReadStatus() {
+      read.clear()
+      readResources.clear()
+      persist()
+    },
     visitHost: (key: string) => track(visitedHosts, key),
     markResourceRead: (key: string) => track(readResources, key),
     recordMilestone: (key: string) => track(milestones, key),

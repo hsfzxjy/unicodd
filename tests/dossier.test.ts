@@ -41,6 +41,35 @@ it('reconciles word boundaries and offsets against immutable UTF-8 source fields
   })
 })
 
+it('shows whole-field match boundaries and maps ASCII runs back to original bytes', async () => {
+  const tokens = (mode: string) =>
+    engine.runDossier({
+      version: 1,
+      dataset,
+      command: 'tokens',
+      args: ['one', 'text', mode + '/nfc/fold'],
+    })
+  const ascii = await tokens('ascii')
+  expect(ascii.ok).toBe(true)
+  if (!ascii.ok) return
+  const runs = ascii.value.rows.filter(({ label }) => label === 'ASCII word run')
+  expect(runs.map(({ fields }) => fields)).toEqual([
+    ['5..6', 'l'],
+    ['11..13', 'le'],
+    ['14..18', 'puis'],
+    ['21..23', 'le'],
+  ])
+  expect(runs[1].source).toMatchObject({ hit: 'le', coordinates: { utf8: [12, 14] } })
+  const substring = await tokens('substring')
+  expect(
+    substring.ok && substring.value.rows.map(({ label, fields }) => [label, fields[0]]),
+  ).toEqual([
+    ['Original field', dataset.records[0].fields.text],
+    ['Comparison field', '🧪 l’île puis île'],
+    ['Substring matching', expect.stringContaining('scalar boundary')],
+  ])
+})
+
 it('rejects malformed UTF-16 before search transport', async () => {
   await expect(
     engine.runDossier({

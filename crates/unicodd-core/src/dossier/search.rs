@@ -347,6 +347,51 @@ pub(super) fn tokens(
         return Ok(());
     };
     report.check("profile", true);
+    if let (Boundary::Ascii | Boundary::Substring, Comparison::Scalar(form, case)) =
+        (profile.boundary, profile.index)
+    {
+        let mapped = transform(text, form, case)?;
+        report.row("Original field", [text.to_owned()]);
+        report.row("Comparison field", [mapped.text.clone()]);
+        if profile.boundary == Boundary::Substring {
+            report.row(
+                "Substring matching",
+                [
+                    "A match can start and end at any scalar boundary in the comparison field."
+                        .into(),
+                ],
+            );
+            return Ok(());
+        }
+        report.row(
+            "ASCII word edges",
+            ["Both ends of a match must fall on edges of the ASCII word runs below. Byte offsets refer to the comparison field.".into()],
+        );
+        let mut edges =
+            (0..=mapped.text.len()).filter(|&offset| ascii_boundary(&mapped.text, offset));
+        let mut count = 0;
+        while let (Some(start), Some(end)) = (edges.next(), edges.next()) {
+            count += 1;
+            if count <= 48 {
+                let row = report.row(
+                    "ASCII word run",
+                    [
+                        format!("{start}..{end}"),
+                        mapped.text[start..end].to_owned(),
+                    ],
+                );
+                if let Some(original) = mapped.cover(start..end) {
+                    row.source = Some(context(text, coordinates(text, original)));
+                }
+            }
+        }
+        if count == 0 {
+            report.row("ASCII word runs", ["None".into()]);
+        } else if count > 48 {
+            report.row("More ASCII word runs", [format!("{} omitted", count - 48)]);
+        }
+        return Ok(());
+    }
     report.row(
         "Word boundaries",
         [format!(

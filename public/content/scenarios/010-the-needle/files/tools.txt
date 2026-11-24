@@ -3,4 +3,4 @@ Boundary: default (Unicode word breaks), fr (French apostrophe breaks), substrin
 Form: raw, nfc, nfd, nfkc, strip (remove non-starters), skeleton (whole segments only). Case: exact or fold.
 Scope: approved, all, or a field name from /archive/fields.txt.
 tokens <record> <field> <profile>
-Shows where the selected profile cuts the original field. Coordinates are zero-based and end-exclusive.
+For word profiles, inspect the original segments and their comparison keys. For substring and ASCII searches, inspect the whole comparison field. ASCII run offsets are in that field. Highlighted source ranges refer to the original. Ranges are zero-based and end-exclusive.

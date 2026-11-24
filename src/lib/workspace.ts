@@ -145,9 +145,12 @@ export interface JournalFrame {
 
 export const scrollbackLimit = 80
 
-// The catalog reference gained its missing command argument. Both published
-// catalogs replay the same actions. Keep their secure and plain-HTTP journals.
+// These catalog revisions clarify the token reference. Their journal actions replay
+// with the same effects on secure and plain-HTTP origins.
 const compatibleContent: Readonly<Record<string, string>> = {
+  '98e4d6b2b9b0a6180001e7c72e2d41297d59aacc443b7aed72ade234e79add84':
+    '5b28d0898ad5e51ad67d9f1cd7823aa87dce7994e20cb7f596f2e03cf24e3d67',
+  'fnv64:b27adbbeb2ede282': 'fnv64:78951a9d6c3c3fd1',
   b950a5e7fe990a5f7c38a5664f6bb004f9099cc6a63bf86f815288df0894be8b:
     '5b28d0898ad5e51ad67d9f1cd7823aa87dce7994e20cb7f596f2e03cf24e3d67',
   'fnv64:d27bc6d284ff2773': 'fnv64:78951a9d6c3c3fd1',
